@@ -6,15 +6,15 @@ Created on Thu Nov 13, 12:00:00 2025
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
+import os
 import numpy as np
 from numpy import ma as mask
+from pandas import read_csv
 from typing import Union, Optional
 
 
 # Load species codes lookup table
-import os
-from pandas import read_csv
-spp_codes = read_csv(os.path.join(os.path.dirname(__file__), 'species_codes_lut.csv'))
+spp_codes = read_csv(os.path.join(os.path.dirname(__file__), 'supporting_data', 'species_codes_lut.csv'))
 
 
 def calc_scorch_ht(sfi, amb_t=None, instand_ws=None):
