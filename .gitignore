@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Sensitive credentials (NEVER commit these!)
+.env
+.env.local
+*.key
+*.pem
+secrets.yml
+credentials.json
+
+# Large data files (upload to app instead)
+*.zip
+*.tar.gz
+*.csv
+!fuel_analyst/supporting_data/plant_photoload.csv
+!fuel_analyst/supporting_data/tree_parameters.csv
+
+# Testing data (keep sample data in supporting_data only)
+src/pyfofem/reference_docs/
+
+# Python version file
+.python-version
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
