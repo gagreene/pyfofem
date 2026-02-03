@@ -17,7 +17,7 @@ from pandas import read_csv
 spp_codes = read_csv(os.path.join(os.path.dirname(__file__), 'species_codes_lut.csv'))
 
 
-def _calc_scorch_ht(sfi, amb_t=None, instand_ws=None):
+def calc_scorch_ht(sfi, amb_t=None, instand_ws=None):
     """
     Van Wagner (1973) & Alexander (1982/85) lethal scorch height model.
     Accepts scalars or np.ndarray inputs.
@@ -41,7 +41,7 @@ def _calc_scorch_ht(sfi, amb_t=None, instand_ws=None):
                 (np.power((0.025574 * sfi) + (0.021433 * np.power(instand_ws, 3)), 0.5) * (60 - amb_t)))
 
 
-def _calc_flame_length(fire_intensity=None, char_ht=None, fl_model='Byram'):
+def calc_flame_length(fire_intensity=None, char_ht=None, fl_model='Byram'):
     """
     Flame length model (Byram, Butler, Thomas).
     Accepts scalars or np.ndarray inputs.
@@ -64,7 +64,7 @@ def _calc_flame_length(fire_intensity=None, char_ht=None, fl_model='Byram'):
         return char_ht * 1.8
 
 
-def _calc_char_ht(flame_length):
+def calc_char_ht(flame_length):
     """
     Vectorized char height calculation.
     Accepts scalars or np.ndarray inputs.
@@ -73,7 +73,7 @@ def _calc_char_ht(flame_length):
     return flame_length / 1.8
 
 
-def _calc_bark_thickness(spp, dbh, tree_fuels_df):
+def calc_bark_thickness(spp, dbh, tree_fuels_df):
     """
     Vectorized bark thickness calculation (cm).
     spp: array-like of species codes
@@ -88,7 +88,7 @@ def _calc_bark_thickness(spp, dbh, tree_fuels_df):
     return bark_thick_per_dbh * dbh
 
 
-def _calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth):
+def calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth):
     """
     Vectorized calculation of crown length scorched, percent crown volume scorched, and percent crown length scorched.
     Accepts scalars or np.ndarray inputs.
@@ -103,7 +103,7 @@ def _calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth):
     return crown_length_scorched, cvs, cls
 
 
-def _mort_crnsch(
+def mort_crnsch(
     spp: np.ndarray,
     dbh: np.ndarray,
     ht: np.ndarray,
@@ -116,7 +116,7 @@ def _mort_crnsch(
     scorch_ht: np.ndarray = None,
     instand_ws: np.ndarray = [1],
     aspen_sev: str = 'low',
-    tree_params_df: pd.DataFrame = None
+    tree_code_dict: dict = None
 ) -> np.ndarray:
     """
     FOFEM crown scorch mortality model.
@@ -124,36 +124,64 @@ def _mort_crnsch(
     spp: array of species codes (str or int). If int, will be mapped to FOFEM_sppCD using tree_params_df.
     tree_params_df: DataFrame with columns 'sppNumCD' and 'FOFEM_sppCD' for code mapping.
     """
-    n = len(spp)
+    # Verify tree_code_dict is dictionary if provided
+    if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
+        print('tree_code_dict must be a dictionary, mapping numeric species codes to FOFEM species code strings.'
+              'Using default species code mapping from species_codes_lut.csv.')
+        tree_code_dict = None
+
+    # Ensure all inputs are np.ndarrays
     spp = np.array(spp)
+    dbh = np.asarray(dbh)
+    ht = np.asarray(ht)
+    crown_depth = np.asarray(crown_depth)
+    if bark_thickness is not None:
+        bark_thickness = np.asarray(bark_thickness)
+    if fire_intensity is not None:
+        fire_intensity = np.asarray(fire_intensity)
+    amb_t = np.asarray(amb_t)
+    if flame_length is not None:
+        flame_length = np.asarray(flame_length)
+    if char_ht is not None:
+        char_ht = np.asarray(char_ht)
+    if scorch_ht is not None:
+        scorch_ht = np.asarray(scorch_ht)
+    instand_ws = np.asarray(instand_ws)
+
     # Map numeric spp to FOFEM_sppCD if needed
     if np.issubdtype(spp.dtype, np.integer):
-        spp_map = dict(zip(tree_params_df['sppNumCD'], tree_params_df['FOFEM_sppCD']))
-        spp = np.vectorize(lambda x: spp_map.get(x, 'UNK'))(spp)
+        unique_num_cds = np.unique(spp)
+        for num_cd in unique_num_cds:
+            mask = spp == num_cd
+            if tree_code_dict is None:
+                spp[mask] = (spp_codes.loc[spp_codes['num_cd'] == num_cd, 'fofem_cd'].iloc[0]
+                             if num_cd in spp_codes['num_cd'].values else 'UNK')
+            else:
+                spp[mask] = tree_code_dict.get(num_cd, 'UNK')
     else:
         spp = spp.astype(str)
 
     # Fill missing bark_thickness
     if bark_thickness is None:
-        bark_thickness = _calc_bark_thickness(spp, dbh)
+        bark_thickness = calc_bark_thickness(spp, dbh)
     # Fill missing flame_length/char_ht
     if (flame_length is None) and (char_ht is None) and (fire_intensity is None):
         raise Exception('The CRNSCH mortality model requires either flame length, char height or surface fire intensity (kW/m) as an input')
     if (fire_intensity is not None) and (flame_length is None) and (char_ht is None):
-        flame_length = _calc_flame_length(fire_intensity, char_ht)
-        char_ht = _calc_char_ht(flame_length)
+        flame_length = calc_flame_length(fire_intensity, char_ht)
+        char_ht = calc_char_ht(flame_length)
     if ((fire_intensity is not None) or (char_ht is not None)) and (flame_length is None):
-        flame_length = _calc_flame_length(fire_intensity, char_ht)
+        flame_length = calc_flame_length(fire_intensity, char_ht)
     if (flame_length is not None) and (char_ht is None):
-        char_ht = _calc_char_ht(flame_length)
+        char_ht = calc_char_ht(flame_length)
     if scorch_ht is None:
-        scorch_ht = _calc_scorch_ht(fire_intensity, amb_t, instand_ws)
+        scorch_ht = calc_scorch_ht(fire_intensity, amb_t, instand_ws)
 
     # Calculate cvs, cls
-    _, cvs, cls = _calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
+    _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
 
     # Output array
-    Pm = np.zeros(n, dtype=float)
+    Pm = np.zeros(len(spp), dtype=float)
 
     # Masks for species
     mask_abco = np.isin(spp, ['ABCO', 'ABCOC'])
@@ -267,7 +295,7 @@ def _mort_crnsch(
         dbh_a = dbh[mask_aspen]
         char_ht_a = char_ht[mask_aspen]
         Pm[mask_aspen] = np.where(
-            sev == 'low',
+            aspen_sev == 'low',
             1 / (1 + np.exp((0.251 * dbh_a) - (0.07 * char_ht_a * 12) - 4.407)),
             1 / (1 + np.exp((0.0858 * dbh_a) - (0.118 * char_ht_a * 12) - 2.157))
         )
