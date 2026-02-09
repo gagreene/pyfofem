@@ -17,10 +17,18 @@ from typing import Union, Optional
 spp_codes = read_csv(os.path.join(os.path.dirname(__file__), 'supporting_data', 'species_codes_lut.csv'))
 
 
-def calc_scorch_ht(sfi, amb_t=None, instand_ws=None):
+def calc_scorch_ht(
+    sfi: Union[float, np.ndarray],
+    amb_t: Optional[Union[float, np.ndarray]] = None,
+    instand_ws: Optional[Union[float, np.ndarray]] = None
+) -> Union[float, np.ndarray]:
     """
     Van Wagner (1973) & Alexander (1982/85) lethal scorch height model.
-    Accepts scalars or np.ndarray inputs.
+
+    :param sfi: Surface fire intensity (kW/m), scalar or np.ndarray
+    :param amb_t: Ambient temperature (C), scalar or np.ndarray, optional
+    :param instand_ws: Instantaneous windspeed (m/s), scalar or np.ndarray, optional
+    :return: Scorch height (m), scalar or np.ndarray
     """
     sfi = np.asarray(sfi)
     if np.any(sfi == None):
@@ -41,10 +49,18 @@ def calc_scorch_ht(sfi, amb_t=None, instand_ws=None):
                 (np.power((0.025574 * sfi) + (0.021433 * np.power(instand_ws, 3)), 0.5) * (60 - amb_t)))
 
 
-def calc_flame_length(fire_intensity=None, char_ht=None, fl_model='Byram'):
+def calc_flame_length(
+    fire_intensity: Optional[Union[float, np.ndarray]] = None,
+    char_ht: Optional[Union[float, np.ndarray]] = None,
+    fl_model: str = 'Byram'
+) -> Union[float, np.ndarray]:
     """
     Flame length model (Byram, Butler, Thomas).
-    Accepts scalars or np.ndarray inputs.
+
+    :param fire_intensity: Surface fire intensity (kW/m), scalar or np.ndarray, optional
+    :param char_ht: Char height (m), scalar or np.ndarray, optional
+    :param fl_model: Flame length model to use ('Byram', 'Butler', or other), default 'Byram'
+    :return: Flame length (m), scalar or np.ndarray
     """
     if (fire_intensity is None) and (char_ht is None):
         raise ValueError('Must enter a surface fire intensity or char height value to estimate '
@@ -64,21 +80,29 @@ def calc_flame_length(fire_intensity=None, char_ht=None, fl_model='Byram'):
         return char_ht * 1.8
 
 
-def calc_char_ht(flame_length):
+def calc_char_ht(flame_length: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
     """
     Vectorized char height calculation.
-    Accepts scalars or np.ndarray inputs.
+
+    :param flame_length: Flame length (m), scalar or np.ndarray
+    :return: Char height (m), scalar or np.ndarray
     """
     flame_length = np.asarray(flame_length)
     return flame_length / 1.8
 
 
-def calc_bark_thickness(spp, dbh, tree_fuels_df):
+def calc_bark_thickness(
+    spp: np.ndarray,
+    dbh: np.ndarray,
+    tree_fuels_df: 'pd.DataFrame'
+) -> np.ndarray:
     """
     Vectorized bark thickness calculation (cm).
-    spp: array-like of species codes
-    dbh: array-like of diameters (cm)
-    tree_fuels_df: DataFrame with 'spp' and 'FOFEM_BrkThck_Vsp'
+
+    :param spp: np.ndarray of species codes (str or int)
+    :param dbh: np.ndarray of diameters (cm)
+    :param tree_fuels_df: pandas DataFrame with columns 'spp' and 'FOFEM_BrkThck_Vsp'
+    :return: np.ndarray of bark thickness values (cm)
     """
     spp = np.asarray(spp)
     dbh = np.asarray(dbh)
@@ -88,10 +112,20 @@ def calc_bark_thickness(spp, dbh, tree_fuels_df):
     return bark_thick_per_dbh * dbh
 
 
-def calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth):
+def calc_crown_length_vol_scorched(
+    scorch_ht: Union[float, np.ndarray],
+    ht: Union[float, np.ndarray],
+    crown_depth: Union[float, np.ndarray]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Vectorized calculation of crown length scorched, percent crown volume scorched, and percent crown length scorched.
-    Accepts scalars or np.ndarray inputs.
+    Vectorized calculation of crown length scorched (m), percent crown volume scorched (cvs, \%), and
+    percent crown length scorched (cls, \%). Accepts scalars or np.ndarray inputs; values are broadcast
+    to a common shape.
+
+    :param scorch_ht: Scorch height (m), scalar or np.ndarray.
+    :param ht: Total tree height (m), scalar or np.ndarray.
+    :param crown_depth: Crown depth (m), scalar or np.ndarray.
+    :return: Tuple of np.ndarrays \[crown\_length\_scorched (m), cvs (\%), cls (\%)] matching the broadcast shape.
     """
     scorch_ht = np.asarray(scorch_ht)
     ht = np.asarray(ht)
@@ -101,6 +135,95 @@ def calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth):
     cvs = 100 * (crown_length_scorched * ((2 * crown_depth) - crown_length_scorched) / np.power(crown_depth, 2))
     cls = 100 * (crown_length_scorched / crown_depth)
     return crown_length_scorched, cvs, cls
+
+
+def gen_burnup_in_file(
+        out_brn=None,
+        max_times=3000,
+        intensity=50.0,
+        ig_time=60.0,
+        windspeed=0.0,
+        depth=0.3,
+        ambient_temp=27.0,
+        r0=1.83,
+        dr=0.4,
+        timestep=15.0,
+        surat_lit=8200,
+        surat_dw1=1480,
+        surat_dw10=394,
+        surat_dw100=105,
+        surat_dwk_3_6=39.4,
+        surat_dwk_6_9=21.9,
+        surat_dwk_9_20=12.7,
+        surat_dwk_20=5.91
+) -> None:
+    """
+    Function generates a Burnup-in.brn file from the input parameters, and saves it at the out_brn location\n
+
+    Required parameters: out_brn\n
+    Optional parameters: All other inputs are not required if using default values. Replace otherwise.
+    :param out_brn: folder/directory to save Burnup-in.brn file
+    :param max_times: Maximum number of iterations burnup does (default = 3000); valid range: 1 - 100000
+    :param intensity: Intensity of the igniting surface fire (kW/m)
+                       (default = 50); valid range: 40 - 100000 kW/m
+    :param ig_time: Residence time of the ignition surface fire (s)
+                     (default = 60, FOFEM's burnup input default = 30); valid range: 10 - 200 s
+    :param windspeed: Windspeed at the top of the fuelbed (m/s) (default = 0); valid range: 0 - 5 m/s
+    :param depth: Fuel depth (m) (default = 0.3); valid range: 0.1 - 5 m
+    :param ambient_temp: Ambient air temperature (C) (default = 27); valid range: -40 - 40 C
+    :param r0: Fire environment minimum dimension parameter (unitless) (default = 1.83); valid range: any
+    :param dr: Fire environment increment temp parameter (C) (default = 0.4); valid range: any
+    :param timestep: Time step for integration of burning rates (s) (default = 15); valid range: any
+    :param surat_lit: Surface area to volume ratio of litter
+    :param surat_dw1: Surface area to volume ratio of 1 hr down woody fuels
+    :param surat_dw10: Surface area to volume ratio of 10 hr down woody fuels
+    :param surat_dw100: Surface area to volume ratio of 100 hr down woody fuels
+    :param surat_dwk_3_6: Surface area to volume ratio of down woody fuels 3 - 6 in. diameter
+    :param surat_dwk_6_9: Surface area to volume ratio of down woody fuels 6 - 9 in. diameter
+    :param surat_dwk_9_20: Surface area to volume ratio of down woody fuels 9 - 20 in. diameter
+    :param surat_dwk_20: Surface area to volume ratio of down woody fuels >= 20 in. diameter
+    :return: Burnup-in.brn file\n\n
+    """
+    if out_brn is None:
+        raise Exception('No output file/directory specified for Burnup-in.brn file')
+
+    # Validate input ranges
+    max_times = max(0, min(max_times, 100000))
+    intensity = max(0, min(intensity, 100000))
+    ig_time = max(10, min(ig_time, 200))
+    windspeed = max(0, min(windspeed, 5))
+    depth = max(0.1, min(depth, 5))
+    ambient_temp = max(-40, min(ambient_temp, 50))
+
+    # Prepare the data as a list of tuples (parameter name, value)
+    params = [
+        ('MAX_TIMES', max_times),
+        ('INTENSITY', intensity),
+        ('IG_TIME', ig_time),
+        ('WINDSPEED', windspeed),
+        ('DEPTH', depth),
+        ('AMBIENT_TEMP', ambient_temp),
+        ('R0', r0),
+        ('DR', dr),
+        ('TIMESTEP', timestep),
+        ('SURat_Lit', surat_lit),
+        ('SURat_DW1', surat_dw1),
+        ('SURat_DW10', surat_dw10),
+        ('SURat_DW100', surat_dw100),
+        ('SURat_DWk_3_6', surat_dwk_3_6),
+        ('SURat_DWk_6_9', surat_dwk_6_9),
+        ('SURat_DWk_9_20', surat_dwk_9_20),
+        ('SURat_DWk_20', surat_dwk_20)
+    ]
+
+    # Format each line as '#param value'
+    lines = [f'#{name} {value}' for name, value in params]
+    content = '\n'.join(lines)
+
+    with open(os.path.join(out_brn, 'Burnup-In.brn'), 'w') as f:
+        f.write(content)
+
+    return
 
 
 def mort_crnsch(
@@ -120,9 +243,26 @@ def mort_crnsch(
 ) -> np.ndarray:
     """
     FOFEM crown scorch mortality model.
-    All inputs must be np.ndarrays of the same length.
-    spp: array of species codes (str or int). If int, will be mapped to FOFEM_sppCD using tree_params_df.
-    tree_params_df: DataFrame with columns 'sppNumCD' and 'FOFEM_sppCD' for code mapping.
+
+    All inputs must be np.ndarrays of equal length (one element per tree).
+
+    :param spp: Array of species codes (str or int). If int, values are mapped to FOFEM species codes using
+                `tree_code_dict` if provided; otherwise via the lookup in `species_codes_lut.csv`. Unknown codes map to 'UNK'.
+    :param dbh: Diameter at breast height (cm).
+    :param ht: Total tree height (m).
+    :param crown_depth: Crown depth (m). Used with scorch height to derive percent crown volume/length scorched.
+    :param bark_thickness: Bark thickness (cm). Optional; if None, it is estimated from species and DBH where supported.
+    :param fire_intensity: Surface fire intensity (kW/m). Optional; used to derive flame length/char height/scorch height
+                          when those are not supplied.
+    :param amb_t: Ambient air temperature (°C). Default [25]. Used when estimating scorch height.
+    :param flame_length: Flame length (m). Optional; if not provided, derived from `fire_intensity`/`char_ht` when possible.
+    :param char_ht: Char height (m). Optional; if not provided, derived from `flame_length` when possible.
+    :param scorch_ht: Scorch height (m). Optional; if not provided, estimated from `fire_intensity`, `amb_t`, and `instand_ws`.
+    :param instand_ws: Instantaneous windspeed (m/s). Default [1]. Used when estimating scorch height.
+    :param aspen_sev: Aspen severity class for equation selection; 'low' or 'high'. Default 'low'.
+    :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM species code strings (e.g., {201: 'PIPO'}).
+
+    :return: 1D np.ndarray of mortality probability per tree (float in [0, 1]), same length as inputs.
     """
     # Verify tree_code_dict is dictionary if provided
     if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
