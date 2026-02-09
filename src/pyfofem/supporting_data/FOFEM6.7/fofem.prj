@@ -1,0 +1,34 @@
+#Region InteriorWest
+#FuelClass SAF/SRM
+#FuelCat Natural
+#LogDist Even
+#Season Summer
+#EmisFlame 3$-$Western$Forest$-$Rx
+#EmisSmold 7$-$Woody$RSC
+#EmisDuff 8$-$Duff$RSC
+#EmisMethod Old
+#CoverType SAF$016$-$Aspen
+#Moisture Dry
+#SoilType Coarse-Silt
+#Litter   0.90 Typical 
+#1Hr   0.20 Typical
+#10Hr   0.80 Typical
+#100Hr   1.00 Typical
+#1kHr   3.00 Typical
+#Duff   5.00 Typical
+#Herb   0.30 Typical
+#Shrub   0.50 Typical
+#Foliage   0.00 Typical
+#Branch   0.00 Typical
+#Duff_Depth   0.50
+#Duff_Moist  40.00
+#Wood_Moist_10Hr  10.00
+#Wood_Moist_1kHr  15.00
+#Soil_Moisture  10.00
+#Rotten  50.00
+#Burn_Crown  75.00
+#FlameLength 
+#LenHgt 4
+#Species-1 ABBA CRNSCH 100.0 5.0 20.0  4 -1.0 -1 x -1.0 
+#Species-2 ABCO CRCABE 110.0 14.0 50.0  3 50.0  3 y -1.0 
+#ProbCutoff  1.0  2.0 0.30   -1.0 -1.0 -1.00    5.0  6.0 0.70   

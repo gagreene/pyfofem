@@ -1,0 +1,15 @@
+fofem.prj
+
+FOF_SAF.CSV
+FOF_NVCS.CSV
+FOF_FCCS.CSV
+FOF_FLM.CSV
+FOF_SPP.CSV
+
+FFI_FOFEM_Sample.FFI
+FFI_FOFEM_Sample.Tre
+
+Emission_Factors.csv
+
+CLB-FOFEM-Path.bat
+CLB-FOFEM-Run.bat

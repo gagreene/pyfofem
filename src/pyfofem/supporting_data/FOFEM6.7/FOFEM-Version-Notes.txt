@@ -1,0 +1,65 @@
+
+  This file gets installed into the FOFEM program folder.
+  File contains notes on any meaningfull changes to the program 
+
+
+  FOFEM
+    > Dec  6 2014 - with repect to FFI tree input file, modify mortality to use crown base height or crown ratio to 
+                    populate the C/R column in the FFI input mortatily tree grid
+                  - had to also update the sample ffi files that are include on install
+    > Dec  8 2014 - Update with new Emission_Factors.csv file, 
+                    NOTE: this new file has a little different format which FOFEM checks, there's a different label 
+                    on the cover type column, and the codes in that column have changed
+    > Dec 12 2014 - Change default emission factor from 2 Boreal Forest to 3 Western Forest 
+    > Jan  8 2015 - Implement the new Southeast Litter and Herb consumed formulas, the new southeast formulas 
+                     are now an exception to the original way of all regions consuming 100 percent of litter 
+                     and herb
+    > Jan 12 2015 - updated fof_saf.csv and emission_factors.csv files; new default emission factor group
+                     numbers set.
+    > Feb 11 2015 - update the fof_nvcs.csv, fof_fccs.csv and fof_flm.csv files 
+    > Feb 11 2015 - remove duff depth from reports
+    > Feb 11 2015 - user entered duff load will now auto adjust the duff depth on GUI, adjustment is based on the
+                     ratio of duff load/depth for the selected cover record. 
+    > Feb 23 2015 - Mortality window, Post Fire Tree input grid - make dbh required for all species, modify the
+                     hint text and F1 help with respect to what inputs are required for each species 
+
+   > Mar 11 2015 - duff load and depth will auto adjust the other when either one is changed.
+                  - duff reduction eqs not longer in use, redution is now based on percent of duff amount calcs.
+   > Mar 17 2015 - Mortality Graph, put grid row numbers on the legend species labels 
+   > Mar 25 2015 - Includes Ticket-2, changed the batch mortality output file format. 
+   > Apr  2 2015 - fix the non-duff soil heating infinite loop problem, previously FOFEM was setup to catch it and pop up 
+                    a window saying Soil Simulation had Failed. the fix is in the out loop of the model. 
+   > May 12 2015 - Metric abreviations setup as #defines and used throughout entire program, this includes there use in the
+                    Burnup Input file switchs (file used for burnup input file program feature/option)
+   > May 13 2015 - Restore the old emissions factors, modify GUI back
+
+Version  6.3.1 
+   > Jun 16 2015 - Major improvements to soild model, program will also create the sample input files
+                    use the GUI inputs
+                 - modify burnup to consume herb/shrub at a limited number of tons per acre per minute, 
+                   previously it was all consumed in the first 60 seconds,  
+   > Aug  5 2015 - Run burnup from input file option, input file format changed and address the differences in burnout times
+                    between file and GUI report numbers
+   > Mar  8 2016 - Replace duff consumption formula with new Readon formula 
+   > Mar  9 2016 - Add pre-fire fuel load values to GUI and Command Line batch output files .  
+   > Mar 12 2016 - adopt new FFI input plot and tree files that contain a monitoring status column, modify GUI controls to 
+                    show monitoring status appended to plot id. 
+   > May  5 2016 - New SouthEast Pocosin Duff equations implemented  
+   
+Version   6.4   
+   > July 15 2016 - change the species mortality equation file (fof_spp.dat) to a comma delimited .csv file type so it
+                    can be edited in Excel    
+   > Sept  8 2016 - new ponderosa pine black hills mortality formulas added 
+   > Sept 19 2016 - new Pine Flatwoods cover group and consumerd formulas added    
+   
+   
+   > Jan 25 2017 - add user selectable consumption equation feature to the batch file processing   
+   > May 18 2017 - add new .csv output file menu options for major and expanded emission components 
+   > July 12 2017 - change mortality post fire injury calculations to not use the Live/Kill cutoff, add
+                    a 'salvage' report that does use the Live/Kill cutoff value, do the same for 
+                    batch processing 
+   > Oct  10 2017 - add switch to batch input file to put the full list of 204 expanded emissions to the batch
+                     output file  
+
+ Version  6.7
+    > Jan 20 2020 - Massman soil model added                       
