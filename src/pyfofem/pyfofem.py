@@ -127,14 +127,14 @@ def calc_crown_length_vol_scorched(
     crown_depth: Union[float, np.ndarray]
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Vectorized calculation of crown length scorched (m), percent crown volume scorched (cvs, \%), and
-    percent crown length scorched (cls, \%). Accepts scalars or np.ndarray inputs; values are broadcast
+    Vectorized calculation of crown length scorched (m), percent crown volume scorched (cvs, %), and
+    percent crown length scorched (cls, %). Accepts scalars or np.ndarray inputs; values are broadcast
     to a common shape.
 
     :param scorch_ht: Scorch height (m), scalar or np.ndarray.
     :param ht: Total tree height (m), scalar or np.ndarray.
     :param crown_depth: Crown depth (m), scalar or np.ndarray.
-    :return: Tuple of np.ndarrays \[crown\_length\_scorched (m), cvs (\%), cls (\%)] matching the broadcast shape.
+    :return: Tuple of np.ndarrays [crown_length_scorched (m), cvs (%), cls (%)] matching the broadcast shape.
     """
     scorch_ht = np.asarray(scorch_ht)
     ht = np.asarray(ht)
@@ -147,7 +147,7 @@ def calc_crown_length_vol_scorched(
 
 
 def gen_burnup_in_file(
-        out_brn=None,
+        out_brn_path=None,
         max_times=3000,
         intensity=50.0,
         ig_time=60.0,
@@ -167,11 +167,11 @@ def gen_burnup_in_file(
         surat_dwk_20=5.91
 ) -> None:
     """
-    Function generates a Burnup-in.brn file from the input parameters, and saves it at the out_brn location\n
+    Function generates a Burnup-in.brn file from the input parameters, and saves it at the out_brn_path location\n
 
-    Required parameters: out_brn\n
+    Required parameters: out_brn_path\n
     Optional parameters: All other inputs are not required if using default values. Replace otherwise.
-    :param out_brn: folder/directory to save Burnup-in.brn file
+    :param out_brn_path: folder/directory to save Burnup-in.brn file
     :param max_times: Maximum number of iterations burnup does (default = 3000); valid range: 1 - 100000
     :param intensity: Intensity of the igniting surface fire (kW/m)
                        (default = 50); valid range: 40 - 100000 kW/m
@@ -193,8 +193,8 @@ def gen_burnup_in_file(
     :param surat_dwk_20: Surface area to volume ratio of down woody fuels >= 20 in. diameter
     :return: Burnup-in.brn file\n\n
     """
-    if out_brn is None:
-        raise Exception('No output file/directory specified for Burnup-in.brn file')
+    if out_brn_path is None:
+        raise Exception('No output path specified for Burnup-in.brn file')
 
     # Validate input ranges
     max_times = max(0, min(max_times, 100000))
@@ -229,7 +229,7 @@ def gen_burnup_in_file(
     lines = [f'#{name} {value}' for name, value in params]
     content = '\n'.join(lines)
 
-    with open(out_brn + '.brn', 'w') as f:
+    with open(out_brn_path, 'w') as f:
         f.write(content)
 
     return
