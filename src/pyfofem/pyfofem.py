@@ -8,13 +8,22 @@ __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import os
 import numpy as np
-from numpy import ma as mask
 from pandas import read_csv
 from typing import Union, Optional
 
 
 # Load species codes lookup table
-spp_codes = read_csv(os.path.join(os.path.dirname(__file__), 'supporting_data', 'species_codes_lut.csv'))
+SPP_CODES = read_csv(os.path.join(os.path.dirname(__file__), 'supporting_data', 'species_codes_lut.csv'))
+
+CONSUMPTION_VARS = [
+    'LitPre', 'LitCon', 'LitPos', 'DW1Pre', 'DW1Con', 'DW1Pos', 'DW10Pre', 'DW10Con', 'DW10Pos',
+    'DW100Pre', 'DW100Con', 'DW100Pos', 'DW1kSndPre', 'DW1kSndCon', 'DW1kSndPos', 'DW1kRotPre', 'DW1kRotCon',
+    'DW1kRotPos', 'DufPre', 'DufCon', 'DufPos', 'HerPre', 'HerCon', 'HerPos', 'ShrPre', 'ShrCon', 'ShrPos',
+    'FolPre', 'FolCon', 'FolPos', 'BraPre', 'BraCon', 'BraPos', 'MSE', 'DufDepPre', 'DufDepCon', 'DufDepPos',
+    'PM10F', 'PM10S', 'PM25F', 'PM25S', 'CH4F', 'CH4S', 'COF', 'COS', 'CO2F', 'CO2S', 'NOXF', 'NOXS', 'SO2F',
+    'SO2S', 'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon', 'Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d',
+    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shurb-Equ'
+]
 
 
 def calc_scorch_ht(
@@ -220,7 +229,7 @@ def gen_burnup_in_file(
     lines = [f'#{name} {value}' for name, value in params]
     content = '\n'.join(lines)
 
-    with open(os.path.join(out_brn, 'Burnup-In.brn'), 'w') as f:
+    with open(out_brn + '.brn', 'w') as f:
         f.write(content)
 
     return
@@ -294,8 +303,8 @@ def mort_crnsch(
         for num_cd in unique_num_cds:
             mask = spp == num_cd
             if tree_code_dict is None:
-                spp[mask] = (spp_codes.loc[spp_codes['num_cd'] == num_cd, 'fofem_cd'].iloc[0]
-                             if num_cd in spp_codes['num_cd'].values else 'UNK')
+                spp[mask] = (SPP_CODES.loc[SPP_CODES['num_cd'] == num_cd, 'fofem_cd'].iloc[0]
+                             if num_cd in SPP_CODES['num_cd'].values else 'UNK')
             else:
                 spp[mask] = tree_code_dict.get(num_cd, 'UNK')
     else:
