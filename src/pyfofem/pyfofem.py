@@ -242,11 +242,11 @@ def mort_crnsch(
     crown_depth: np.ndarray,
     bark_thickness: np.ndarray = None,
     fire_intensity: np.ndarray = None,
-    amb_t: np.ndarray = [25],
+    amb_t: np.ndarray = None,
     flame_length: np.ndarray = None,
     char_ht: np.ndarray = None,
     scorch_ht: np.ndarray = None,
-    instand_ws: np.ndarray = [1],
+    instand_ws: np.ndarray = None,
     aspen_sev: str = 'low',
     tree_code_dict: dict = None
 ) -> np.ndarray:
@@ -279,6 +279,7 @@ def mort_crnsch(
               'Using default species code mapping from species_codes_lut.csv.')
         tree_code_dict = None
 
+
     # Ensure all inputs are np.ndarrays
     spp = np.array(spp)
     dbh = np.asarray(dbh)
@@ -288,14 +289,16 @@ def mort_crnsch(
         bark_thickness = np.asarray(bark_thickness)
     if fire_intensity is not None:
         fire_intensity = np.asarray(fire_intensity)
-    amb_t = np.asarray(amb_t)
+    if amb_t is None:
+        amb_t = np.array([25] * len(spp))
     if flame_length is not None:
         flame_length = np.asarray(flame_length)
     if char_ht is not None:
         char_ht = np.asarray(char_ht)
     if scorch_ht is not None:
         scorch_ht = np.asarray(scorch_ht)
-    instand_ws = np.asarray(instand_ws)
+    if instand_ws is None:
+        instand_ws = np.array([1] * len(spp))
 
     # Map numeric spp to FOFEM_sppCD if needed
     if np.issubdtype(spp.dtype, np.integer):
