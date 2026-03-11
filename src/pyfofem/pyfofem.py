@@ -179,7 +179,7 @@ def gen_burnup_in_file(
                      (default = 60, FOFEM's burnup input default = 30); valid range: 10 - 200 s
     :param windspeed: Windspeed at the top of the fuelbed (m/s) (default = 0); valid range: 0 - 5 m/s
     :param depth: Fuel depth (m) (default = 0.3); valid range: 0.1 - 5 m
-    :param ambient_temp: Ambient air temperature (C) (default = 27); valid range: -40 - 40 C
+    :param ambient_temp: Ambient air temperature (C) (default = 27); valid range: -40 - 50 C
     :param r0: Fire environment minimum dimension parameter (unitless) (default = 1.83); valid range: any
     :param dr: Fire environment increment temp parameter (C) (default = 0.4); valid range: any
     :param timestep: Time step for integration of burning rates (s) (default = 15); valid range: any
@@ -197,8 +197,8 @@ def gen_burnup_in_file(
         raise Exception('No output path specified for Burnup-in.brn file')
 
     # Validate input ranges
-    max_times = max(0, min(max_times, 100000))
-    intensity = max(0, min(intensity, 100000))
+    max_times = max(1, min(max_times, 100000))
+    intensity = max(40, min(intensity, 100000))
     ig_time = max(10, min(ig_time, 200))
     windspeed = max(0, min(windspeed, 5))
     depth = max(0.1, min(depth, 5))
