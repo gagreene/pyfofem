@@ -8,7 +8,7 @@ __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import os
 import numpy as np
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 from typing import Union, Optional
 
 
@@ -103,21 +103,33 @@ def calc_char_ht(flame_length: Union[float, np.ndarray]) -> Union[float, np.ndar
 def calc_bark_thickness(
     spp: np.ndarray,
     dbh: np.ndarray,
-    tree_fuels_df: 'pd.DataFrame'
 ) -> np.ndarray:
     """
-    Vectorized bark thickness calculation (cm).
+    Vectorized bark thickness calculation \(cm\).
 
-    :param spp: np.ndarray of species codes (str or int)
-    :param dbh: np.ndarray of diameters (cm)
-    :param tree_fuels_df: pandas DataFrame with columns 'spp' and 'FOFEM_BrkThck_Vsp'
-    :return: np.ndarray of bark thickness values (cm)
+    :param spp: np.ndarray of species codes \(str or int\)
+    :param dbh: np.ndarray of diameters \(cm\)
+    :return: np.ndarray of bark thickness values \(cm\)
     """
     spp = np.asarray(spp)
     dbh = np.asarray(dbh)
-    # Ensure spp is an array of strings for indexing
-    spp_str = spp.astype(str)
-    bark_thick_per_dbh = tree_fuels_df.set_index('spp').loc[spp_str, 'FOFEM_BrkThck_Vsp'].to_numpy()
+
+    if spp.shape != dbh.shape:
+        raise ValueError('spp and dbh must have the same shape')
+
+    if np.issubdtype(spp.dtype, np.integer):
+        num_to_fofem = SPP_CODES.drop_duplicates(subset='num_cd').set_index('num_cd')['fofem_cd']
+        spp_str = np.array([num_to_fofem.get(int(code), 'UNK') for code in spp], dtype=str)
+    else:
+        spp_str = spp.astype(str)
+
+    bark_lookup = SPP_CODES.drop_duplicates(subset='fofem_cd').set_index('fofem_cd')['FOFEM_BrkThck_Vsp']
+    bark_thick_per_dbh = bark_lookup.reindex(spp_str).to_numpy()
+
+    if np.any(np.isnan(bark_thick_per_dbh)):
+        missing = np.unique(spp_str[np.isnan(bark_thick_per_dbh)])
+        raise ValueError(f'No bark thickness coefficient found for species code\(s\): {missing.tolist()}')
+
     return bark_thick_per_dbh * dbh
 
 
