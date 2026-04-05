@@ -34,6 +34,13 @@ CONSUMPTION_VARS = [
 ]
 
 
+def _is_scalar(x) -> bool:
+    """Return True if *x* is a Python scalar or 0-d array (i.e. not a sequence/array)."""
+    if isinstance(x, np.ndarray):
+        return x.ndim == 0
+    return np.ndim(x) == 0
+
+
 def calc_scorch_ht(
     sfi: Union[float, np.ndarray],
     amb_t: Optional[Union[float, np.ndarray]] = None,
@@ -256,11 +263,11 @@ def gen_burnup_in_file(
 
 
 def mort_bolchar(
-    spp: np.ndarray,
-    dbh: np.ndarray,
-    char_ht: np.ndarray,
+    spp: Union[str, int, np.ndarray],
+    dbh: Union[float, np.ndarray],
+    char_ht: Union[float, np.ndarray],
     tree_code_dict: dict = None,
-) -> np.ndarray:
+) -> Union[float, np.ndarray]:
     """
     FOFEM bole char post-fire mortality model (BOLCHAR).
 
@@ -291,9 +298,13 @@ def mort_bolchar(
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
         species code strings (e.g., ``{316: 'ACRU'}``).
 
-    :return: 1D np.ndarray of mortality probability per tree (float in [0, 1],
-        or ``np.nan`` for unsupported species), same length as inputs.
+    :return: Mortality probability per tree (float in [0, 1], or ``np.nan``
+        for unsupported species). Returns a scalar float when all inputs are
+        scalars, otherwise a 1D np.ndarray of the same length as the inputs.
     """
+    # Detect whether the caller passed scalar inputs
+    scalar_input = _is_scalar(spp) and _is_scalar(dbh) and _is_scalar(char_ht)
+
     # Verify tree_code_dict
     if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
         print('tree_code_dict must be a dictionary, mapping numeric species codes to FOFEM species code strings. '
@@ -301,9 +312,9 @@ def mort_bolchar(
         tree_code_dict = None
 
     # Coerce all inputs to np.ndarray
-    spp = np.array(spp)
-    dbh = np.asarray(dbh, dtype=float)
-    char_ht = np.asarray(char_ht, dtype=float)
+    spp = np.atleast_1d(np.array(spp))
+    dbh = np.atleast_1d(np.asarray(dbh, dtype=float))
+    char_ht = np.atleast_1d(np.asarray(char_ht, dtype=float))
 
     # Map numeric spp codes to FOFEM string codes if needed
     if np.issubdtype(spp.dtype, np.integer):
@@ -391,24 +402,24 @@ def mort_bolchar(
         print(f'Warning: BOLCHAR mortality model unavailable for species: {unsupported.tolist()}. '
               f'Mortality set to np.nan for those trees.')
 
-    return Pm
+    return float(Pm[0]) if scalar_input else Pm
 
 
 def mort_crnsch(
-    spp: np.ndarray,
-    dbh: np.ndarray,
-    ht: np.ndarray,
-    crown_depth: np.ndarray,
-    bark_thickness: np.ndarray = None,
-    fire_intensity: np.ndarray = None,
-    amb_t: np.ndarray = None,
-    flame_length: np.ndarray = None,
-    char_ht: np.ndarray = None,
-    scorch_ht: np.ndarray = None,
-    instand_ws: np.ndarray = None,
+    spp: Union[str, int, np.ndarray],
+    dbh: Union[float, np.ndarray],
+    ht: Union[float, np.ndarray],
+    crown_depth: Union[float, np.ndarray],
+    bark_thickness: Optional[Union[float, np.ndarray]] = None,
+    fire_intensity: Optional[Union[float, np.ndarray]] = None,
+    amb_t: Optional[Union[float, np.ndarray]] = None,
+    flame_length: Optional[Union[float, np.ndarray]] = None,
+    char_ht: Optional[Union[float, np.ndarray]] = None,
+    scorch_ht: Optional[Union[float, np.ndarray]] = None,
+    instand_ws: Optional[Union[float, np.ndarray]] = None,
     aspen_sev: str = 'low',
     tree_code_dict: dict = None
-) -> np.ndarray:
+) -> Union[float, np.ndarray]:
     """
     FOFEM crown scorch mortality model.
 
@@ -430,34 +441,43 @@ def mort_crnsch(
     :param aspen_sev: Aspen severity class for equation selection; 'low' or 'high'. Default 'low'.
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM species code strings (e.g., {201: 'PIPO'}).
 
-    :return: 1D np.ndarray of mortality probability per tree (float in [0, 1]), same length as inputs.
+    :return: Mortality probability per tree (float in [0, 1]). Returns a
+        scalar float when all primary inputs are scalars, otherwise a 1D
+        np.ndarray of the same length as the inputs.
     """
+    # Detect whether the caller passed scalar inputs
+    scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
+                    and _is_scalar(crown_depth))
+
     # Verify tree_code_dict is dictionary if provided
     if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
         print('tree_code_dict must be a dictionary, mapping numeric species codes to FOFEM species code strings.'
               'Using default species code mapping from species_codes_lut.csv.')
         tree_code_dict = None
 
-
-    # Ensure all inputs are np.ndarrays
-    spp = np.array(spp)
-    dbh = np.asarray(dbh)
-    ht = np.asarray(ht)
-    crown_depth = np.asarray(crown_depth)
+    # Ensure all inputs are np.ndarrays (at least 1-D)
+    spp = np.atleast_1d(np.array(spp))
+    dbh = np.atleast_1d(np.asarray(dbh))
+    ht = np.atleast_1d(np.asarray(ht))
+    crown_depth = np.atleast_1d(np.asarray(crown_depth))
     if bark_thickness is not None:
-        bark_thickness = np.asarray(bark_thickness)
+        bark_thickness = np.atleast_1d(np.asarray(bark_thickness))
     if fire_intensity is not None:
-        fire_intensity = np.asarray(fire_intensity)
+        fire_intensity = np.atleast_1d(np.asarray(fire_intensity))
     if amb_t is None:
-        amb_t = np.array([25] * len(spp))
+        amb_t = np.full(len(spp), 25.0)
+    else:
+        amb_t = np.atleast_1d(np.asarray(amb_t))
     if flame_length is not None:
-        flame_length = np.asarray(flame_length)
+        flame_length = np.atleast_1d(np.asarray(flame_length))
     if char_ht is not None:
-        char_ht = np.asarray(char_ht)
+        char_ht = np.atleast_1d(np.asarray(char_ht))
     if scorch_ht is not None:
-        scorch_ht = np.asarray(scorch_ht)
+        scorch_ht = np.atleast_1d(np.asarray(scorch_ht))
     if instand_ws is None:
-        instand_ws = np.array([1] * len(spp))
+        instand_ws = np.ones(len(spp))
+    else:
+        instand_ws = np.atleast_1d(np.asarray(instand_ws))
 
     # Map numeric spp to FOFEM_sppCD if needed
     if np.issubdtype(spp.dtype, np.integer):
@@ -630,20 +650,20 @@ def mort_crnsch(
         _Pm = np.where((dbh_in < 1) & (ht[mask_other] < (3 * 0.3048)), 1, _Pm)
         Pm[mask_other] = _Pm
 
-    return Pm
+    return float(Pm[0]) if scalar_input else Pm
 
 
 def mort_crcabe(
-    spp: np.ndarray,
-    dbh: np.ndarray,
-    ht: np.ndarray,
-    crown_depth: np.ndarray,
-    ckr: np.ndarray,
-    scorch_ht: np.ndarray,
+    spp: Union[str, int, np.ndarray],
+    dbh: Union[float, np.ndarray],
+    ht: Union[float, np.ndarray],
+    crown_depth: Union[float, np.ndarray],
+    ckr: Union[float, np.ndarray],
+    scorch_ht: Union[float, np.ndarray],
     beetles: Union[bool, np.ndarray] = False,
     cvk: Optional[Union[float, np.ndarray]] = None,
     tree_code_dict: dict = None,
-) -> np.ndarray:
+) -> Union[float, np.ndarray]:
     """
     FOFEM cambium kill / post-fire mortality model (CRCABE).
 
@@ -691,22 +711,29 @@ def mort_crcabe(
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
         species code strings (e.g., ``{201: 'PIPO'}``).
 
-    :return: 1D np.ndarray of mortality probability per tree (float in [0, 1],
-        or ``np.nan`` for unsupported species), same length as inputs.
+    :return: Mortality probability per tree (float in [0, 1], or ``np.nan``
+        for unsupported species). Returns a scalar float when all primary
+        inputs are scalars, otherwise a 1D np.ndarray of the same length as
+        the inputs.
     """
+    # Detect whether the caller passed scalar inputs
+    scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
+                    and _is_scalar(crown_depth) and _is_scalar(ckr)
+                    and _is_scalar(scorch_ht))
+
     # Verify tree_code_dict
     if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
         print('tree_code_dict must be a dictionary, mapping numeric species codes to FOFEM species code strings. '
               'Using default species code mapping from species_codes_lut.csv.')
         tree_code_dict = None
 
-    # Coerce all inputs to np.ndarray
-    spp = np.array(spp)
-    dbh = np.asarray(dbh, dtype=float)
-    ht = np.asarray(ht, dtype=float)
-    crown_depth = np.asarray(crown_depth, dtype=float)
-    ckr = np.asarray(ckr, dtype=float)
-    scorch_ht = np.asarray(scorch_ht, dtype=float)
+    # Coerce all inputs to np.ndarray (at least 1-D)
+    spp = np.atleast_1d(np.array(spp))
+    dbh = np.atleast_1d(np.asarray(dbh, dtype=float))
+    ht = np.atleast_1d(np.asarray(ht, dtype=float))
+    crown_depth = np.atleast_1d(np.asarray(crown_depth, dtype=float))
+    ckr = np.atleast_1d(np.asarray(ckr, dtype=float))
+    scorch_ht = np.atleast_1d(np.asarray(scorch_ht, dtype=float))
 
     # Broadcast beetles to a per-tree boolean array
     beetles = np.broadcast_to(np.asarray(beetles, dtype=bool), spp.shape).copy()
@@ -834,7 +861,7 @@ def mort_crcabe(
         print(f'Warning: CRCABE mortality model unavailable for species: {unsupported.tolist()}. '
               f'Mortality set to np.nan for those trees.')
 
-    return Pm
+    return float(Pm[0]) if scalar_input else Pm
 
 
 def run_burnup(
