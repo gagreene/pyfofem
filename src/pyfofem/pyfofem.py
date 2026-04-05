@@ -173,6 +173,568 @@ def calc_crown_length_vol_scorched(
     return crown_length_scorched, cvs, cls
 
 
+def consm_canopy(
+    crown_burn: Union[float, np.ndarray],
+    pre_fl: Union[float, np.ndarray],
+    pre_bl: Union[float, np.ndarray],
+    units: str = 'SI',
+) -> dict:
+    """
+    FOFEM canopy (crown fire) fuel consumption model.
+
+    Estimates foliage and branch load consumed during a crown fire, given a
+    user-provided estimate of the proportion of the stand affected by crown
+    fire.
+
+    Accepts scalar or array inputs. Scalar values in the returned dict
+    correspond to scalar numeric inputs; arrays are returned otherwise.
+
+    :param crown_burn: Proportion of stand area affected by crown fire (%).
+        Scalar or np.ndarray.
+    :param pre_fl: Pre-fire foliage fuel load (kg/m² if ``units='SI'``,
+        T/acre if ``units='Imperial'``). Scalar or np.ndarray.
+    :param pre_bl: Pre-fire branch fuel load (kg/m² if ``units='SI'``,
+        T/acre if ``units='Imperial'``). Scalar or np.ndarray.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+
+    :return: Dict with keys:
+
+        - ``'flc'`` – foliage load consumed (same units as input). Scalar
+          ``float`` when all numeric inputs are scalars, otherwise
+          ``np.ndarray``.
+        - ``'blc'`` – branch load consumed (same units as input; 50% of the
+          proportion consumed by crown fire). Scalar ``float`` when all
+          numeric inputs are scalars, otherwise ``np.ndarray``.
+    """
+    scalar_input = _is_scalar(crown_burn) and _is_scalar(pre_fl) and _is_scalar(pre_bl)
+
+    crown_burn = np.atleast_1d(np.asarray(crown_burn, dtype=float))
+    pre_fl = np.atleast_1d(np.asarray(pre_fl, dtype=float))
+    pre_bl = np.atleast_1d(np.asarray(pre_bl, dtype=float))
+
+    if units == 'SI':
+        pre_fl = pre_fl * 4.4609  # kg/m² → T/acre
+        pre_bl = pre_bl * 4.4609
+
+    flc = (crown_burn / 100) * pre_fl
+    blc = (crown_burn / 100) * pre_bl * 0.5
+
+    if units == 'SI':
+        flc = flc / 4.4609  # T/acre → kg/m²
+        blc = blc / 4.4609
+
+    def _maybe_scalar(arr):
+        return float(arr[0]) if scalar_input else arr
+
+    return {
+        'flc': _maybe_scalar(flc),
+        'blc': _maybe_scalar(blc),
+    }
+
+
+def consm_duff(
+    pre_dl: Union[float, np.ndarray],
+    duff_moist: Union[float, np.ndarray],
+    reg: Optional[str] = None,
+    cvr_grp: Optional[str] = None,
+    duff_moist_cat: Optional[str] = None,
+    d_pre: Optional[Union[float, np.ndarray]] = None,
+    rm_depth: Optional[Union[float, list]] = None,
+    mc_lyr1: Optional[Union[float, np.ndarray]] = None,
+    pre_dl110: Optional[Union[float, np.ndarray]] = None,
+    pre_l110: Optional[Union[float, np.ndarray]] = None,
+    pile: bool = False,
+    units: str = 'SI',
+) -> dict:
+    """
+    FOFEM duff consumption model.
+
+    Computes percent duff consumed (``'pdc'``), duff depth consumed
+    (``'ddc'``), and residual duff depth (``'rdd'``) and returns them in a
+    dict. Accepts scalar or array inputs for all numeric parameters; scalar
+    values in the returned dict correspond to scalar numeric inputs.
+
+    :param pre_dl: Pre-fire duff load (Mg/ha if ``units='SI'``, T/acre if
+        ``units='Imperial'``). Scalar or np.ndarray.
+    :param duff_moist: Duff moisture content (%). Scalar or np.ndarray.
+    :param reg: Region name. Options include ``'InteriorWest'``,
+        ``'PacificWest'``, ``'NorthEast'``, ``'SouthEast'``.
+    :param cvr_grp: Cover group name. Options include ``'Ponderosa pine'``,
+        ``'Pocosin'``, ``'Chaparral'``, etc.
+    :param duff_moist_cat: Duff moisture category. One of:
+
+        - ``'ldm'`` – lower duff moisture
+        - ``'edm'`` – entire / average duff moisture
+        - ``'nfdth'`` – NFDR 1,000-hour moisture content
+
+    :param d_pre: Pre-fire duff depth (cm if ``units='SI'``, inches if
+        ``units='Imperial'``). Scalar or np.ndarray. Required for duff depth
+        consumption (``'ddc'``) and residual duff depth (``'rdd'``) outputs.
+    :param rm_depth: Southeast Pocosin only. Depth of root mat and deep
+        organic layer. Single numeric (total depth) or a list of individual
+        layer depths (cm if ``units='SI'``, inches if ``units='Imperial'``).
+    :param mc_lyr1: Percent soil moisture content of layer 1 (%). Scalar or
+        np.ndarray. Required for Southeast Pocosin equations.
+    :param pre_dl110: Pre-fire duff + 1-hr + 10-hr fuel load. Scalar or
+        np.ndarray. Required for the Southeast non-Pocosin equation (Eq 16).
+    :param pre_l110: Pre-fire litter + 1-hr + 10-hr fuel load. Scalar or
+        np.ndarray. Required for the Southeast non-Pocosin equation (Eq 16).
+    :param pile: ``True`` for pile burning (applies Eq 17, 90% consumed).
+        Default ``False``.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+
+    :return: Dict with keys:
+
+        - ``'pdc'`` – percent duff consumed (%) or np.ndarray; ``np.nan``
+          where the condition could not be determined.
+        - ``'ddc'`` – duff depth consumed (inches) or np.ndarray; ``None``
+          if ``d_pre`` is not provided.
+        - ``'rdd'`` – residual duff depth (inches) or np.ndarray; ``None``
+          if ``duff_moist_cat != 'edm'`` or ``d_pre`` is not provided.
+    """
+    scalar_input = _is_scalar(pre_dl) and _is_scalar(duff_moist)
+
+    pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float))
+    duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    if d_pre is not None:
+        d_pre = np.atleast_1d(np.asarray(d_pre, dtype=float))
+    if mc_lyr1 is not None:
+        mc_lyr1 = np.atleast_1d(np.asarray(mc_lyr1, dtype=float))
+    if pre_dl110 is not None:
+        pre_dl110 = np.atleast_1d(np.asarray(pre_dl110, dtype=float))
+    if pre_l110 is not None:
+        pre_l110 = np.atleast_1d(np.asarray(pre_l110, dtype=float))
+
+    if units == 'SI':
+        if isinstance(rm_depth, list):
+            rm_depth = [x / 2.54 for x in rm_depth]   # cm → in
+        elif rm_depth is not None:
+            rm_depth = rm_depth / 2.54
+        if pre_dl110 is not None:
+            pre_dl110 = pre_dl110 * 4.4609             # kg/m² → T/acre
+        if pre_l110 is not None:
+            pre_l110 = pre_l110 * 4.4609
+
+    # --- pdc: PERCENT DUFF CONSUMED ---
+    pdc = np.full_like(duff_moist, np.nan)
+
+    if (duff_moist_cat == 'ldm') and (reg in ['InteriorWest', 'PacificWest']):
+        if cvr_grp not in ['Ponderosa pine', 'PN', 'Ponderosa', 'Pocosin', 'PC']:
+            # Equation 1
+            pdc = np.where(duff_moist <= 160, 97.1 - 0.519 * duff_moist, 13.6)
+        else:
+            # Equation 4
+            pdc = 89.9 - 0.55 * duff_moist
+    elif (duff_moist_cat == 'nfdth') and (reg in ['InteriorWest', 'PacificWest', 'NorthEast']):
+        # Equation 3
+        pdc = 114.7 - 4.20 * duff_moist
+    elif reg == 'SouthEast':
+        if cvr_grp in ['Pocosin', 'PC']:
+            # Equation 20 – per-layer calculation
+            if isinstance(rm_depth, list):
+                n_layers = len(rm_depth)
+                depths = rm_depth
+                total_depth = sum(rm_depth)
+            else:
+                if (rm_depth % 4) > 0:
+                    n_layers = int(rm_depth // 4) + 1
+                else:
+                    n_layers = int(rm_depth / 4)
+                depths = []
+                for i in range(n_layers):
+                    depths.append(rm_depth % 4 if i == (n_layers - 1) else 4.0)
+                total_depth = rm_depth
+
+            mc_layers = [float(mc_lyr1[0])] * n_layers
+            mc_multiplier = 1.0
+            for i in range(len(mc_layers)):
+                mc_multiplier += (min(3 * i, 12)) / 100
+                mc_layers[i] *= mc_multiplier
+
+            pdc_layers = []
+            for mc in mc_layers:
+                if mc < 10:
+                    pdc_layers.append(1.0)
+                elif mc < 30:
+                    pdc_layers.append(float(pre_dl[0]) * (0.949932 + ((30 - mc) * 0.00251)))
+                elif mc < 140:
+                    pdc_layers.append(float(pre_dl[0]) * (1 / (1 + np.exp(-1 * (2.033 - (0.043 * mc) + (0.44 * 0.05))))))
+                elif mc < 170:
+                    pdc_layers.append(float(pre_dl[0]) * (0.143441 - ((mc - 140) * 0.0049)))
+                else:
+                    pdc_layers.append(0.0)
+
+            depth_cons = np.multiply(depths, pdc_layers)
+            pdc = np.atleast_1d(sum(depth_cons) / total_depth)
+        else:
+            # Equation 16
+            duff_litt_cons = 3.4958 + (0.3833 * pre_dl110) - (0.0237 * duff_moist) - (5.6075 / pre_dl110)
+            pdc = np.where(
+                duff_litt_cons <= pre_l110, 0.0,
+                np.where(duff_litt_cons > pre_dl110,
+                         ((duff_litt_cons - pre_dl110) / (pre_dl110 - pre_l110)) * 100,
+                         np.nan)
+            )
+    elif pile:
+        # Equation 17 – pile burning: 90% consumed
+        pdc = np.full_like(duff_moist, (1 - 0.1) * pre_dl)
+    elif cvr_grp in ['Chaparral', 'Shrub-Chaparral', 'SGC', 'ShrubGroupChaparral']:
+        # Equation 19 – Chaparral: 100% consumed
+        pdc = np.full_like(duff_moist, 100.0)
+    else:
+        # Equation 2 – default
+        pdc = 83.7 - 0.426 * duff_moist
+
+    # --- ddc: DUFF DEPTH CONSUMED ---
+    ddc = None
+    if d_pre is not None:
+        if (duff_moist_cat == 'ldm') and (reg in ['InteriorWest', 'PacificWest']):
+            # Equation 5
+            ddc = 1.028 - 0.0089 * duff_moist + 0.417 * d_pre
+        elif (duff_moist_cat == 'nfdth') and (reg in ['InteriorWest', 'PacificWest', 'NorthEast']):
+            # Equation 7
+            ddc = 1.773 - 0.1051 * duff_moist + 0.399 * d_pre
+        else:
+            # Equation 6 – default
+            ddc = 0.8811 - 0.0096 * duff_moist + 0.439 * d_pre
+
+    # --- rdd: RESIDUAL DUFF DEPTH ---
+    rdd = None
+    if (duff_moist_cat == 'edm') and (d_pre is not None):
+        pine = 1 if cvr_grp in ['Red Jack Pine', 'Red, Jack Pine', 'RedJacPin', 'RJP'] else 0
+        # Equation 15
+        rdd = -0.791 + 0.004 * duff_moist + 0.8 * d_pre + 0.56 * pine
+
+    def _maybe_scalar(arr):
+        if arr is None:
+            return None
+        return float(arr[0]) if scalar_input else arr
+
+    return {
+        'pdc': _maybe_scalar(pdc),
+        'ddc': _maybe_scalar(ddc),
+        'rdd': _maybe_scalar(rdd),
+    }
+
+
+def consm_herb(
+    reg: str,
+    cvr_grp: str,
+    pre_ll: Union[float, np.ndarray],
+    pre_hl: Union[float, np.ndarray],
+    units: str = 'SI',
+) -> Union[float, np.ndarray]:
+    """
+    FOFEM herbaceous fuel consumption model.
+
+    Accepts scalar or array inputs. When all numeric inputs are scalars, a
+    scalar ``float`` is returned; otherwise a 1D ``np.ndarray`` is returned.
+
+    :param reg: Region name. ``'SouthEast'`` selects Eq 222; other regions
+        use cover-group-specific or default equations.
+    :param cvr_grp: Cover group name. Recognises:
+
+        - ``'Grass'`` / ``'GG'`` / ``'GrassGroup'`` → Eq 221 (10% consumed)
+        - ``'Flatwood'`` / ``'Pine Flatwoods'`` / ``'PFL'`` / ``'PinFltwd'``
+          → Eq 223
+        - All others → Eq 22 (100% consumed)
+
+    :param pre_ll: Pre-fire litter fuel load (kg/m² if ``units='SI'``,
+        T/acre if ``units='Imperial'``). Scalar or np.ndarray.
+    :param pre_hl: Pre-fire herbaceous fuel load (kg/m² if ``units='SI'``,
+        T/acre if ``units='Imperial'``). Scalar or np.ndarray.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+
+    :return: Herbaceous load consumed (same units as input). Scalar ``float``
+        when all numeric inputs are scalars, otherwise 1D ``np.ndarray``.
+    """
+    scalar_input = _is_scalar(pre_ll) and _is_scalar(pre_hl)
+
+    pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
+    pre_hl = np.atleast_1d(np.asarray(pre_hl, dtype=float))
+
+    if units == 'SI':
+        pre_ll = pre_ll * 4.4609  # kg/m² → T/acre
+        pre_hl = pre_hl * 4.4609
+
+    if reg in ['SouthEast']:
+        # Equation 222
+        hlc = -0.59 + (0.004 * pre_ll) + (0.917 * pre_hl)
+    elif cvr_grp in ['Grass', 'GG', 'GrassGroup']:
+        # Equation 221
+        hlc = pre_hl * 0.1
+    elif cvr_grp in ['Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd']:
+        # Equation 223 with unit conversions
+        hlc = ((pre_hl * 2.24) * 0.9944) / 2.24
+    else:
+        # Equation 22 – default (100% consumed)
+        hlc = pre_hl.copy()
+
+    if units == 'SI':
+        hlc = hlc / 4.4609  # T/acre → kg/m²
+
+    return float(hlc[0]) if scalar_input else hlc
+
+
+def consm_litter(
+    pre_ll: Union[float, np.ndarray],
+    l_moist: Union[float, np.ndarray],
+    cvr_grp: Optional[str] = None,
+    reg: Optional[str] = None,
+    units: str = 'SI',
+) -> Union[float, np.ndarray]:
+    """
+    FOFEM litter consumption model (Eqs 997–999).
+
+    Accepts scalar or array inputs. When all numeric inputs are scalars, a
+    scalar ``float`` is returned; otherwise a 1D ``np.ndarray`` is returned.
+
+    .. note::
+        Most fuel consumption is simulated using Burnup. This function covers
+        litter-specific override equations for Flatwoods and Southeast regions.
+
+    :param pre_ll: Pre-fire litter load (Mg/ha if ``units='SI'``, T/acre if
+        ``units='Imperial'``). Scalar or np.ndarray.
+    :param l_moist: Litter moisture content (%). Scalar or np.ndarray.
+    :param cvr_grp: Cover group name. Selects the Flatwoods equation (Eq 997)
+        when set to ``'Flatwood'``, ``'Pine Flatwoods'``, ``'PFL'``, or
+        ``'PinFltwd'``. Optional.
+    :param reg: Region name. Selects the Southeast equation (Eq 998) when set
+        to ``'SouthEast'``. Optional.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``. When
+        ``'Imperial'``, inputs are converted to Mg/ha internally and the result
+        is converted back to T/acre before returning.
+
+    :return: Litter load consumed (Mg/ha for ``'SI'``, T/acre for
+        ``'Imperial'``). Scalar ``float`` when all numeric inputs are scalars,
+        otherwise 1D ``np.ndarray``.
+    """
+    scalar_input = _is_scalar(pre_ll) and _is_scalar(l_moist)
+
+    pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
+    l_moist = np.atleast_1d(np.asarray(l_moist, dtype=float))
+
+    if units == 'Imperial':
+        pre_ll = pre_ll * 0.446089561  # T/acre → Mg/ha
+
+    if cvr_grp in ['Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd']:
+        # FOFEM litter consumption equation 997
+        llc = np.power(0.2871 + (0.9140 * np.sqrt(pre_ll)) - (0.0101 * l_moist), 2)
+    elif reg == 'SouthEast':
+        # FOFEM litter consumption equation 998
+        llc = pre_ll * 0.8
+    else:
+        # FOFEM litter consumption equation 999 – calculated with Burnup (generally 100%)
+        llc = pre_ll.copy()
+
+    if units == 'Imperial':
+        llc = llc / 0.446089561  # Mg/ha → T/acre
+
+    return float(llc[0]) if scalar_input else llc
+
+
+def consm_mineral_soil(
+    reg: str,
+    cvr_grp: str,
+    fuel_type: str,
+    duff_moist: Union[float, np.ndarray],
+    duff_moist_cat: str,
+    pile: bool = False,
+    pdr: Optional[Union[float, np.ndarray]] = None,
+) -> Union[float, np.ndarray]:
+    """
+    FOFEM mineral soil exposure model.
+
+    Estimates the proportion of mineral soil exposed by fire (%).
+
+    Accepts scalar or array inputs. When all numeric inputs are scalars, a
+    scalar ``float`` is returned; otherwise a 1D ``np.ndarray`` is returned.
+
+    :param reg: Region name. Options include ``'InteriorWest'``,
+        ``'PacificWest'``, ``'NorthEast'``, ``'SouthEast'``.
+    :param cvr_grp: Cover group name.
+    :param fuel_type: Fuel type; ``'natural'`` or ``'slash'``.
+    :param duff_moist: Duff moisture content (%). Scalar or np.ndarray.
+    :param duff_moist_cat: Duff moisture category. One of:
+
+        - ``'ldm'`` – lower duff moisture
+        - ``'edm'`` – entire / average duff moisture
+        - ``'nfdth'`` – NFDR 1,000-hour moisture content
+        - ``'%dr'`` – percent duff reduction (from ``consume_duff``)
+
+    :param pile: ``True`` for pile burning (returns 10%). Default ``False``.
+    :param pdr: Percent duff reduction (%), required when
+        ``duff_moist_cat='%dr'``. Scalar or np.ndarray.
+
+    :return: Mineral soil exposure (%). Scalar ``float`` when all numeric
+        inputs are scalars, otherwise 1D ``np.ndarray``.
+    """
+    scalar_input = _is_scalar(duff_moist)
+
+    duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    if pdr is not None:
+        pdr = np.atleast_1d(np.asarray(pdr, dtype=float))
+
+    mse = np.full_like(duff_moist, np.nan)
+
+    if pile:
+        # Equation 18
+        mse = np.full_like(duff_moist, 10.0)
+    elif reg in ['InteriorWest', 'PacificWest']:
+        if fuel_type == 'slash' and duff_moist_cat == 'ldm':
+            # Equation 9
+            mse = np.where(duff_moist <= 135,
+                           80 - 0.507 * duff_moist,
+                           23.5 - 0.0914 * duff_moist)
+        elif fuel_type == 'natural' and duff_moist_cat == 'ldm':
+            # Equation 13
+            mse = 60.4 - 0.440 * duff_moist
+        elif fuel_type == 'slash' and duff_moist_cat == 'nfdth':
+            # Equation 11
+            mse = 93.3 - 3.55 * duff_moist
+        elif fuel_type == 'natural' and duff_moist_cat == 'nfdth':
+            # Equation 12
+            mse = 94.3 - 4.96 * duff_moist
+        elif duff_moist_cat == 'edm':
+            # Equation 10
+            mse = 167.4 - 31.6 * np.log(duff_moist)
+    elif cvr_grp in ['Pocosin', 'PC']:
+        # Equation 202
+        mse = np.zeros_like(duff_moist)
+    else:
+        if duff_moist_cat == 'edm':
+            # Default to Equation 10
+            mse = 167.4 - 31.6 * np.log(duff_moist)
+        elif pdr is not None:
+            # Equation 14
+            mse = -8.98 + 0.899 * pdr
+
+    return float(mse[0]) if scalar_input else mse
+
+
+def consm_shrub(
+    reg: str,
+    cvr_grp: str,
+    pre_sl: Union[float, np.ndarray],
+    season: Optional[str] = None,
+    pre_ll: Optional[Union[float, np.ndarray]] = None,
+    pre_dl: Optional[Union[float, np.ndarray]] = None,
+    pre_rl: Optional[Union[float, np.ndarray]] = None,
+    duff_moist: Optional[Union[float, np.ndarray]] = None,
+    llc: Optional[Union[float, np.ndarray]] = None,
+    ddc: Optional[Union[float, np.ndarray]] = None,
+    units: str = 'SI',
+) -> Union[float, np.ndarray]:
+    """
+    FOFEM shrub fuel consumption model.
+
+    Accepts scalar or array inputs. When all numeric inputs are scalars, a
+    scalar ``float`` is returned; otherwise a 1D ``np.ndarray`` is returned.
+
+    :param reg: Region name. ``'Southeast'`` selects region-specific
+        equations; other values use cover-group equations.
+    :param cvr_grp: Cover group name. Recognises:
+
+        - ``'Pocosin'`` / ``'PC'`` – season-based fixed percentages (Eqs
+          233, 235)
+        - ``'Sagebrush'`` / ``'SB'`` – season-based fixed percentages (Eqs
+          232, 233)
+        - ``'Flatwood'`` / ``'Pine Flatwoods'`` / ``'PFL'`` / ``'PinFltwd'``
+          – Eq 236
+        - ``'Shrub'`` / ``'SG'`` / ``'ShrubGroup'`` – Eq 231 (80%)
+        - All others – Eq 23 (60%)
+
+    :param pre_sl: Pre-fire shrub fuel load (kg/m² if ``units='SI'``,
+        T/acre if ``units='Imperial'``). Scalar or np.ndarray.
+    :param season: Burn season: ``'Spring'``, ``'Summer'``, ``'Fall'``, or
+        ``'Winter'``. Required for Pocosin, Sagebrush, and Flatwoods
+        equations.
+    :param pre_ll: Pre-fire litter load (same units as ``pre_sl``). Required
+        for the Southeast non-Pocosin equation (Eq 234). Scalar or
+        np.ndarray.
+    :param pre_dl: Pre-fire duff load (same units as ``pre_sl``). Required
+        for the Southeast non-Pocosin equation. Scalar or np.ndarray.
+    :param pre_rl: Pre-fire regeneration load (same units as ``pre_sl``).
+        Required for the Southeast non-Pocosin equation. Scalar or
+        np.ndarray.
+    :param duff_moist: Duff moisture content (%). Required for the Southeast
+        non-Pocosin equation. Scalar or np.ndarray.
+    :param llc: Litter load consumed — output from :func:`consume_litter`
+        (same units as ``pre_sl``). Required for the Southeast non-Pocosin
+        equation. Scalar or np.ndarray.
+    :param ddc: Duff depth consumed — output from :func:`consume_duff`
+        (inches). Required for the Southeast non-Pocosin equation. Scalar or
+        np.ndarray.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+
+    :return: Percent shrub load consumed (%). Scalar ``float`` when all
+        numeric inputs are scalars, otherwise 1D ``np.ndarray``.
+    """
+    scalar_input = _is_scalar(pre_sl)
+
+    pre_sl = np.atleast_1d(np.asarray(pre_sl, dtype=float))
+
+    if units == 'SI':
+        pre_sl = pre_sl * 4.4609
+        if pre_ll is not None:
+            pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float)) * 4.4609
+        if pre_dl is not None:
+            pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float)) * 4.4609
+        if pre_rl is not None:
+            pre_rl = np.atleast_1d(np.asarray(pre_rl, dtype=float)) * 4.4609
+    else:
+        if pre_ll is not None:
+            pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
+        if pre_dl is not None:
+            pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float))
+        if pre_rl is not None:
+            pre_rl = np.atleast_1d(np.asarray(pre_rl, dtype=float))
+
+    if duff_moist is not None:
+        duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    if llc is not None:
+        llc = np.atleast_1d(np.asarray(llc, dtype=float))
+    if ddc is not None:
+        ddc = np.atleast_1d(np.asarray(ddc, dtype=float))
+
+    slc = np.full_like(pre_sl, np.nan)
+
+    if reg in ['Southeast']:
+        if cvr_grp in ['Pocosin', 'PC']:
+            if season in ['Spring', 'Winter']:
+                # Equation 233
+                slc = np.full_like(pre_sl, 90.0)
+            elif season in ['Summer', 'Fall']:
+                # Equation 235
+                slc = np.full_like(pre_sl, 80.0)
+        else:
+            # Equation 234
+            combo = pre_ll + pre_dl
+            slc = (((3.2484 + (0.4322 * combo) + (0.6765 * (pre_sl + pre_rl)) -
+                     (0.0276 * duff_moist) - (5.0796 / combo)) -
+                    (llc + ddc)) / (pre_sl + pre_rl)) * 100
+    else:
+        if cvr_grp in ['Sagebrush', 'SB']:
+            if season in ['Fall']:
+                # Equation 233
+                slc = np.full_like(pre_sl, 90.0)
+            else:
+                # Equation 232
+                slc = np.full_like(pre_sl, 50.0)
+        elif cvr_grp in ['Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd']:
+            season_flag = 1.0 if season in ['Spring', 'Summer'] else 0.0
+            # Equation 236
+            slc = -0.1889 + (0.9049 * np.log(pre_sl)) + (0.0676 * season_flag)
+        elif cvr_grp in ['Shrub', 'SG', 'ShrubGroup']:
+            # Equation 231
+            slc = np.full_like(pre_sl, 80.0)
+        else:
+            # Equation 23 – default
+            slc = np.full_like(pre_sl, 60.0)
+
+    return float(slc[0]) if scalar_input else slc
+
+
 def gen_burnup_in_file(
         out_brn_path=None,
         max_times=3000,
@@ -271,11 +833,10 @@ def mort_bolchar(
     """
     FOFEM bole char post-fire mortality model (BOLCHAR).
 
-    Vectorized implementation based on Keyser (2018). All inputs must be
-    np.ndarrays of equal length (one element per tree). Models are available
-    for the 10 broadleaf species listed below; trees with unsupported species
-    codes will have their mortality set to ``np.nan`` and a warning will be
-    printed.
+    Based on Keyser (2018). Accepts a single tree (scalar inputs) or multiple
+    trees (array inputs) of equal length. Models are available for the 10
+    broadleaf species listed below; unsupported species codes return ``np.nan``
+    with a printed warning.
 
     Available species:
         - Red maple        – RURU5, ACRU, ACRUD, ACRUD2, ACRUR, ACRUT2, ACRUT, ACRUT3
@@ -289,18 +850,20 @@ def mort_bolchar(
         - Black oak        – QUVE, QUVEM, QUKE
         - Sassafras        – SAAL5
 
-    :param spp: Array of species codes (str or int). If int, values are mapped
-        to FOFEM species codes using ``tree_code_dict`` if provided; otherwise
-        via the lookup in ``species_codes_lut.csv``. Unknown codes map to
-        ``'UNK'``.
+    :param spp: Species code(s) (str, int, or np.ndarray). A single string or
+        int may be passed for a single tree. If int, codes are mapped to FOFEM
+        species codes using ``tree_code_dict`` if provided; otherwise via the
+        lookup in ``species_codes_lut.csv``. Unknown codes map to ``'UNK'``.
     :param dbh: Diameter at breast height (cm), measured at 1.3 m above ground.
-    :param char_ht: Bole char height (m), measured in the field.
+        Scalar float or np.ndarray.
+    :param char_ht: Bole char height (m), measured in the field. Scalar float
+        or np.ndarray.
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
         species code strings (e.g., ``{316: 'ACRU'}``).
 
-    :return: Mortality probability per tree (float in [0, 1], or ``np.nan``
-        for unsupported species). Returns a scalar float when all inputs are
-        scalars, otherwise a 1D np.ndarray of the same length as the inputs.
+    :return: Mortality probability (float in [0, 1], or ``np.nan`` for
+        unsupported species). Returns a scalar ``float`` when all inputs are
+        scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
     """
     # Detect whether the caller passed scalar inputs
     scalar_input = _is_scalar(spp) and _is_scalar(dbh) and _is_scalar(char_ht)
@@ -421,29 +984,44 @@ def mort_crnsch(
     tree_code_dict: dict = None
 ) -> Union[float, np.ndarray]:
     """
-    FOFEM crown scorch mortality model.
+    FOFEM crown scorch mortality model (CRNSCH).
 
-    All inputs must be np.ndarrays of equal length (one element per tree).
+    Accepts a single tree (scalar inputs) or multiple trees (array inputs) of
+    equal length. Species without a dedicated equation fall back to the general
+    bark-thickness model (FOFEM Eq 1).
 
-    :param spp: Array of species codes (str or int). If int, values are mapped to FOFEM species codes using
-                `tree_code_dict` if provided; otherwise via the lookup in `species_codes_lut.csv`. Unknown codes map to 'UNK'.
-    :param dbh: Diameter at breast height (cm).
-    :param ht: Total tree height (m).
-    :param crown_depth: Crown depth (m). Used with scorch height to derive percent crown volume/length scorched.
-    :param bark_thickness: Bark thickness (cm). Optional; if None, it is estimated from species and DBH where supported.
-    :param fire_intensity: Surface fire intensity (kW/m). Optional; used to derive flame length/char height/scorch height
-                          when those are not supplied.
-    :param amb_t: Ambient air temperature (°C). Default [25]. Used when estimating scorch height.
-    :param flame_length: Flame length (m). Optional; if not provided, derived from `fire_intensity`/`char_ht` when possible.
-    :param char_ht: Char height (m). Optional; if not provided, derived from `flame_length` when possible.
-    :param scorch_ht: Scorch height (m). Optional; if not provided, estimated from `fire_intensity`, `amb_t`, and `instand_ws`.
-    :param instand_ws: Instantaneous windspeed (m/s). Default [1]. Used when estimating scorch height.
-    :param aspen_sev: Aspen severity class for equation selection; 'low' or 'high'. Default 'low'.
-    :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM species code strings (e.g., {201: 'PIPO'}).
+    :param spp: Species code(s) (str, int, or np.ndarray). A single string or
+        int may be passed for a single tree. If int, codes are mapped to FOFEM
+        species codes using ``tree_code_dict`` if provided; otherwise via the
+        lookup in ``species_codes_lut.csv``. Unknown codes map to ``'UNK'``.
+    :param dbh: Diameter at breast height (cm). Scalar or np.ndarray.
+    :param ht: Total tree height (m). Scalar or np.ndarray.
+    :param crown_depth: Crown depth (m). Used with scorch height to derive
+        percent crown volume/length scorched. Scalar or np.ndarray.
+    :param bark_thickness: Bark thickness (cm). Scalar or np.ndarray. Optional;
+        if ``None``, estimated from species and DBH using the lookup table.
+    :param fire_intensity: Surface fire intensity (kW/m). Scalar or np.ndarray.
+        Optional; used to derive flame length, char height, and/or scorch height
+        when those are not supplied.
+    :param amb_t: Ambient air temperature (°C). Scalar or np.ndarray. Default
+        25 °C. Used when estimating scorch height.
+    :param flame_length: Flame length (m). Scalar or np.ndarray. Optional; if
+        not provided, derived from ``fire_intensity`` or ``char_ht``.
+    :param char_ht: Char height (m). Scalar or np.ndarray. Optional; if not
+        provided, derived from ``flame_length``.
+    :param scorch_ht: Scorch height (m). Scalar or np.ndarray. Optional; if not
+        provided, estimated from ``fire_intensity``, ``amb_t``, and
+        ``instand_ws``.
+    :param instand_ws: Instantaneous windspeed (m/s). Scalar or np.ndarray.
+        Default 1 m/s. Used when estimating scorch height.
+    :param aspen_sev: Aspen severity class for equation selection; ``'low'`` or
+        ``'high'``. Default ``'low'``.
+    :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
+        species code strings (e.g., ``{201: 'PIPO'}``).
 
-    :return: Mortality probability per tree (float in [0, 1]). Returns a
-        scalar float when all primary inputs are scalars, otherwise a 1D
-        np.ndarray of the same length as the inputs.
+    :return: Mortality probability (float in [0, 1]). Returns a scalar ``float``
+        when all primary inputs (``spp``, ``dbh``, ``ht``, ``crown_depth``) are
+        scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
     """
     # Detect whether the caller passed scalar inputs
     scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
@@ -667,54 +1245,51 @@ def mort_crcabe(
     """
     FOFEM cambium kill / post-fire mortality model (CRCABE).
 
-    Vectorized implementation based on Hood and Lutes (2017). All inputs must
-    be np.ndarrays of equal length (one element per tree). Models are available
-    for the 12 conifer species listed below; trees with unsupported species
-    codes will have their mortality set to ``np.nan`` and a warning will be
-    printed.
-
-    All inputs must be np.ndarrays of equal length (one element per tree).
+    Based on Hood and Lutes (2017). Accepts a single tree (scalar inputs) or
+    multiple trees (array inputs) of equal length. Models are available for the
+    12 conifer species listed below; unsupported species codes return ``np.nan``
+    with a printed warning.
 
     Available species:
-        - White fir        – ABCO, ABCOC
-        - Grand/Subalpine fir – ABGR, ABGRI2, ABGRG, ABGRI, ABGRJ, ABLA, ABLAL
-        - Red fir          – ABMA
-        - Incense Cedar    – CADE27, LIDE
-        - Engelmann spruce – PIEN, PIENE, PIENM, PIENM2
-        - Western Larch    – LAOC
-        - Douglas-fir      – PSME, PSMEF, PSMEM
+        - White fir              – ABCO, ABCOC
+        - Grand/Subalpine fir    – ABGR, ABGRI2, ABGRG, ABGRI, ABGRJ, ABLA, ABLAL
+        - Red fir                – ABMA
+        - Incense Cedar          – CADE27, LIDE
+        - Engelmann spruce       – PIEN, PIENE, PIENM, PIENM2
+        - Western Larch          – LAOC
+        - Douglas-fir            – PSME, PSMEF, PSMEM
         - Whitebark/Lodgepole pine – PIAL, PICO, PICOL, PICOL2
-        - Sugar pine       – PILA
+        - Sugar pine             – PILA
         - Ponderosa/Jeffrey pine – PIPO, PIPOK, PIPOB, PIPOBK, PIPOB2, PIPOB3,
           PIPOB3K, PIPOP, PIPOPK, PIPOP2, PIPOP2K, PIPOS, PIPOSK, PIPOS2,
           PIPOS2K, PIPO_BH, PIJE, PIJEK
 
-    :param spp: Array of species codes (str or int). If int, values are mapped
-        to FOFEM species codes using ``tree_code_dict`` if provided; otherwise
-        via the lookup in ``species_codes_lut.csv``. Unknown codes map to
-        ``'UNK'``.
-    :param dbh: Diameter at breast height (cm).
-    :param ht: Total tree height (m).
-    :param crown_depth: Crown depth/length (m).
-    :param ckr: Cambium Kill Rating (0–4), measured in the field.
-    :param scorch_ht: Scorch height (m).
-    :param beetles: Beetle attack status. May be a single bool (applied to all
-        trees) or a boolean np.ndarray of the same length as *spp*. Default
+    :param spp: Species code(s) (str, int, or np.ndarray). A single string or
+        int may be passed for a single tree. If int, codes are mapped to FOFEM
+        species codes using ``tree_code_dict`` if provided; otherwise via the
+        lookup in ``species_codes_lut.csv``. Unknown codes map to ``'UNK'``.
+    :param dbh: Diameter at breast height (cm). Scalar or np.ndarray.
+    :param ht: Total tree height (m). Scalar or np.ndarray.
+    :param crown_depth: Crown depth (m). Scalar or np.ndarray.
+    :param ckr: Cambium Kill Rating (0–4), measured in the field. Scalar or
+        np.ndarray.
+    :param scorch_ht: Scorch height (m). Scalar or np.ndarray.
+    :param beetles: Beetle attack status. A single ``bool`` (applied to all
+        trees) or a boolean np.ndarray of the same length as ``spp``. Default
         ``False``. Species-specific ``atk`` factor values are assigned
-        internally based on this flag. Relevant beetle species: Ambrosia,
-        Red turpentine, Mountain pine, Douglas-fir beetle, IPS.
+        internally. Relevant beetle species: Ambrosia, Red turpentine, Mountain
+        pine, Douglas-fir beetle, IPS.
     :param cvk: Percent total crown volume killed by bud kill (%). Used only
-        for Ponderosa/Jeffrey pine when the ``PK`` (kill) equation is
-        preferred over the ``PP`` (scorch) equation. May be a scalar or
-        np.ndarray of the same length as *spp*. Default ``None`` (uses
-        scorch-based equation).
+        for Ponderosa/Jeffrey pine; selects the ``PK`` (bud-kill) equation over
+        the ``PP`` (scorch) equation when provided. Scalar or np.ndarray of the
+        same length as ``spp``. Default ``None`` (uses scorch-based equation).
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
         species code strings (e.g., ``{201: 'PIPO'}``).
 
-    :return: Mortality probability per tree (float in [0, 1], or ``np.nan``
-        for unsupported species). Returns a scalar float when all primary
-        inputs are scalars, otherwise a 1D np.ndarray of the same length as
-        the inputs.
+    :return: Mortality probability (float in [0, 1], or ``np.nan`` for
+        unsupported species). Returns a scalar ``float`` when all primary inputs
+        (``spp``, ``dbh``, ``ht``, ``crown_depth``, ``ckr``, ``scorch_ht``) are
+        scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
     """
     # Detect whether the caller passed scalar inputs
     scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
@@ -729,11 +1304,11 @@ def mort_crcabe(
 
     # Coerce all inputs to np.ndarray (at least 1-D)
     spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh, dtype=float))
-    ht = np.atleast_1d(np.asarray(ht, dtype=float))
-    crown_depth = np.atleast_1d(np.asarray(crown_depth, dtype=float))
-    ckr = np.atleast_1d(np.asarray(ckr, dtype=float))
-    scorch_ht = np.atleast_1d(np.asarray(scorch_ht, dtype=float))
+    dbh = np.atleast_1d(np.asarray(dbh))
+    ht = np.atleast_1d(np.asarray(ht))
+    crown_depth = np.atleast_1d(np.asarray(crown_depth))
+    ckr = np.atleast_1d(np.asarray(ckr))
+    scorch_ht = np.atleast_1d(np.asarray(scorch_ht))
 
     # Broadcast beetles to a per-tree boolean array
     beetles = np.broadcast_to(np.asarray(beetles, dtype=bool), spp.shape).copy()
