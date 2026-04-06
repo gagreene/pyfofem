@@ -41,6 +41,16 @@ def _is_scalar(x) -> bool:
     return np.ndim(x) == 0
 
 
+def _maybe_scalar(arr, scalar_input: bool):
+    """Return ``float(arr[0])`` when *scalar_input* is True, otherwise return *arr* unchanged.
+
+    ``None`` is passed through as-is regardless of *scalar_input*.
+    """
+    if arr is None:
+        return None
+    return float(arr[0]) if scalar_input else arr
+
+
 def calc_scorch_ht(
     sfi: Union[float, np.ndarray],
     amb_t: Optional[Union[float, np.ndarray]] = None,
@@ -223,12 +233,9 @@ def consm_canopy(
         flc = flc / 4.4609  # T/acre → kg/m²
         blc = blc / 4.4609
 
-    def _maybe_scalar(arr):
-        return float(arr[0]) if scalar_input else arr
-
     return {
-        'flc': _maybe_scalar(flc),
-        'blc': _maybe_scalar(blc),
+        'flc': _maybe_scalar(flc, scalar_input),
+        'blc': _maybe_scalar(blc, scalar_input),
     }
 
 
@@ -275,22 +282,27 @@ def consm_duff(
         layer depths (cm if ``units='SI'``, inches if ``units='Imperial'``).
     :param mc_lyr1: Percent soil moisture content of layer 1 (%). Scalar or
         np.ndarray. Required for Southeast Pocosin equations.
-    :param pre_dl110: Pre-fire duff + 1-hr + 10-hr fuel load. Scalar or
-        np.ndarray. Required for the Southeast non-Pocosin equation (Eq 16).
-    :param pre_l110: Pre-fire litter + 1-hr + 10-hr fuel load. Scalar or
-        np.ndarray. Required for the Southeast non-Pocosin equation (Eq 16).
+    :param pre_dl110: Pre-fire duff + 1-hr + 10-hr fuel load (kg/m² if
+        ``units='SI'``, T/acre if ``units='Imperial'``). Scalar or np.ndarray.
+        Required for the Southeast non-Pocosin equation (Eq 16).
+    :param pre_l110: Pre-fire litter + 1-hr + 10-hr fuel load (same units as
+        ``pre_dl110``). Scalar or np.ndarray. Required for Eq 16.
     :param pile: ``True`` for pile burning (applies Eq 17, 90% consumed).
         Default ``False``.
-    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``. The
+        FOFEM equations operate in T/acre and inches; ``'SI'`` inputs/outputs
+        are converted automatically.
 
     :return: Dict with keys:
 
         - ``'pdc'`` – percent duff consumed (%) or np.ndarray; ``np.nan``
           where the condition could not be determined.
-        - ``'ddc'`` – duff depth consumed (inches) or np.ndarray; ``None``
-          if ``d_pre`` is not provided.
-        - ``'rdd'`` – residual duff depth (inches) or np.ndarray; ``None``
-          if ``duff_moist_cat != 'edm'`` or ``d_pre`` is not provided.
+        - ``'ddc'`` – duff depth consumed (cm if ``units='SI'``, inches if
+          ``units='Imperial'``) or np.ndarray; ``None`` if ``d_pre`` is not
+          provided.
+        - ``'rdd'`` – residual duff depth (cm if ``units='SI'``, inches if
+          ``units='Imperial'``) or np.ndarray; ``None`` if
+          ``duff_moist_cat != 'edm'`` or ``d_pre`` is not provided.
     """
     scalar_input = _is_scalar(pre_dl) and _is_scalar(duff_moist)
 
@@ -306,12 +318,15 @@ def consm_duff(
         pre_l110 = np.atleast_1d(np.asarray(pre_l110, dtype=float))
 
     if units == 'SI':
+        pre_dl = pre_dl * 4.4609                            # Mg/ha → T/acre
+        if d_pre is not None:
+            d_pre = d_pre / 2.54                            # cm → in
         if isinstance(rm_depth, list):
-            rm_depth = [x / 2.54 for x in rm_depth]   # cm → in
+            rm_depth = [x / 2.54 for x in rm_depth]        # cm → in
         elif rm_depth is not None:
             rm_depth = rm_depth / 2.54
         if pre_dl110 is not None:
-            pre_dl110 = pre_dl110 * 4.4609             # kg/m² → T/acre
+            pre_dl110 = pre_dl110 * 4.4609                  # kg/m² → T/acre
         if pre_l110 is not None:
             pre_l110 = pre_l110 * 4.4609
 
@@ -405,15 +420,17 @@ def consm_duff(
         # Equation 15
         rdd = -0.791 + 0.004 * duff_moist + 0.8 * d_pre + 0.56 * pine
 
-    def _maybe_scalar(arr):
-        if arr is None:
-            return None
-        return float(arr[0]) if scalar_input else arr
+    # Convert depth outputs back to cm when inputs were SI
+    if units == 'SI':
+        if ddc is not None:
+            ddc = ddc * 2.54  # in → cm
+        if rdd is not None:
+            rdd = rdd * 2.54  # in → cm
 
     return {
-        'pdc': _maybe_scalar(pdc),
-        'ddc': _maybe_scalar(ddc),
-        'rdd': _maybe_scalar(rdd),
+        'pdc': _maybe_scalar(pdc, scalar_input),
+        'ddc': _maybe_scalar(ddc, scalar_input),
+        'rdd': _maybe_scalar(rdd, scalar_input),
     }
 
 
@@ -501,11 +518,12 @@ def consm_litter(
         ``'PinFltwd'``. Optional.
     :param reg: Region name. Selects the Southeast equation (Eq 998) when set
         to ``'SouthEast'``. Optional.
-    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``. When
-        ``'Imperial'``, inputs are converted to Mg/ha internally and the result
-        is converted back to T/acre before returning.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``. The
+        FOFEM equations operate in T/acre; ``'SI'`` inputs are converted to
+        T/acre internally and the result is converted back to kg/m² before
+        returning. ``'Imperial'`` inputs (T/acre) are passed directly.
 
-    :return: Litter load consumed (Mg/ha for ``'SI'``, T/acre for
+    :return: Litter load consumed (kg/m² for ``'SI'``, T/acre for
         ``'Imperial'``). Scalar ``float`` when all numeric inputs are scalars,
         otherwise 1D ``np.ndarray``.
     """
@@ -514,8 +532,8 @@ def consm_litter(
     pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
     l_moist = np.atleast_1d(np.asarray(l_moist, dtype=float))
 
-    if units == 'Imperial':
-        pre_ll = pre_ll * 0.446089561  # T/acre → Mg/ha
+    if units == 'SI':
+        pre_ll = pre_ll * 4.4609  # kg/m² → T/acre
 
     if cvr_grp in ['Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd']:
         # FOFEM litter consumption equation 997
@@ -527,8 +545,8 @@ def consm_litter(
         # FOFEM litter consumption equation 999 – calculated with Burnup (generally 100%)
         llc = pre_ll.copy()
 
-    if units == 'Imperial':
-        llc = llc / 0.446089561  # Mg/ha → T/acre
+    if units == 'SI':
+        llc = llc / 4.4609  # T/acre → kg/m²
 
     return float(llc[0]) if scalar_input else llc
 
