@@ -12,10 +12,17 @@ from .burnup import (
     burnup,
 )
 
+from .soil_heating import (
+    soil_heat_campbell,
+    soil_heat_massman,
+)
+
 __all__ = [
     'FuelParticle',
     'BurnResult',
     'BurnSummaryRow',
     'BurnupValidationError',
     'burnup',
+    'soil_heat_campbell',
+    'soil_heat_massman',
 ]

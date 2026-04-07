@@ -57,7 +57,7 @@ __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -118,10 +118,18 @@ class BurnResult:
     :param time: Elapsed time since ignition (s).
     :param wdf: Dry-weight remaining fraction (0–1).
     :param ff: Flaming fraction of mass-loss rate (0–1).
+    :param comp_flaming: Per-component cumulative flaming mass consumed
+        (kg/m²) since the last record, in sorted component order.
+        ``None`` when not tracked.
+    :param comp_smoldering: Per-component cumulative smoldering mass consumed
+        (kg/m²) since the last record, in sorted component order.  Index
+        ``number`` holds the duff smoldering rate.  ``None`` when not tracked.
     """
     time: float
     wdf: float
     ff: float
+    comp_flaming: Optional[List[float]] = None
+    comp_smoldering: Optional[List[float]] = None
 
 
 @dataclass
@@ -161,7 +169,7 @@ _FUEL_BOUNDS = {
     'fmois':  (0.01,    3.0,      'fuel moisture (fraction)'),
     'dendry': (200.0,   1000.0,   'dry mass density (kg/m³)'),
     'sigma':  (4.0,     1.0e4,    'SAV (1/m)'),
-    'cheat':  (1000.0,  4000.0,   'heat capacity (J/kg·K)'),
+    'cheat':  (1000.0,  3000.0,   'heat capacity (J/kg·K)'),
     'condry': (0.025,   0.25,     'thermal conductivity (W/m·K)'),
     'tpig':   (200.0,   400.0,    'ignition temperature (°C)'),
     'tchar':  (250.0,   500.0,    'char temperature (°C)'),
@@ -839,7 +847,9 @@ def burnup(
             wnoduff = wdotk - smoldering[ki]
             test = (wnoduff / wdotk) * fint[ki] if wnoduff > 0.0 else 0.0
 
-            if ark > _SMALLX and test > fint_switch / ark - fint_switch:
+            # TODO - test holder
+            # if ark > _SMALLX and test > fint_switch / ark - fint_switch:
+            if test > (fint_switch / ark - fint_switch):
                 flaming[ki] += wnoduff
             else:
                 smoldering[ki] += wnoduff
@@ -863,6 +873,9 @@ def burnup(
         wdf_val = float(wo.sum()) / wd0
         wt_flam = float(flaming.sum())
         wt_smol = float(smoldering.sum())
+        # Snapshot per-component masses before zeroing
+        cf = flaming[:number].tolist()
+        cs = smoldering[:number + 1].tolist()
         flaming[:] = 0.0
         smoldering[:number] = 0.0
         denom = wt_flam + wt_smol
@@ -870,6 +883,8 @@ def burnup(
             time=time_val,
             wdf=wdf_val,
             ff=wt_flam / denom if denom > 0.0 else 0.0,
+            comp_flaming=cf,
+            comp_smoldering=cs,
         ))
 
     # ------------------------------------------------------------------
