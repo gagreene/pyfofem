@@ -1,0 +1,86 @@
+# Golden output — consumption equation unit tests
+# Each row is one analytical test case derived directly from C++ source equations.
+# All values in Imperial units (T/ac, inches, %) unless noted.
+# Tolerances used in tests: abs=0.01 for percentages, abs=0.001 for loads/depths.
+#
+# --- consm_duff ---
+# Eq 2 default (InteriorWest, edm, non-ponderosa): pdc = 83.7 - 0.426 * duff_moist
+# duff_moist=50  -> pdc = 83.7 - 21.3 = 62.4
+# duff_moist=100 -> pdc = 83.7 - 42.6 = 41.1
+# duff_moist=200 -> pdc = 83.7 - 85.2 = -1.5 -> clamped to 0.0
+# low-moist floor (Fix D): duff_moist=10 -> pdc = 100.0
+#
+# Eq 1 (InteriorWest, ldm, non-ponderosa): pdc = 97.1 - 0.519 * duff_moist  (<=160)
+# duff_moist=80  -> pdc = 97.1 - 41.52 = 55.58
+# duff_moist=160 -> pdc = 97.1 - 83.04 = 14.06
+# duff_moist=180 -> pdc = 13.6  (else branch)
+#
+# Eq 4 (InteriorWest, ldm, Ponderosa): pdc = 89.9 - 0.55 * duff_moist
+# duff_moist=60  -> pdc = 89.9 - 33.0 = 56.9
+#
+# Eq 3 (nfdth, uses dw1000_moist): pdc = 114.7 - 4.20 * dw1000_moist
+# dw1000_moist=20 -> pdc = 114.7 - 84.0 = 30.7
+# dw1000_moist=27 -> pdc = 114.7 - 113.4 = 1.3
+#
+# Eq 17 pile (Fix C): pdc = 10.0
+#
+# Eq 5 depth (ldm, InteriorWest): ddc = 1.028 - 0.0089*moist + 0.417*d_pre
+# duff_moist=50, d_pre=2.0 in -> ddc = 1.028 - 0.445 + 0.834 = 1.417
+#
+# Eq 6 depth (edm default): ddc = 0.8811 - 0.0096*moist + 0.439*d_pre
+# duff_moist=75, d_pre=3.0 in -> ddc = 0.8811 - 0.72 + 1.317 = 1.4781
+#
+# Eq 15 rdd (edm): rdd = -0.791 + 0.004*moist + 0.8*d_pre + 0.56*pine
+# duff_moist=60, d_pre=4.0, pine=0 -> rdd = -0.791 + 0.24 + 3.2 + 0 = 2.649
+# duff_moist=60, d_pre=4.0, pine=1 -> rdd = 2.649 + 0.56 = 3.209
+#
+# --- consm_herb ---
+# Eq 22 default (100%): hlc = herb_load
+# Eq 221 GrassGroup Spring (10%): hlc = herb * 0.1
+# Eq 221 GrassGroup Summer (Fix B — 100%): hlc = herb (not 10%)
+# Eq 222 SouthEast: hlc = -0.059 + 0.004*litter + 0.917*herb
+# Eq 223 PineFlatwoods: hlc = herb * 0.9944
+#
+# --- consm_shrub ---
+# Eq 23 default (60%): slc_pct = 60.0
+# Eq 231 ShrubGroup (80%): slc_pct = 80.0
+# Eq 232 Sagebrush non-Fall (50%): slc_pct = 50.0
+# Eq 233 Sagebrush Fall (90%): slc_pct = 90.0
+# Eq 235 Pocosin Summer/Fall SE (80%): slc_pct = 80.0
+# Eq 233 Pocosin Spring/Winter SE (90%): slc_pct = 90.0
+#
+# --- consm_canopy ---
+# Eq 37 foliage: flc = foliage * (pct_crown/100)
+# Eq 38 branch:  blc = branch * 0.5 * (pct_crown/100)
+# pct=50, foliage=10.0 T/ac, branch=5.0 T/ac
+#   -> flc = 5.0, blc = 5.0*0.5 = 1.25
+test_id,function,inputs_json,expected_key,expected_value,atol
+eq2_dm50,consm_duff,"{""pre_dl"":10.0,""duff_moist"":50,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""units"":""Imperial""}",pdc,62.4,0.01
+eq2_dm100,consm_duff,"{""pre_dl"":10.0,""duff_moist"":100,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""units"":""Imperial""}",pdc,41.1,0.01
+eq2_dm200_clamp,consm_duff,"{""pre_dl"":10.0,""duff_moist"":200,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""units"":""Imperial""}",pdc,0.0,0.01
+eq_low_moist_floor,consm_duff,"{""pre_dl"":10.0,""duff_moist"":10,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""units"":""Imperial""}",pdc,100.0,0.01
+eq1_dm80,consm_duff,"{""pre_dl"":10.0,""duff_moist"":80,""reg"":""InteriorWest"",""duff_moist_cat"":""ldm"",""units"":""Imperial""}",pdc,55.58,0.01
+eq1_dm160,consm_duff,"{""pre_dl"":10.0,""duff_moist"":160,""reg"":""InteriorWest"",""duff_moist_cat"":""ldm"",""units"":""Imperial""}",pdc,14.06,0.01
+eq1_dm180_else,consm_duff,"{""pre_dl"":10.0,""duff_moist"":180,""reg"":""InteriorWest"",""duff_moist_cat"":""ldm"",""units"":""Imperial""}",pdc,13.6,0.01
+eq4_ponderosa,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""InteriorWest"",""cvr_grp"":""Ponderosa"",""duff_moist_cat"":""ldm"",""units"":""Imperial""}",pdc,56.9,0.01
+eq3_nfdth_dw1000,consm_duff,"{""pre_dl"":10.0,""duff_moist"":80,""reg"":""InteriorWest"",""duff_moist_cat"":""nfdth"",""dw1000_moist"":20,""units"":""Imperial""}",pdc,30.7,0.01
+eq17_pile,consm_duff,"{""pre_dl"":10.0,""duff_moist"":50,""pile"":true,""units"":""Imperial""}",pdc,10.0,0.01
+eq5_ddc,consm_duff,"{""pre_dl"":10.0,""duff_moist"":50,""reg"":""InteriorWest"",""duff_moist_cat"":""ldm"",""d_pre"":2.0,""units"":""Imperial""}",ddc,1.417,0.001
+eq6_ddc,consm_duff,"{""pre_dl"":10.0,""duff_moist"":75,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""d_pre"":3.0,""units"":""Imperial""}",ddc,1.4781,0.001
+eq15_rdd_nopine,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""NorthEast"",""duff_moist_cat"":""edm"",""d_pre"":4.0,""units"":""Imperial""}",rdd,2.649,0.001
+eq15_rdd_pine,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""NorthEast"",""cvr_grp"":""RedJacPin"",""duff_moist_cat"":""edm"",""d_pre"":4.0,""units"":""Imperial""}",rdd,3.209,0.001
+herb_eq22,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":"""",""pre_ll"":2.0,""pre_hl"":1.5,""units"":""Imperial""}",hlc,1.5,0.001
+herb_eq221_spring,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":""GrassGroup"",""pre_ll"":2.0,""pre_hl"":1.5,""season"":""Spring"",""units"":""Imperial""}",hlc,0.15,0.001
+herb_eq221_summer_fallback,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":""GrassGroup"",""pre_ll"":2.0,""pre_hl"":1.5,""season"":""Summer"",""units"":""Imperial""}",hlc,1.5,0.001
+# Eq 222: -0.059 + 0.004*3.0 + 0.917*2.0 = -0.059 + 0.012 + 1.834 = 1.787
+herb_eq222_se,consm_herb,"{""reg"":""SouthEast"",""cvr_grp"":"""",""pre_ll"":3.0,""pre_hl"":2.0,""units"":""Imperial""}",hlc,1.787,0.001
+herb_eq223_flatwood,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":""PinFltwd"",""pre_ll"":2.0,""pre_hl"":1.0,""units"":""Imperial""}",hlc,0.9944,0.001
+shrub_eq23_default,consm_shrub,"{""reg"":""InteriorWest"",""cvr_grp"":"""",""pre_sl"":4.0,""units"":""Imperial""}",slc_pct,60.0,0.01
+shrub_eq231_shrubgroup,consm_shrub,"{""reg"":""InteriorWest"",""cvr_grp"":""ShrubGroup"",""pre_sl"":4.0,""units"":""Imperial""}",slc_pct,80.0,0.01
+shrub_eq232_sagebrush,consm_shrub,"{""reg"":""InteriorWest"",""cvr_grp"":""Sagebrush"",""pre_sl"":4.0,""season"":""Summer"",""units"":""Imperial""}",slc_pct,50.0,0.01
+shrub_eq233_sagebrush_fall,consm_shrub,"{""reg"":""InteriorWest"",""cvr_grp"":""Sagebrush"",""pre_sl"":4.0,""season"":""Fall"",""units"":""Imperial""}",slc_pct,90.0,0.01
+shrub_eq235_pocosin_summer,consm_shrub,"{""reg"":""SouthEast"",""cvr_grp"":""Pocosin"",""pre_sl"":4.0,""season"":""Summer"",""units"":""Imperial""}",slc_pct,80.0,0.01
+shrub_eq233_pocosin_spring,consm_shrub,"{""reg"":""SouthEast"",""cvr_grp"":""Pocosin"",""pre_sl"":4.0,""season"":""Spring"",""units"":""Imperial""}",slc_pct,90.0,0.01
+canopy_foliage,consm_canopy,"{""crown_burn"":50.0,""pre_fl"":10.0,""pre_bl"":5.0,""units"":""Imperial""}",flc,5.0,0.001
+canopy_branch,consm_canopy,"{""crown_burn"":50.0,""pre_fl"":10.0,""pre_bl"":5.0,""units"":""Imperial""}",blc,1.25,0.001
+

@@ -1,0 +1,20 @@
+# Burnup test inputs — reconstructed from dependencies/fofem_cpp/load.txt
+# All sound-wood size classes; 1.0 T/ac each for fine fuels, 0.125 T/ac each for 1000-hr.
+# Fire environment: intensity=50 kW/m2, ig_time=60 s, windspeed=0 m/s,
+#                   depth=0.3 m, ambient_temp=21 C, timestep=15 s, max_times=3000
+#
+# column descriptions:
+#   component         : pyfofem size-class key
+#   load_tac          : pre-fire oven-dry load (T/ac)
+#   moisture_fraction : moisture content (fraction of dry weight, 0-1)
+#   sav_per_m         : surface-area-to-volume ratio (1/m)
+component,load_tac,moisture_fraction,sav_per_m
+litter,1.0,0.18,8200.0
+dw1,1.0,0.18,1480.0
+dw10,1.0,0.20,394.0
+dw100,1.0,0.22,105.0
+dwk_3_6,0.125,0.20,39.4
+dwk_6_9,0.125,0.20,21.9
+dwk_9_20,0.125,0.20,12.7
+dwk_20,0.125,0.20,5.91
+
