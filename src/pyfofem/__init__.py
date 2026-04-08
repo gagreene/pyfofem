@@ -30,9 +30,14 @@ from .pyfofem import (
     calc_carbon,
     calc_smoke_emissions,
     calc_canopy_cover,
+    run_fofem_mortality,
     run_fofem_emissions,
     SPP_CODES,
     CONSUMPTION_VARS,
+    REGION_CODES,
+    CVR_GRP_CODES,
+    SEASON_CODES,
+    FUEL_CATEGORY_CODES,
 )
 
 __all__ = [
@@ -56,9 +61,14 @@ __all__ = [
     'calc_carbon',
     'calc_smoke_emissions',
     'calc_canopy_cover',
+    'run_fofem_mortality',
     'run_fofem_emissions',
     'SPP_CODES',
     'CONSUMPTION_VARS',
+    'REGION_CODES',
+    'CVR_GRP_CODES',
+    'SEASON_CODES',
+    'FUEL_CATEGORY_CODES',
     'soil_heat_campbell',
     'soil_heat_massman',
 ]

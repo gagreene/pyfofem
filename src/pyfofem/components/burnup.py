@@ -73,7 +73,7 @@ _fabs = math.fabs
 # ---------------------------------------------------------------------------
 _CH2O: float = 4186.0          # Specific heat of water (J/kg·K)
 _TPDRY: float = 353.0          # Temperature at onset of drying (K, ≈80 °C)
-_SMALLX: float = 1.0e-06       # Near-zero threshold
+_SMALLX: float = 1.0e-08       # Near-zero threshold (C++ e_small = 1e-8)
 _BIG: float = 1.0e+06          # Near-infinity threshold
 _RINDEF: float = 1.0e+30       # "Infinite time" sentinel
 _MXSTEP: int = 20              # Rolling history window for qdot averaging
@@ -158,30 +158,35 @@ class BurnSummaryRow:
 # ---------------------------------------------------------------------------
 # Validation bounds  (all exclusive – matching C++ strict-inequality checks)
 # ---------------------------------------------------------------------------
-# Note: the C++ code checks tpig/tchar in Kelvin after converting from °C,
-# making the original bounds (200, 400) K meaningless for ignition temps.
-# The intended physical range is 200–400 °C for tpig and 250–500 °C for tchar.
-# We validate in °C (the input unit) with those physically sensible bounds.
+# Sources: BUR_BRN.H defines (e_tig1/2, e_tch1/2, e_cht1/2, e_fms1/2,
+#          e_dfm1/2, e_small, e_big) and BRN_CheckData() local constants
+#          (ash1/2, htv1/2, den1/2, sig1/2, con1/2, fir1/2, ti1/2,
+#           u1/2, d1/2, tam1/2) in BUR_BRN.cpp lines 1052-1061.
+#
+# Note: tpig/tchar are stored internally in Kelvin but validated here in °C
+#       (the input unit), matching the °C bounds from BUR_BRN.H (e_tig1=200,
+#       e_tig2=400, e_tch1=250, e_tch2=500) rather than the Kelvin-offset
+#       equivalents used inside BRN_CheckData.
 _FUEL_BOUNDS = {
-    'wdry':   (_SMALLX, _BIG,     'dry loading (kg/m²)'),
-    'ash':    (0.0001,  0.1,      'ash content (fraction)'),
-    'htval':  (1.0e7,   3.0e7,    'heat content (J/kg)'),
-    'fmois':  (0.01,    3.0,      'fuel moisture (fraction)'),
-    'dendry': (200.0,   1000.0,   'dry mass density (kg/m³)'),
-    'sigma':  (4.0,     1.0e4,    'SAV (1/m)'),
-    'cheat':  (1000.0,  3000.0,   'heat capacity (J/kg·K)'),
-    'condry': (0.025,   0.25,     'thermal conductivity (W/m·K)'),
-    'tpig':   (200.0,   400.0,    'ignition temperature (°C)'),
-    'tchar':  (250.0,   500.0,    'char temperature (°C)'),
+    'wdry':   (_SMALLX, _BIG,     'dry loading (kg/m²)'),          # e_small=1e-8, e_big=1e6
+    'ash':    (0.0001,  0.1,      'ash content (fraction)'),        # ash1=0.0001,  ash2=0.1
+    'htval':  (1.0e7,   3.0e7,    'heat content (J/kg)'),           # htv1=1e7,     htv2=3e7
+    'fmois':  (0.01,    3.0,      'fuel moisture (fraction)'),      # e_fms1=0.01,  e_fms2=3.0
+    'dendry': (200.0,   1000.0,   'dry mass density (kg/m³)'),      # den1=200,     den2=1000
+    'sigma':  (4.0,     1.0e4,    'SAV (1/m)'),                     # sig1=4,       sig2=1e4
+    'cheat':  (1000.0,  3000.0,   'heat capacity (J/kg·K)'),        # e_cht1=1000,  e_cht2=3000
+    'condry': (0.025,   0.25,     'thermal conductivity (W/m·K)'),  # con1=0.025,   con2=0.25
+    'tpig':   (200.0,   400.0,    'ignition temperature (°C)'),     # e_tig1=200,   e_tig2=400
+    'tchar':  (250.0,   500.0,    'char temperature (°C)'),         # e_tch1=250,   e_tch2=500
 }
 
 _FIRE_BOUNDS = {
-    'fistart': (0.1,    1.0e5,   'igniting fire intensity (kW/m²)'),
-    'ti':      (1.0,    None,    'surface fire residence time (s)'),
-    'u':       (0.0,    5.0,     'windspeed at fuelbed top (m/s)'),
-    'd':       (0.1,    5.0,     'fuel bed depth (m)'),
-    'tamb_c':  (-40.0,  40.0,    'ambient temperature (°C)'),
-    'dfm':     (0.1,    1.972,   'duff moisture (fraction)'),
+    'fistart': (40.0,   1.0e5,   'igniting fire intensity (kW/m²)'),       # fir1=40,  fir2=1e5
+    'ti':      (10.0,   200.0,   'surface fire residence time (s)'),        # ti1=10,   ti2=200
+    'u':       (0.0,    5.0,     'windspeed at fuelbed top (m/s)'),         # u1=0,     u2=5
+    'd':       (0.1,    5.0,     'fuel bed depth (m)'),                     # d1=0.1,   d2=5
+    'tamb_c':  (-40.0,  40.0,    'ambient temperature (°C)'),               # tam1=-40, tam2=40
+    'dfm':     (0.1,    1.972,   'duff moisture (fraction)'),               # e_dfm1=0.1, e_dfm2=1.972
 }
 
 
@@ -536,7 +541,20 @@ def _check_fire(
     wdf_load: float,
     dfm: float,
 ) -> Tuple[float, float]:
-    """Validate fire-environment parameters and apply auto-adjustment.
+    """Validate fire-environment parameters against C++ ``BRN_CheckData`` bounds.
+
+    Bounds are taken directly from ``BRN_CheckData()`` local constants in
+    ``BUR_BRN.cpp`` (lines 1057–1061):
+
+    * ``fir1 = 40.0``,  ``fir2 = 1.0e5``  – igniting fire intensity (kW/m²)
+    * ``ti1  = 10.0``,  ``ti2  = 200.0``  – flame residence time (s)
+    * ``u1   = 0.0``,   ``u2   = 5.0``    – windspeed at fuelbed top (m/s)
+    * ``d1   = 0.1``,   ``d2   = 5.0``    – fuel bed depth (m)
+    * ``tam1 = -40.0``, ``tam2 = 40.0``   – ambient temperature (°C)
+    * ``e_dfm1 = 0.1``, ``e_dfm2 = 1.972``– duff moisture fraction
+
+    No auto-adjustment is applied; the C++ code performs straight range checks
+    and returns an error string when any value is out of bounds.
 
     :param fistart: Igniting fire intensity (kW/m²).
     :param ti: Surface fire residence time (s).
@@ -545,21 +563,16 @@ def _check_fire(
     :param tamb_c: Ambient temperature (°C).
     :param wdf_load: Duff dry-weight loading (kg/m²).
     :param dfm: Duff moisture fraction.
-    :return: ``(fistart, ti)`` possibly adjusted.
+    :return: ``(fistart, ti)`` unchanged.
     :raises BurnupValidationError: If any parameter is out of range.
     """
-    if ti < 1.0:
-        rat = fistart / ti
-        tempt = (fistart - 0.1) / rat
-        ti += tempt
-        fistart = 0.1
 
-    if fistart < 0.1 or fistart > 1.0e5:
+    if fistart < 40.0 or fistart > 1.0e5:
         raise BurnupValidationError(
-            f"igniting fire intensity = {fistart} out of range (0.1, 1e5) kW/m²")
-    if ti < 1.0:
+            f"igniting fire intensity = {fistart} out of range (40, 1e5) kW/m²")
+    if ti < 10.0 or ti > 200.0:
         raise BurnupValidationError(
-            f"surface fire residence time = {ti} out of range (>=1.0 s)")
+            f"surface fire residence time = {ti} out of range (10, 200) s")
     if u < 0.0 or u > 5.0:
         raise BurnupValidationError(
             f"windspeed = {u} out of range (0, 5) m/s")
