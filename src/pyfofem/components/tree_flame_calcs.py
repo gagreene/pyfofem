@@ -212,7 +212,6 @@ def calc_char_ht(flame_length: Union[float, np.ndarray]) -> Union[float, np.ndar
 
     :param flame_length: Flame length (m), scalar or np.ndarray
     :return: Char height (m), scalar or np.ndarray
-
     """
     flame_length = np.asarray(flame_length)
     return flame_length / 1.8
