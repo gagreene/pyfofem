@@ -213,6 +213,7 @@ def run_fofem_emissions(
     units: str = 'Imperial',
     moisture_regime: Optional[str] = None,
     num_workers: int = 1,
+    show_progress: bool = False,
 ) -> dict:
     """
     Facade driver for FOFEM fuel consumption, carbon, and smoke emissions.
@@ -284,6 +285,8 @@ def run_fofem_emissions(
     :param num_workers: Number of parallel workers for the burnup loop.
         ``1`` (default) runs sequentially. ``>1`` uses
         ``ProcessPoolExecutor``.
+    :param show_progress: If ``True``, display a :mod:`tqdm` progress bar
+        during the per-cell burnup loop. Default ``False``.
     :returns: Dict with all :data:`CONSUMPTION_VARS` keys.  Values are
         plain Python ``float``/``int`` when all inputs are scalars, otherwise
         ``np.ndarray``.
@@ -425,37 +428,33 @@ def run_fofem_emissions(
         0.0, 100.0,
     )
 
-    duff_res = consm_duff(
-        duf_a, duf_m_a,
-        reg=None, cvr_grp=None,          # scalar path; we broadcast below
-        duff_moist_cat='edm',
-        d_pre=duf_dep_a,
-        units=units,
-    )
-    # consm_duff is partially vectorised for numeric inputs; re-run per-region
-    # for the residual depth (rdd) path which needs reg/cvr_grp strings:
-    duff_res2 = consm_duff(
-        duf_a, duf_m_a,
-        duff_moist_cat='edm',
-        d_pre=duf_dep_a,
-        units=units,
-    )
-    pdc_arr = np.clip(np.asarray(duff_res2['pdc'], dtype=float).ravel(), 0.0, 100.0)
-    duf_pre_arr    = duf_a.copy()
+    duf_pre_arr     = duf_a.copy()
     duf_dep_pre_arr = duf_dep_a.copy()
 
-    rdd_val = duff_res2['rdd']
-    ddc_val = duff_res2['ddc']
-    if rdd_val is not None:
-        rdd_arr = np.clip(np.asarray(rdd_val, dtype=float).ravel(), 0.0, None)
-        duf_dep_pos_arr = np.minimum(rdd_arr, duf_dep_pre_arr)
-        duf_dep_con_arr = duf_dep_pre_arr - duf_dep_pos_arr
-    elif ddc_val is not None:
-        duf_dep_con_arr = np.clip(np.asarray(ddc_val, dtype=float).ravel(), 0.0, duf_dep_pre_arr)
-        duf_dep_pos_arr = duf_dep_pre_arr - duf_dep_con_arr
-    else:
-        duf_dep_con_arr = np.full(n, np.nan)
-        duf_dep_pos_arr = np.full(n, np.nan)
+    # Call consm_duff per-cell so region/cover-group routing is correct,
+    # then stack results into arrays.
+    pdc_list = np.empty(n, dtype=float)
+    ddc_list = np.empty(n, dtype=float)
+    rdd_list = np.empty(n, dtype=float)
+
+    for _i in range(n):
+        _res = consm_duff(
+            float(duf_a[_i]), float(duf_m_a[_i]),
+            reg=str(reg_a[_i]) if reg_a.size > 0 else None,
+            cvr_grp=str(cvr_a[_i]) if cvr_a.size > 0 else None,
+            duff_moist_cat='edm',
+            d_pre=float(duf_dep_a[_i]),
+            dw1000_moist=float(dw1k_m_a[_i]),
+            units=units,
+        )
+        pdc_list[_i] = float(np.asarray(_res['pdc']).ravel()[0])
+        ddc_list[_i] = float(np.asarray(_res['ddc']).ravel()[0]) if _res['ddc'] is not None else np.nan
+        rdd_list[_i] = float(np.asarray(_res['rdd']).ravel()[0]) if _res['rdd'] is not None else np.nan
+
+    pdc_arr = np.clip(pdc_list, 0.0, 100.0)
+
+    duf_dep_con_arr = np.clip(ddc_list, 0.0, duf_dep_pre_arr)
+    duf_dep_pos_arr = duf_dep_pre_arr - duf_dep_con_arr
 
     # ------------------------------------------------------------------
     # 5. Per-cell burnup (parallelised)
@@ -549,17 +548,28 @@ def run_fofem_emissions(
                 'amb_temp': float(at_a[i]),
                 'duf_loading_si': duf_si,
                 'duf_moist_frac': duf_mf,
+                'duf_pct_consumed': float(pdc_arr[i]),  # FOFEM DUF_Mngr pdc → DuffBurn ff
                 'burnup_dt': burnup_dt,
                 'bkw': bkw_base,
                 'cell_idx': i,
             })
 
         # Run burnup cells using the top-level (picklable) worker function
+        _tqdm_kw = dict(total=len(cell_kwargs), desc='Burnup', unit='cell',
+                        disable=not show_progress)
         if num_workers == 1:
-            cell_results = [_run_burnup_cell(ck) for ck in cell_kwargs]
+            from tqdm import tqdm
+            cell_results = [
+                _run_burnup_cell(ck)
+                for ck in tqdm(cell_kwargs, **_tqdm_kw)
+            ]
         else:
+            from tqdm import tqdm
             with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
-                cell_results = list(pool.map(_run_burnup_cell, cell_kwargs))
+                cell_results = list(tqdm(
+                    pool.map(_run_burnup_cell, cell_kwargs),
+                    **_tqdm_kw,
+                ))
 
         # Merge burnup results back into output arrays
         for i, cr in enumerate(cell_results):
@@ -618,16 +628,46 @@ def run_fofem_emissions(
 
             fla_dur_arr[i] = cr['fla_dur']
             smo_dur_arr[i] = cr['smo_dur']
+            # NOTE: duf_con_arr / duf_pos_arr are intentionally NOT updated here.
+            # Duff load consumed is determined entirely by DUF_Mngr's pdc (computed
+            # in the per-cell consm_duff loop above), matching C++ behaviour where
+            # DuffBurn uses f_DufConPerCent from DUF_Mngr and burnup only
+            # controls timing/intensity, not the total consumed amount.
 
-            duff_smo_si = cr.get('duff_smo_si', 0.0)
-            if duff_smo_si > 0:
-                duf_con_arr[i] = min(duff_smo_si * fsi, duf_pre_arr[i])
-                duf_pos_arr[i] = duf_pre_arr[i] - duf_con_arr[i]
+    # ------------------------------------------------------------------
+    # 5b. Zero out all per-cell outputs for cells with a burnup error
+    # ------------------------------------------------------------------
+    if use_burnup:
+        err_mask = burnup_err_arr != 0
+        if np.any(err_mask):
+            for arr in (
+                lit_con_arr, lit_pos_arr, lit_fla_arr, lit_smo_arr,
+                her_con_arr, her_pos_arr,
+                shr_con_arr, shr_pos_arr,
+                fol_con_arr, fol_pos_arr,
+                bra_con_arr, bra_pos_arr,
+                duf_con_arr, duf_pos_arr,
+                duf_dep_con_arr, duf_dep_pos_arr,
+                dw1_con_arr, dw1_pos_arr,
+                dw10_con_arr, dw10_pos_arr,
+                dw100_con_arr, dw100_pos_arr,
+                dw1ks_con_arr, dw1ks_pos_arr,
+                dw1kr_con_arr, dw1kr_pos_arr,
+                snd_fla_arr, snd_smo_arr,
+                rot_fla_arr, rot_smo_arr,
+                fine_fla_arr, fine_smo_arr,
+                mse_arr,
+            ):
+                arr[err_mask] = 0.0
+            fla_dur_arr[err_mask] = 0.0
+            smo_dur_arr[err_mask] = 0.0
 
     # ------------------------------------------------------------------
     # 6. Smoldering duration fallback where burnup didn't provide it
     # ------------------------------------------------------------------
     for i in range(n):
+        if burnup_err_arr[i] != 0:
+            continue
         if np.isnan(smo_dur_arr[i]) and not np.isnan(duf_dep_con_arr[i]) and duf_dep_con_arr[i] > 0:
             dep_cm  = duf_dep_con_arr[i] * _IN_TO_CM if is_imperial else duf_dep_con_arr[i]
             brate   = max(0.05 * np.exp(-0.025 * float(duf_m_a[i])), 1e-6)

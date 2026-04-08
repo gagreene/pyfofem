@@ -181,7 +181,7 @@ _FUEL_BOUNDS = {
 }
 
 _FIRE_BOUNDS = {
-    'fistart': (40.0,   1.0e5,   'igniting fire intensity (kW/m²)'),       # fir1=40,  fir2=1e5
+    'fistart': (10.0,   1.0e5,   'igniting fire intensity (kW/m²)'),        # fir1=40,  fir2=1e5
     'ti':      (10.0,   200.0,   'surface fire residence time (s)'),        # ti1=10,   ti2=200
     'u':       (0.0,    5.0,     'windspeed at fuelbed top (m/s)'),         # u1=0,     u2=5
     'd':       (0.1,    5.0,     'fuel bed depth (m)'),                     # d1=0.1,   d2=5
@@ -195,15 +195,16 @@ _FIRE_BOUNDS = {
 # When a burnup input variable is clipped to stay within ``_FIRE_BOUNDS`` /
 # ``_FUEL_BOUNDS``, a single-digit numeric code is recorded.  If multiple
 # variables are clipped for the same cell, the codes are concatenated (e.g.
-# codes 1 and 3 → adjustment value 13; codes 2, 4 and 5 → 245).
+# codes 1 and 3 → adjustment value 13; codes 2, 4 and 6 → 246).
 #
 # A value of 0 means no adjustment was applied.
 _BURNUP_LIMIT_ADJUST = {
-    1: 'ti – surface fire residence time clipped to max (200 s)',
-    2: 'u – windspeed at fuelbed top clipped to max (5 m/s)',
-    3: 'd – fuel bed depth clipped to min (0.1 m) or max (5 m)',
-    4: 'tamb_c – ambient temperature clipped to max (40 °C)',
-    5: 'dfm – duff moisture (fraction) clipped to min (0.1)',
+    1: 'fistart – igniting fire intensity clipped to max (1e5 kW/m²)',
+    2: 'ti – surface fire residence time clipped to max (200 s)',
+    3: 'u – windspeed at fuelbed top clipped to max (5 m/s)',
+    4: 'd – fuel bed depth clipped to min (0.1 m) or max (5 m)',
+    5: 'tamb_c – ambient temperature clipped to max (40 °C)',
+    6: 'dfm – duff moisture (fraction) clipped to min (0.1)',
 }
 
 # ---------------------------------------------------------------------------
@@ -224,7 +225,7 @@ _BURNUP_LIMIT_ADJUST = {
 # If multiple errors would apply, only the first detected code is stored.
 _BURNUP_LIMIT_ERROR = {
     # -- Fire environment (not clipped) -----------------------------------
-    10: 'fistart – igniting fire intensity out of range (40–1e5 kW/m²)',
+    10: 'fistart – igniting fire intensity below min (40 kW/m²)',
     11: 'ti – surface fire residence time below min (10 s)',
     12: 'u – windspeed at fuelbed top below min (0 m/s)',
     13: 'tamb_c – ambient temperature below min (−40 °C)',
@@ -473,20 +474,37 @@ def _dry_time(enu: float, theta: float) -> float:
     return (0.5 * x / enu) ** 2
 
 
-def _duff_burn(wdf_load: float, dfm: float) -> Tuple[float, float, float]:
+def _duff_burn(wdf_load: float, dfm: float,
+               duff_pct_consumed: float = -1.0) -> Tuple[float, float, float]:
     """Compute duff burning intensity, duration, and smoldering rate.
+
+    Mirrors ``DuffBurn()`` in the C++ source (``BUR_BRN.cpp``).  When
+    *duff_pct_consumed* is a valid FOFEM-calculated percent (0–100), it is
+    used as the consumed fraction ``ff`` exactly as in the C++ code
+    (``f_DufConPerCent / 100.0``).  Otherwise the original moisture-only
+    fallback formula is used (``ff = 0.837 – 0.426 × dfm``).
 
     :param wdf_load: Duff dry-weight loading (kg/m²).
     :param dfm: Duff moisture content (fraction).
+    :param duff_pct_consumed: Percent of duff consumed as calculated by
+        FOFEM's ``DUF_Mngr`` (0–100, whole number).  Pass ``-1`` (default)
+        to use the fallback formula (matches running burnup standalone
+        without a prior FOFEM duff calculation).
     :return: ``(dfi, tdf, smolder_rate)`` – duff fire intensity (kW/m²),
         duff burn duration (s), and duff smoldering mass rate (kg/m²·s).
     """
     if wdf_load <= 0.0 or dfm >= 1.96:
         return 0.0, 0.0, 0.0
     dfi = 11.25 - 4.05 * dfm
-    ff = 0.837 - 0.426 * dfm
+    # C++ DuffBurn: use FOFEM pdc when valid, else moisture-only fallback
+    if 0.0 <= duff_pct_consumed <= 100.0:
+        ff = duff_pct_consumed / 100.0
+    else:
+        ff = 0.837 - 0.426 * dfm
+    if ff <= 0.0:
+        return 0.0, 0.0, 0.0
     tdf = 1.0e4 * ff * wdf_load / (7.5 - 2.7 * dfm)
-    smolder_rate = ff * wdf_load / tdf
+    smolder_rate = (ff * wdf_load / tdf) if tdf > 0.0 else 0.0
     return dfi, tdf, smolder_rate
 
 
@@ -626,22 +644,23 @@ def _check_fire(
     :raises BurnupValidationError: If any parameter is out of range.
     """
 
-    if fistart < 40.0 or fistart > 1.0e5:
+    if fistart < _FIRE_BOUNDS['fistart'][0] or fistart > _FIRE_BOUNDS['fistart'][1]:
         raise BurnupValidationError(
-            f"igniting fire intensity = {fistart} out of range (40, 1e5) kW/m²")
-    if ti < 10.0 or ti > 200.0:
+            f"igniting fire intensity = {fistart} out of range "
+            f"({_FIRE_BOUNDS['fistart'][0]}, {_FIRE_BOUNDS['fistart'][1]}) kW/m²")
+    if ti < _FIRE_BOUNDS['ti'][0] or ti > _FIRE_BOUNDS['ti'][1]:
         raise BurnupValidationError(
             f"surface fire residence time = {ti} out of range (10, 200) s")
-    if u < 0.0 or u > 5.0:
+    if u < _FIRE_BOUNDS['u'][0] or u > _FIRE_BOUNDS['u'][1]:
         raise BurnupValidationError(
             f"windspeed = {u} out of range (0, 5) m/s")
-    if d < 0.1 or d > 5.0:
+    if d < _FIRE_BOUNDS['d'][0] or d > _FIRE_BOUNDS['d'][1]:
         raise BurnupValidationError(
             f"fuel bed depth = {d} out of range (0.1, 5) m")
-    if tamb_c < -40.0 or tamb_c > 40.0:
+    if tamb_c < _FIRE_BOUNDS['tamb_c'][0] or tamb_c > _FIRE_BOUNDS['tamb_c'][1]:
         raise BurnupValidationError(
             f"ambient temperature = {tamb_c} out of range (-40, 40) °C")
-    if wdf_load > 0.0 and (dfm < 0.1 or dfm > 1.972):
+    if wdf_load > 0.0 and (dfm < _FIRE_BOUNDS['dfm'][0] or dfm > _FIRE_BOUNDS['dfm'][1]):
         raise BurnupValidationError(
             f"duff moisture = {dfm} out of range (0.1, 1.972)")
 
@@ -664,6 +683,7 @@ def burnup(
     ntimes: int,
     wdf: float = 0.0,
     dfm: float = 2.0,
+    duff_pct_consumed: float = -1.0,
     fint_switch: float = 15.0,
     validate: bool = True,
 ) -> Tuple[List[BurnResult], List[BurnSummaryRow]]:
@@ -688,6 +708,11 @@ def burnup(
     :param ntimes: Maximum number of time steps.
     :param wdf: Duff dry-weight loading (kg/m²). Default 0 (no duff).
     :param dfm: Duff moisture content, fraction. Default 2.0 (suppresses duff).
+    :param duff_pct_consumed: Percent of duff consumed as pre-calculated by
+        FOFEM's ``DUF_Mngr`` (0–100, whole number).  Passed to
+        :func:`_duff_burn` to set the consumed fraction ``ff``, matching
+        C++ ``BRN_Run`` / ``DuffBurn``.  Pass ``-1`` (default) for the
+        moisture-only fallback (standalone burnup runs without FOFEM).
     :param fint_switch: Flaming / smoldering intensity threshold (kW/m²).
         Default 15.
     :param validate: If ``True`` (default), run range-checks on all inputs.
@@ -781,7 +806,7 @@ def burnup(
     # ------------------------------------------------------------------
     # 7. Duff burning
     # ------------------------------------------------------------------
-    dfi, tdf, duff_smolder_rate = _duff_burn(wdf, dfm)
+    dfi, tdf, duff_smolder_rate = _duff_burn(wdf, dfm, duff_pct_consumed)
     smoldering[number] = duff_smolder_rate
 
     # ------------------------------------------------------------------
@@ -919,9 +944,9 @@ def burnup(
             wnoduff = wdotk - smoldering[ki]
             test = (wnoduff / wdotk) * fint[ki] if wnoduff > 0.0 else 0.0
 
-            # TODO - test holder
-            # if ark > _SMALLX and test > fint_switch / ark - fint_switch:
-            if test > (fint_switch / ark - fint_switch):
+            # C++ FireIntensity line 1710: changed from > to >= to ensure litter
+            # loads over ~11.4 T/ac go to flaming (matches comment in BUR_BRN.cpp)
+            if test >= (fint_switch / ark - fint_switch) if ark > _SMALLX else False:
                 flaming[ki] += wnoduff
             else:
                 smoldering[ki] += wnoduff

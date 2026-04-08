@@ -230,42 +230,57 @@ _IN_TO_CM: float = 2.54
 
 def _burnup_durations(
     results: List[BurnResult],
-    ff_threshold: float = 0.5,
+    fla_threshold: float = 1e-05,
+    smo_threshold: float = 1e-05,
 ) -> Tuple[float, float]:
     """Derive flaming and smoldering durations from burnup time-series.
 
+    Matches the C++ ``ES_Calc`` / ``ES_Calc_NEW`` logic exactly:
+
+    * ``d_FlaDur`` = the **absolute elapsed time (s)** of the **last** time-step
+      in which the total flaming consumption for that step exceeded
+      ``fla_threshold`` (> 0.00001 kg/m² in C++).
+    * ``d_SmoDur`` = the **absolute elapsed time (s)** of the **last** time-step
+      in which the total smoldering consumption for that step exceeded
+      ``smo_threshold``.
+
+    Both are absolute timestamps from ignition, not durations between first
+    and last active steps (which was the previous — incorrect — approach).
+
     :param results: List of :class:`BurnResult` from the simulation.
-    :param ff_threshold: Flaming-fraction threshold; steps with ``ff ≥``
-        this value are classified as flaming.
-    :return: ``(fla_dur, smo_dur)`` in **seconds** (matching C++ ``d_CO``).
+    :param fla_threshold: Minimum per-step flaming mass (kg/m²) to count as
+        a flaming step. Matches C++ ``> 0.00001``.
+    :param smo_threshold: Minimum per-step smoldering mass (kg/m²) to count.
+    :return: ``(fla_dur, smo_dur)`` – absolute times in **seconds** of the
+        last flaming / smoldering step respectively.  Returns ``(0.0, 0.0)``
+        when the corresponding phase never occurred.
     """
     if not results:
         return float('nan'), float('nan')
 
-    fla_start = None
-    fla_end = None
-    smo_end = None
+    fla_dur = 0.0
+    smo_dur = 0.0
 
     for r in results:
-        if r.ff >= ff_threshold:
-            if fla_start is None:
-                fla_start = r.time
-            fla_end = r.time
-        if r.wdf < 1.0:
-            smo_end = r.time
+        # Per-step flaming = sum of comp_flaming masses for this step
+        if r.comp_flaming is not None:
+            step_fla = sum(r.comp_flaming)
+        else:
+            # Fall back to ff × (total remaining change) when per-component
+            # data is unavailable
+            step_fla = r.ff  # proxy only
 
-    t0 = results[0].time
+        # Per-step smoldering = sum of comp_smoldering masses (excl. duff index)
+        if r.comp_smoldering is not None:
+            # comp_smoldering[-1] is the duff slot; include it for smoldering
+            step_smo = sum(r.comp_smoldering)
+        else:
+            step_smo = (1.0 - r.ff)  # proxy only
 
-    if fla_start is not None and fla_end is not None:
-        fla_dur = fla_end - fla_start
-    else:
-        fla_dur = 0.0
-
-    if smo_end is not None:
-        smo_start = fla_end if fla_end is not None else t0
-        smo_dur = max(smo_end - smo_start, 0.0)
-    else:
-        smo_dur = 0.0
+        if step_fla > fla_threshold:
+            fla_dur = r.time
+        if step_smo > smo_threshold:
+            smo_dur = r.time
 
     return fla_dur, smo_dur
 
@@ -436,7 +451,6 @@ def consm_duff(
     cvr_grp: Optional[str] = None,
     duff_moist_cat: Optional[str] = None,
     d_pre: Optional[Union[float, np.ndarray]] = None,
-    rm_depth: Optional[Union[float, list]] = None,
     mc_lyr1: Optional[Union[float, np.ndarray]] = None,
     pre_dl110: Optional[Union[float, np.ndarray]] = None,
     pre_l110: Optional[Union[float, np.ndarray]] = None,
@@ -447,18 +461,60 @@ def consm_duff(
     """
     FOFEM duff consumption model.
 
-    Computes percent duff consumed (``'pdc'``), duff depth consumed
-    (``'ddc'``), and residual duff depth (``'rdd'``) and returns them in a
-    dict. Accepts scalar or array inputs for all numeric parameters; scalar
-    values in the returned dict correspond to scalar numeric inputs.
+    Mirrors the logic of ``DUF_Mngr`` / region sub-functions in the C++
+    source (``fof_duf.cpp``).  Computes:
+
+    * ``'pdc'`` – percent of duff load consumed (%).
+    * ``'ddc'`` – duff depth consumed (same depth units as *d_pre*).
+    * ``'rdd'`` – residual (post-fire) duff depth (same units as *d_pre*).
+
+    **Depth reduction approach** – Per C++ Note-5 (``DUF_Mngr``, 2016), the
+    raw regression-based depth-reduction equations (Eqs 5, 6, 7) are no
+    longer used for normal runs.  Instead, depth consumed is derived directly
+    from the percent consumed::
+
+        ddc = d_pre × (pdc / 100)
+        rdd = d_pre − ddc
+
+    This matches the final line of ``DUF_Mngr``:
+    ``a_DUF->f_Red = a_CI->f_DufDep * (a_DUF->f_Per / 100.0)``.
+
+    **Percent consumed routing** (matches ``DUF_Mngr`` priority order):
+
+    +---------------------+---------------+------------+--------+
+    | Region              | Cover type    | Moist cat  | Eq     |
+    +=====================+===============+============+========+
+    | Any                 | Piles         | —          | 17     |
+    +---------------------+---------------+------------+--------+
+    | Any                 | Chaparral/SGC | —          | 19     |
+    +---------------------+---------------+------------+--------+
+    | InteriorWest /      | Ponderosa     | ldm        | 4      |
+    | PacificWest         | Ponderosa     | edm        | 2      |
+    |                     | Ponderosa     | nfdth      | 3      |
+    |                     | Other         | ldm        | 1      |
+    |                     | Other         | edm        | 2      |
+    |                     | Other         | nfdth      | 3      |
+    +---------------------+---------------+------------+--------+
+    | NorthEast           | RedJacPine    | edm        | 15     |
+    |                     | RedJacPine    | ldm/nfdth  | 2 (dflt|
+    |                     | BalsamSpruce  | ldm        | 5→pct  |
+    |                     | BalsamSpruce  | edm        | 15     |
+    |                     | BalsamSpruce  | nfdth      | 3      |
+    |                     | Other         | —          | 2 (dflt|
+    +---------------------+---------------+------------+--------+
+    | SouthEast           | Pocosin       | —          | 20     |
+    |                     | Other         | —          | 16     |
+    +---------------------+---------------+------------+--------+
+    | Any / fallback      | —             | —          | 2      |
+    +---------------------+---------------+------------+--------+
 
     :param pre_dl: Pre-fire duff load (Mg/ha if ``units='SI'``, T/acre if
         ``units='Imperial'``). Scalar or np.ndarray.
     :param duff_moist: Duff moisture content (%). Scalar or np.ndarray.
-    :param reg: Region name. Options include ``'InteriorWest'``,
-        ``'PacificWest'``, ``'NorthEast'``, ``'SouthEast'``.
-    :param cvr_grp: Cover group name. Options include ``'Ponderosa pine'``,
-        ``'Pocosin'``, ``'Chaparral'``, etc.
+    :param reg: Region name. One of ``'InteriorWest'``, ``'PacificWest'``,
+        ``'NorthEast'``, ``'SouthEast'``.
+    :param cvr_grp: Cover group name (e.g. ``'Ponderosa pine'``,
+        ``'Pocosin'``, ``'Chaparral'``).
     :param duff_moist_cat: Duff moisture category. One of:
 
         - ``'ldm'`` – lower duff moisture
@@ -466,42 +522,26 @@ def consm_duff(
         - ``'nfdth'`` – NFDR 1,000-hour moisture content
 
     :param d_pre: Pre-fire duff depth (cm if ``units='SI'``, inches if
-        ``units='Imperial'``). Scalar or np.ndarray. Required for duff depth
-        consumption (``'ddc'``) and residual duff depth (``'rdd'``) outputs.
-    :param rm_depth: Southeast Pocosin only. Depth of root mat and deep
-        organic layer. Single numeric (total depth) or a list of individual
-        layer depths (cm if ``units='SI'``, inches if ``units='Imperial'``).
-    :param mc_lyr1: Percent soil moisture content of layer 1 (%). Scalar or
-        np.ndarray. Required for Southeast Pocosin equations.
-    :param pre_dl110: Pre-fire duff + 1-hr + 10-hr fuel load (kg/m² if
-        ``units='SI'``, T/acre if ``units='Imperial'``). Scalar or np.ndarray.
-        Required for the Southeast non-Pocosin equation (Eq 16).
-    :param pre_l110: Pre-fire litter + 1-hr + 10-hr fuel load (same units as
-        ``pre_dl110``). Scalar or np.ndarray. Required for Eq 16.
-    :param dw1000_moist: 1000-hr fuel moisture content (%). Required for
-        Eq 3 (``duff_moist_cat='nfdth'``), which uses 1000-hr moisture rather
-        than duff moisture (matching C++ ``Equ_3_Per`` / ``Equ_7_Red``).
-        When ``None``, falls back to ``duff_moist`` for backward compatibility.
-    :param pile: ``True`` for pile burning (applies Eq 17, 10% consumed).
-        Default ``False``.
-    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``. The
-        FOFEM equations operate in T/acre and inches; ``'SI'`` inputs/outputs
-        are converted automatically.
+        ``units='Imperial'``). Required for ``'ddc'`` and ``'rdd'`` outputs.
+    :param mc_lyr1: Surface-layer moisture content (%). Required for Eq 20
+        (SouthEast Pocosin).
+    :param pre_dl110: Pre-fire duff + litter + 10-hr load (same mass units as
+        *pre_dl*). Required for Eq 16 (SouthEast non-Pocosin).
+    :param pre_l110: Pre-fire litter + 10-hr load (same units). Required for
+        Eq 16.
+    :param dw1000_moist: 1000-hr fuel moisture content (%). Used by Eq 3 and
+        the NorthEast Balsam/Spruce nfdth path.  Falls back to *duff_moist*
+        when ``None``.
+    :param pile: ``True`` for pile burning (Eq 17 – 10 % consumed).
+    :param units: ``'SI'`` (default, kg/m² / cm) or ``'Imperial'`` (T/ac /
+        in).
 
-    :return: Dict with keys:
-
-        - ``'pdc'`` – percent duff consumed (%) or np.ndarray; ``np.nan``
-          where the condition could not be determined.
-        - ``'ddc'`` – duff depth consumed (cm if ``units='SI'``, inches if
-          ``units='Imperial'``) or np.ndarray; ``None`` if ``d_pre`` is not
-          provided.
-        - ``'rdd'`` – residual duff depth (cm if ``units='SI'``, inches if
-          ``units='Imperial'``) or np.ndarray; ``None`` if
-          ``duff_moist_cat != 'edm'`` or ``d_pre`` is not provided.
+    :return: Dict with keys ``'pdc'``, ``'ddc'``, ``'rdd'``.
+        ``'ddc'`` and ``'rdd'`` are ``None`` when *d_pre* is not supplied.
     """
     scalar_input = _is_scalar(pre_dl) and _is_scalar(duff_moist)
 
-    pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float))
+    pre_dl     = np.atleast_1d(np.asarray(pre_dl,     dtype=float))
     duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
     if d_pre is not None:
         d_pre = np.atleast_1d(np.asarray(d_pre, dtype=float))
@@ -512,132 +552,239 @@ def consm_duff(
     if pre_l110 is not None:
         pre_l110 = np.atleast_1d(np.asarray(pre_l110, dtype=float))
 
-    # Fix A: Eq 3 / Eq 7 use 1000-hr moisture, not duff moisture (C++ Equ_3_Per /
-    # Equ_7_Red both use f_MoistDW1000). Fall back to duff_moist if not supplied.
+    # Eq 3 / NE-Balsam-nfdth use 1000-hr moisture (C++ f_MoistDW1000).
+    # Fall back to duff_moist when not supplied.
     if dw1000_moist is not None:
-        dw1000_moist_arr = np.atleast_1d(np.asarray(dw1000_moist, dtype=float))
+        dw1k = np.atleast_1d(np.asarray(dw1000_moist, dtype=float))
     else:
-        dw1000_moist_arr = duff_moist  # backward-compatible fallback
+        dw1k = duff_moist
 
     if units == 'SI':
-        pre_dl = pre_dl * 4.4609                            # Mg/ha → T/acre
+        pre_dl = pre_dl * 4.4609                 # Mg/ha → T/acre
         if d_pre is not None:
-            d_pre = d_pre / 2.54                            # cm → in
-        if isinstance(rm_depth, list):
-            rm_depth = [x / 2.54 for x in rm_depth]         # cm → in
-        elif rm_depth is not None:
-            rm_depth = rm_depth / 2.54
+            d_pre = d_pre / 2.54                 # cm → in
         if pre_dl110 is not None:
-            pre_dl110 = pre_dl110 * 4.4609                  # kg/m² → T/acre
+            pre_dl110 = pre_dl110 * 4.4609
         if pre_l110 is not None:
-            pre_l110 = pre_l110 * 4.4609
+            pre_l110  = pre_l110  * 4.4609
 
-    # --- pdc: PERCENT DUFF CONSUMED ---
+    # ------------------------------------------------------------------
+    # Convenience flag sets (matching C++ CI_is* predicates)
+    # ------------------------------------------------------------------
+    _IW_PW     = {'InteriorWest', 'PacificWest'}
+    _PONDEROSA = {'Ponderosa pine', 'PN', 'Ponderosa'}
+    _POCOSIN   = {'Pocosin', 'PC'}
+    _CHAPARRAL = {'Chaparral', 'Shrub-Chaparral', 'SGC', 'ShrubGroupChaparral'}
+    _REDJAC    = {'Red Jack Pine', 'Red, Jack Pine', 'RedJacPin', 'RJP'}
+    _BALSAM    = {'Balsam', 'Black Spruce', 'Red Spruce', 'White Spruce',
+                  'BalBRWSpr', 'Balsam Fir', 'BFS'}
+
+    is_iw_pw    = reg in _IW_PW
+    is_ne       = reg == 'NorthEast'
+    is_se       = reg == 'SouthEast'
+    is_ponderosa = cvr_grp in _PONDEROSA
+    is_pocosin  = cvr_grp in _POCOSIN
+    is_chaparral = cvr_grp in _CHAPARRAL
+    is_redjac   = cvr_grp in _REDJAC
+    is_balsam   = cvr_grp in _BALSAM
+
+    # ------------------------------------------------------------------
+    # pdc – percent consumed
+    # Priority mirrors DUF_Mngr: Piles → Chaparral → region branches
+    # ------------------------------------------------------------------
     pdc = np.full_like(duff_moist, np.nan)
 
-    # Fix D: C++ DUF_Mngr forces 100 % consumed when duff_moist ≤ 10
-    # (lowest allowable moisture — all duff burns at this extreme)
-    low_moist_mask = duff_moist <= 10.0
-
-    if (duff_moist_cat == 'ldm') and (reg in ['InteriorWest', 'PacificWest']):
-        if cvr_grp not in ['Ponderosa pine', 'PN', 'Ponderosa', 'Pocosin', 'PC']:
-            # Equation 1
-            pdc = np.where(duff_moist <= 160, 97.1 - 0.519 * duff_moist, 13.6)
-        else:
-            # Equation 4
-            pdc = 89.9 - 0.55 * duff_moist
-    elif (duff_moist_cat == 'nfdth') and (reg in ['InteriorWest', 'PacificWest', 'NorthEast']):
-        # Equation 3 — Fix A: uses 1000-hr moisture (f_MoistDW1000 in C++)
-        pdc = 114.7 - 4.20 * dw1000_moist_arr
-    elif reg == 'SouthEast':
-        if cvr_grp in ['Pocosin', 'PC']:
-            # Equation 20 – per-layer calculation
-            if isinstance(rm_depth, list):
-                n_layers = len(rm_depth)
-                depths = rm_depth
-                total_depth = sum(rm_depth)
-            else:
-                if (rm_depth % 4) > 0:
-                    n_layers = int(rm_depth // 4) + 1
-                else:
-                    n_layers = int(rm_depth / 4)
-                depths = []
-                for i in range(n_layers):
-                    depths.append(rm_depth % 4 if i == (n_layers - 1) else 4.0)
-                total_depth = rm_depth
-
-            mc_layers = [float(mc_lyr1[0])] * n_layers
-            mc_multiplier = 1.0
-            for i in range(len(mc_layers)):
-                mc_multiplier += (min(3 * i, 12)) / 100
-                mc_layers[i] *= mc_multiplier
-
-            pdc_layers = []
-            for mc in mc_layers:
-                if mc < 10:
-                    pdc_layers.append(1.0)
-                elif mc < 30:
-                    pdc_layers.append(float(pre_dl[0]) * (0.949932 + ((30 - mc) * 0.00251)))
-                elif mc < 140:
-                    pdc_layers.append(float(pre_dl[0]) * (1 / (1 + np.exp(-1 * (2.033 - (0.043 * mc) + (0.44 * 0.05))))))
-                elif mc < 170:
-                    pdc_layers.append(float(pre_dl[0]) * (0.143441 - ((mc - 140) * 0.0049)))
-                else:
-                    pdc_layers.append(0.0)
-
-            depth_cons = np.multiply(depths, pdc_layers)
-            pdc = np.atleast_1d(sum(depth_cons) / total_depth)
-        else:
-            # Equation 16
-            duff_litt_cons = 3.4958 + (0.3833 * pre_dl110) - (0.0237 * duff_moist) - (5.6075 / pre_dl110)
-            pdc = np.where(
-                duff_litt_cons <= pre_l110, 0.0,
-                np.where(duff_litt_cons > pre_dl110,
-                         ((duff_litt_cons - pre_dl110) / (pre_dl110 - pre_l110)) * 100,
-                         np.nan)
-            )
-    elif pile:
-        # Equation 17 – pile burning: 10% consumed (C++ Equ_17_Per)
+    if pile:
+        # Eq 17 – pile burning: 10 %
         pdc = np.full_like(duff_moist, 10.0)
-    elif cvr_grp in ['Chaparral', 'Shrub-Chaparral', 'SGC', 'ShrubGroupChaparral']:
-        # Equation 19 – Chaparral: 100% consumed
+
+    elif is_chaparral:
+        # Eq 19 – Chaparral/SGC: 100 %
         pdc = np.full_like(duff_moist, 100.0)
+
+    elif is_iw_pw:
+        # PacificWest Slash → same as InteriorWest (C++ DUF_PacificWest Note-1)
+        if is_ponderosa:
+            if duff_moist_cat == 'ldm':
+                pdc = 89.9 - 0.55 * duff_moist                  # Eq 4
+            elif duff_moist_cat == 'edm':
+                pdc = 83.7 - 0.426 * duff_moist                 # Eq 2
+            else:                                                 # nfdth
+                pdc = 114.7 - 4.2 * dw1k                        # Eq 3
+        else:
+            if duff_moist_cat == 'ldm':
+                pdc = np.where(duff_moist <= 160,
+                               97.1 - 0.519 * duff_moist, 13.6) # Eq 1
+            elif duff_moist_cat == 'edm':
+                pdc = 83.7 - 0.426 * duff_moist                 # Eq 2
+            else:                                                 # nfdth
+                pdc = 114.7 - 4.2 * dw1k                        # Eq 3
+
+    elif is_ne:
+        if is_redjac:
+            if duff_moist_cat == 'edm':
+                # Eq 15 with pine=1: derive pdc from residual depth
+                f_rdd = (-0.791 + 0.004 * duff_moist
+                         + 0.8 * (d_pre if d_pre is not None
+                                  else np.zeros_like(duff_moist))
+                         + 0.56)
+                f_red = np.clip(
+                    (d_pre if d_pre is not None
+                     else np.zeros_like(duff_moist)) - f_rdd,
+                    0.0, None,
+                )
+                pdc = np.where(
+                    (d_pre is not None) and (d_pre > 0),
+                    np.clip((f_red / np.maximum(
+                        d_pre if d_pre is not None
+                        else np.ones_like(duff_moist), 1e-12)) * 100, 0, 100),
+                    0.0,
+                )
+            else:
+                # ldm or nfdth → default (Eq 2)
+                pdc = 83.7 - 0.426 * duff_moist
+        elif is_balsam:
+            if duff_moist_cat == 'ldm':
+                # Eq 5 → derive pdc from depth reduction
+                f_red_5 = np.clip(
+                    1.028 - 0.0089 * duff_moist
+                    + 0.417 * (d_pre if d_pre is not None
+                               else np.zeros_like(duff_moist)),
+                    0.0, None,
+                )
+                pdc = np.where(
+                    (d_pre is not None) and (d_pre > 0),
+                    np.clip((f_red_5 / np.maximum(
+                        d_pre if d_pre is not None
+                        else np.ones_like(duff_moist), 1e-12)) * 100, 0, 100),
+                    0.0,
+                )
+            elif duff_moist_cat == 'edm':
+                # Eq 15 with pine=0
+                f_rdd = (-0.791 + 0.004 * duff_moist
+                         + 0.8 * (d_pre if d_pre is not None
+                                  else np.zeros_like(duff_moist)))
+                f_red = np.clip(
+                    (d_pre if d_pre is not None
+                     else np.zeros_like(duff_moist)) - f_rdd,
+                    0.0, None,
+                )
+                pdc = np.where(
+                    (d_pre is not None) and (d_pre > 0),
+                    np.clip((f_red / np.maximum(
+                        d_pre if d_pre is not None
+                        else np.ones_like(duff_moist), 1e-12)) * 100, 0, 100),
+                    0.0,
+                )
+            else:
+                # nfdth → Eq 3
+                pdc = 114.7 - 4.2 * dw1k
+        else:
+            # NorthEast default (Duf_Default) → Eq 2
+            pdc = 83.7 - 0.426 * duff_moist
+
+    elif is_se:
+        if is_pocosin:
+            # Eq 20 – Pocosin per-layer load-based algorithm (C++ Equ_20_PerRed_Pocosin)
+            # Works on duff load per 4-inch layer; mc_lyr1 is the top-layer moisture.
+            mc0    = float(mc_lyr1[0]) if mc_lyr1 is not None else float(duff_moist[0])
+            dl_val = float(pre_dl[0])
+            dp_val = float(d_pre[0]) if d_pre is not None else 0.0
+
+            if dp_val > 0 and dl_val > 0:
+                f_10th        = dl_val / (dp_val * 10.0)  # load per 0.1-inch slice
+                layer_load    = f_10th * 40.0 if dp_val >= 4.0 else dl_val  # per 4-in layer
+                dep_rem       = dp_val
+                duf_rem       = dl_val
+                mc_layer      = mc0
+                moi_inc       = 0.0
+                tot_consumed  = 0.0
+                _E_MINERAL    = 5.0
+
+                while True:
+                    cur_layer_load = layer_load if dep_rem >= 4.0 else duf_rem
+                    if mc_layer < 10.0:
+                        f_per = 1.0
+                    elif mc_layer < 30.0:
+                        f_per = 1.0 - (mc_layer * 0.00167)
+                    elif mc_layer < 140.0:
+                        f_per = 1.0 / (1.0 + np.exp(-1.0 * (
+                            2.033 - (0.043 * mc_layer) + (0.44 * _E_MINERAL))))
+                    elif mc_layer < 170.0:
+                        f_per = 0.143441 - ((mc_layer - 140.0) * 0.0049)
+                    else:
+                        f_per = 0.0
+                    f_per = max(f_per, 0.0)
+                    tot_consumed += cur_layer_load * f_per
+
+                    if dep_rem < 4.0:
+                        break
+                    dep_rem -= 4.0
+                    duf_rem -= layer_load
+                    if dep_rem < 4.0:
+                        layer_load = duf_rem
+                    moi_inc = min(moi_inc + 3.0, 12.0)
+                    mc_layer += moi_inc
+
+                pdc_val = np.clip((tot_consumed / dl_val) * 100.0, 0.0, 100.0)
+            else:
+                pdc_val = 0.0
+            pdc = np.atleast_1d(np.full_like(duff_moist, pdc_val))
+
+        else:
+            # SE non-Pocosin – Eq 16
+            # f_WPRE = lit + duff + dw10 + dw1  (here approximated by pre_dl110)
+            # f_L    = lit + dw10 + dw1          (here approximated by pre_l110)
+            if pre_dl110 is not None and pre_l110 is not None:
+                f_wpre = np.where(pre_dl110 > 0, pre_dl110, 0.0)
+                f_w = np.where(
+                    f_wpre > 0,
+                    3.4958 + (0.3833 * f_wpre) - (0.0237 * duff_moist) - (5.6075 / np.maximum(f_wpre, 1e-12)),
+                    0.0,
+                )
+                f_l = pre_l110
+                duff_only = f_wpre - f_l
+                pdc = np.where(
+                    f_w <= f_l, 0.0,
+                    np.where(
+                        duff_only > 0,
+                        np.clip(100.0 * (f_w - f_l) / duff_only, 0.0, 100.0),
+                        0.0,
+                    ),
+                )
+            else:
+                # Fall back to Eq 2 if required inputs missing
+                pdc = 83.7 - 0.426 * duff_moist
+
     else:
-        # Equation 2 – default
+        # Global fallback → Duf_Default → Eq 2
         pdc = 83.7 - 0.426 * duff_moist
 
-    # Fix D: C++ DUF_Mngr overrides pdc to 100% when duff_moist ≤ 10
+    # C++ DUF_Mngr: duff_moist ≤ 10 forces 100 % consumed (Note, 2012)
+    low_moist_mask = duff_moist <= 10.0
     pdc = np.where(low_moist_mask, 100.0, pdc)
 
-    # --- ddc: DUFF DEPTH CONSUMED ---
-    ddc = None
-    if d_pre is not None:
-        if (duff_moist_cat == 'ldm') and (reg in ['InteriorWest', 'PacificWest']):
-            # Equation 5
-            ddc = 1.028 - 0.0089 * duff_moist + 0.417 * d_pre
-        elif (duff_moist_cat == 'nfdth') and (reg in ['InteriorWest', 'PacificWest', 'NorthEast']):
-            # Equation 7 — Fix A: uses 1000-hr moisture (f_MoistDW1000 in C++)
-            ddc = 1.773 - 0.1051 * dw1000_moist_arr + 0.399 * d_pre
-        else:
-            # Equation 6 – default
-            ddc = 0.8811 - 0.0096 * duff_moist + 0.439 * d_pre
-
-    # --- rdd: RESIDUAL DUFF DEPTH ---
-    rdd = None
-    if (duff_moist_cat == 'edm') and (d_pre is not None):
-        pine = 1 if cvr_grp in ['Red Jack Pine', 'Red, Jack Pine', 'RedJacPin', 'RJP'] else 0
-        # Equation 15
-        rdd = -0.791 + 0.004 * duff_moist + 0.8 * d_pre + 0.56 * pine
-
-    # Clamp pdc to valid range [0, 100] (matching C++ DUF_Mngr Note-1)
+    # Clamp to [0, 100] (C++ DUF_Mngr Note-1)
     pdc = np.clip(pdc, 0.0, 100.0)
 
-    # Convert depth outputs back to cm when inputs were SI
-    if units == 'SI':
-        if ddc is not None:
-            ddc = ddc * 2.54  # in → cm
-        if rdd is not None:
-            rdd = rdd * 2.54  # in → cm
+    # ------------------------------------------------------------------
+    # ddc / rdd – depth outputs
+    # Per C++ DUF_Mngr Note-5 (2016): depth reduction is NO LONGER derived
+    # from the regression equations.  It is always:
+    #   f_Red = f_DufDep × (f_Per / 100)
+    # We honour the same approach here.
+    # ------------------------------------------------------------------
+    ddc = None
+    rdd = None
+    if d_pre is not None:
+        d_pre_in = d_pre  # already in inches if units=='SI' was converted above
+        ddc = np.clip(d_pre_in * (pdc / 100.0), 0.0, d_pre_in)
+        rdd = d_pre_in - ddc
+
+        # Convert back to cm for SI callers
+        if units == 'SI':
+            ddc = ddc * 2.54
+            rdd = rdd * 2.54
 
     return {
         'pdc': _maybe_scalar(pdc, scalar_input),
@@ -1045,11 +1192,11 @@ def gen_burnup_in_file(
 
     # Validate input ranges
     max_times = max(1, min(max_times, 100000))
-    intensity = max(40, min(intensity, 100000))
-    ig_time = max(10, min(ig_time, 200))
-    windspeed = max(0, min(windspeed, 5))
-    depth = max(0.1, min(depth, 5))
-    ambient_temp = max(-40, min(ambient_temp, 50))
+    intensity = max(_FIRE_BOUNDS['fistart'][0], min(intensity, _FIRE_BOUNDS['fistart'][1]))
+    ig_time = max(_FIRE_BOUNDS['ti'][0], min(ig_time, _FIRE_BOUNDS['ti'][1]))
+    windspeed = max(_FIRE_BOUNDS['u'][0], min(windspeed, _FIRE_BOUNDS['u'][1]))
+    depth = max(_FIRE_BOUNDS['d'][0], min(depth, _FIRE_BOUNDS['d'][1]))
+    ambient_temp = max(_FIRE_BOUNDS['tamb_c'][0], min(ambient_temp, _FIRE_BOUNDS['tamb_c'][1]))
 
     # Prepare the data as a list of tuples (parameter name, value)
     params = [
@@ -1320,13 +1467,19 @@ def _run_burnup_cell(ckw: dict):
         - ``'amb_temp'``          – ambient temperature (°C)
         - ``'duf_loading_si'``    – duff loading (kg/m²)
         - ``'duf_moist_frac'``    – duff moisture fraction
+        - ``'duf_pct_consumed'``  – FOFEM DUF_Mngr percent consumed (0–100);
+          passed to ``DuffBurn`` so that burnup uses the same consumed
+          fraction as the duff sub-model (matches C++ ``BRN_Run`` interface).
+          Pass ``-1`` to use the moisture-only fallback.
         - ``'burnup_dt'``         – burnup time step (s)
         - ``'bkw'``               – dict of burnup keyword overrides
         - ``'cell_idx'``          – integer cell index (used in warning messages)
 
     :returns: On success, a dict with keys ``'bcon'``, ``'fla_dur'``,
-        ``'smo_dur'``, ``'duff_smo_si'``, ``'class_order'``,
-        ``'burnup_limit_adjust'``.
+        ``'smo_dur'``, ``'class_order'``, ``'burnup_limit_adjust'``.
+        Duff load consumed is determined entirely by ``DUF_Mngr``'s ``pdc``
+        (passed in via ``'duf_pct_consumed'``); burnup's duff smoldering is
+        used only for emission timing, not for overriding duff consumption.
         Returns ``None`` if no fuel particles were present or if the burnup
         simulation raised an exception.
     """
@@ -1341,6 +1494,7 @@ def _run_burnup_cell(ckw: dict):
     at     = ckw['amb_temp']
     duf_si = ckw['duf_loading_si']
     duf_mf = ckw['duf_moist_frac']
+    duf_pct = ckw.get('duf_pct_consumed', -1.0)
     dt     = ckw['burnup_dt']
     bkw    = ckw['bkw']
 
@@ -1349,38 +1503,44 @@ def _run_burnup_cell(ckw: dict):
     # ------------------------------------------------------------------
     adj_codes = []
 
-    # 1. Surface fire residence time: clip to max (upper bound), lower retained
+    # 1. Igniting fire intensity: clip to max (upper bound), lower is a hard error
+    _fi_lo, _fi_hi, _ = _FIRE_BOUNDS['fistart']
+    if intensity > _fi_hi:
+        intensity = _fi_hi
+        adj_codes.append(1)
+
+    # 2. Surface fire residence time: clip to max (upper bound), lower retained
     _ti_lo, _ti_hi, _ = _FIRE_BOUNDS['ti']
     if ig > _ti_hi:
         ig = _ti_hi
-        adj_codes.append(1)
+        adj_codes.append(2)
 
-    # 2. Windspeed at fuelbed top: clip to max, lower retained
+    # 3. Windspeed at fuelbed top: clip to max, lower retained
     _u_lo, _u_hi, _ = _FIRE_BOUNDS['u']
     if ws > _u_hi:
         ws = _u_hi
-        adj_codes.append(2)
+        adj_codes.append(3)
 
-    # 3. Fuel bed depth: clip to min and max
+    # 4. Fuel bed depth: clip to min and max
     _d_lo, _d_hi, _ = _FIRE_BOUNDS['d']
     if fbd < _d_lo:
         fbd = _d_lo
-        adj_codes.append(3)
+        adj_codes.append(4)
     elif fbd > _d_hi:
         fbd = _d_hi
-        adj_codes.append(3)
+        adj_codes.append(4)
 
-    # 4. Ambient temperature: clip to max, lower retained
+    # 5. Ambient temperature: clip to max, lower retained
     _t_lo, _t_hi, _ = _FIRE_BOUNDS['tamb_c']
     if at > _t_hi:
         at = _t_hi
-        adj_codes.append(4)
+        adj_codes.append(5)
 
-    # 5. Duff moisture (fraction): clip to min, upper retained
+    # 6. Duff moisture (fraction): clip to min, upper retained
     _dfm_lo, _dfm_hi, _ = _FIRE_BOUNDS['dfm']
     if duf_si > 0.0 and duf_mf < _dfm_lo:
         duf_mf = _dfm_lo
-        adj_codes.append(5)
+        adj_codes.append(6)
 
     # Build composite adjustment code (0 = no adjustment)
     if adj_codes:
@@ -1413,8 +1573,8 @@ def _run_burnup_cell(ckw: dict):
     # Pre-flight checks for non-clipped fire-environment bounds
     # (return error code instead of letting burnup raise)
     # ------------------------------------------------------------------
-    _fi_lo, _fi_hi, _ = _FIRE_BOUNDS['fistart']
-    if intensity < _fi_lo or intensity > _fi_hi:
+    _fi_lo2, _, _ = _FIRE_BOUNDS['fistart']
+    if intensity < _fi_lo2:
         return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 10}
 
     _ti_lo2, _, _ = _FIRE_BOUNDS['ti']
@@ -1438,21 +1598,15 @@ def _run_burnup_cell(ckw: dict):
             particles=particles, fi=intensity, ti=ig, u=ws, d=fbd,
             tamb=at, r0=bkw['r0'], dr=bkw['dr'], dt=dt,
             ntimes=bkw['max_times'], wdf=duf_si, dfm=duf_mf,
+            duff_pct_consumed=duf_pct,
             fint_switch=bkw['fint_switch'], validate=bkw['validate'],
         )
         bcon = _extract_burnup_consumption(res, summ, co, dt)
         fla_dur, smo_dur = _burnup_durations(res)
-        n_comp = len(co)
-        duff_smo_si = sum(
-            r.comp_smoldering[n_comp] * dt
-            for r in res
-            if r.comp_smoldering is not None and len(r.comp_smoldering) > n_comp
-        )
         return {
             'bcon': bcon,
             'fla_dur': fla_dur,
             'smo_dur': smo_dur,
-            'duff_smo_si': duff_smo_si,
             'class_order': co,
             'burnup_limit_adjust': burnup_limit_adjust,
             'burnup_error': 0,
