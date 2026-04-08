@@ -735,7 +735,6 @@ def burnup(
 
     if validate:
         _check_fuel(particles)
-        fistart, ti = _check_fire(fistart, ti, u, d, tamb, wdf, dfm)
 
     number = len(particles)
     nkl = _maxkl(number)
