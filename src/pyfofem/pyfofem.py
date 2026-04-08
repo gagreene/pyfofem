@@ -77,6 +77,8 @@ from .components.consumption_calcs import (
     get_moisture_regime,
 )
 
+from .components.burnup import _BURNUP_LIMIT_ADJUST
+
 from .components.emission_calcs import (
     _EF_GROUP_DEFAULT,
     _EF_SMOLDERING_GROUP_DEFAULT,
@@ -479,6 +481,7 @@ def run_fofem_emissions(
     fla_dur_arr  = np.where(np.isnan(frt_a), np.nan, frt_a)
     smo_dur_arr  = np.full(n, np.nan)
     burnup_ran   = np.zeros(n, dtype=bool)
+    burnup_adj_arr = np.zeros(n, dtype=int)
 
     if use_burnup:
         # Build per-cell kwargs list
@@ -564,6 +567,7 @@ def run_fofem_emissions(
             bcon = cr['bcon']
             fsi  = from_si
             burnup_ran[i] = True
+            burnup_adj_arr[i] = cr.get('burnup_limit_adjust', 0)
 
             if 'litter' in bcon:
                 lit_con_arr[i] = bcon['litter']['consumed'] * fsi
@@ -707,5 +711,6 @@ def run_fofem_emissions(
         'MSE-Equ': 10,
         'Herb-Equ':   _out_int(herb_eq_arr),
         'Shurb-Equ':  _out_int(shrub_eq_arr),
+        'BurnupLimitAdj':  _out_int(burnup_adj_arr),
     }
 

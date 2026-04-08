@@ -189,6 +189,23 @@ _FIRE_BOUNDS = {
     'dfm':     (0.1,    1.972,   'duff moisture (fraction)'),               # e_dfm1=0.1, e_dfm2=1.972
 }
 
+# ---------------------------------------------------------------------------
+# Burnup limit adjustment codes
+# ---------------------------------------------------------------------------
+# When a burnup input variable is clipped to stay within ``_FIRE_BOUNDS`` /
+# ``_FUEL_BOUNDS``, a single-digit numeric code is recorded.  If multiple
+# variables are clipped for the same cell, the codes are concatenated (e.g.
+# codes 1 and 3 → adjustment value 13; codes 2, 4 and 5 → 245).
+#
+# A value of 0 means no adjustment was applied.
+_BURNUP_LIMIT_ADJUST = {
+    1: 'ti – surface fire residence time clipped to max (200 s)',
+    2: 'u – windspeed at fuelbed top clipped to max (5 m/s)',
+    3: 'd – fuel bed depth clipped to min (0.1 m) or max (5 m)',
+    4: 'tamb_c – ambient temperature clipped to max (40 °C)',
+    5: 'dfm – duff moisture (fraction) clipped to min (0.1)',
+}
+
 
 # ---------------------------------------------------------------------------
 # Helper: triangular pair index  (pure-integer, no float division)

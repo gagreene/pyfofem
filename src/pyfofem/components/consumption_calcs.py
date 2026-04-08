@@ -31,6 +31,9 @@ from .burnup import (
     BurnSummaryRow,
     BurnupValidationError,
     burnup as _burnup,
+    _FIRE_BOUNDS,
+    _FUEL_BOUNDS,
+    _BURNUP_LIMIT_ADJUST,
 )
 from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
 
@@ -63,7 +66,7 @@ CONSUMPTION_VARS = [
     'FolPre', 'FolCon', 'FolPos', 'BraPre', 'BraCon', 'BraPos', 'MSE', 'DufDepPre', 'DufDepCon', 'DufDepPos',
     'PM10F', 'PM10S', 'PM25F', 'PM25S', 'CH4F', 'CH4S', 'COF', 'COS', 'CO2F', 'CO2S', 'NOXF', 'NOXS', 'SO2F',
     'SO2S', 'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon', 'Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d',
-    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shurb-Equ'
+    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shurb-Equ', 'BurnupLimitAdj'
 ]
 SOIL_HEAT_VARS = ['Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d']
 
@@ -1320,7 +1323,8 @@ def _run_burnup_cell(ckw: dict):
         - ``'cell_idx'``          – integer cell index (used in warning messages)
 
     :returns: On success, a dict with keys ``'bcon'``, ``'fla_dur'``,
-        ``'smo_dur'``, ``'duff_smo_si'``, ``'class_order'``.
+        ``'smo_dur'``, ``'duff_smo_si'``, ``'class_order'``,
+        ``'burnup_limit_adjust'``.
         Returns ``None`` if no fuel particles were present or if the burnup
         simulation raised an exception.
     """
@@ -1337,6 +1341,50 @@ def _run_burnup_cell(ckw: dict):
     duf_mf = ckw['duf_moist_frac']
     dt     = ckw['burnup_dt']
     bkw    = ckw['bkw']
+
+    # ------------------------------------------------------------------
+    # Clip selected burnup inputs and track adjustment codes
+    # ------------------------------------------------------------------
+    adj_codes = []
+
+    # 1. Surface fire residence time: clip to max (upper bound), lower retained
+    _ti_lo, _ti_hi, _ = _FIRE_BOUNDS['ti']
+    if ig > _ti_hi:
+        ig = _ti_hi
+        adj_codes.append(1)
+
+    # 2. Windspeed at fuelbed top: clip to max, lower retained
+    _u_lo, _u_hi, _ = _FIRE_BOUNDS['u']
+    if ws > _u_hi:
+        ws = _u_hi
+        adj_codes.append(2)
+
+    # 3. Fuel bed depth: clip to min and max
+    _d_lo, _d_hi, _ = _FIRE_BOUNDS['d']
+    if fbd < _d_lo:
+        fbd = _d_lo
+        adj_codes.append(3)
+    elif fbd > _d_hi:
+        fbd = _d_hi
+        adj_codes.append(3)
+
+    # 4. Ambient temperature: clip to max, lower retained
+    _t_lo, _t_hi, _ = _FIRE_BOUNDS['tamb_c']
+    if at > _t_hi:
+        at = _t_hi
+        adj_codes.append(4)
+
+    # 5. Duff moisture (fraction): clip to min, upper retained
+    _dfm_lo, _dfm_hi, _ = _FIRE_BOUNDS['dfm']
+    if duf_si > 0.0 and duf_mf < _dfm_lo:
+        duf_mf = _dfm_lo
+        adj_codes.append(5)
+
+    # Build composite adjustment code (0 = no adjustment)
+    if adj_codes:
+        burnup_limit_adjust = int(''.join(str(c) for c in adj_codes))
+    else:
+        burnup_limit_adjust = 0
 
     particles: List[FuelParticle] = []
     co: List[str] = []
@@ -1380,6 +1428,7 @@ def _run_burnup_cell(ckw: dict):
             'smo_dur': smo_dur,
             'duff_smo_si': duff_smo_si,
             'class_order': co,
+            'burnup_limit_adjust': burnup_limit_adjust,
         }
     except Exception as exc:
         warnings.warn(
