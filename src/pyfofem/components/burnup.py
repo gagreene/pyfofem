@@ -206,6 +206,48 @@ _BURNUP_LIMIT_ADJUST = {
     5: 'dfm – duff moisture (fraction) clipped to min (0.1)',
 }
 
+# ---------------------------------------------------------------------------
+# Burnup limit error codes
+# ---------------------------------------------------------------------------
+# Two-digit error codes recorded when burnup fails to run because a fuel
+# or fire-environment parameter falls outside the physical bounds that
+# cannot be safely clipped.  Unlike ``_BURNUP_LIMIT_ADJUST`` (which
+# silently clips recoverable values), these represent hard failures where
+# the burnup model returns ``None`` and falls back to simplified defaults.
+#
+# Codes are grouped by source:
+#   10–19  fire-environment parameters (_FIRE_BOUNDS / burnup runtime)
+#   20–29  fuel-particle parameters (_FUEL_BOUNDS)
+#   90–99  runtime / catch-all errors
+#
+# A value of 0 means burnup ran successfully (no error).
+# If multiple errors would apply, only the first detected code is stored.
+_BURNUP_LIMIT_ERROR = {
+    # -- Fire environment (not clipped) -----------------------------------
+    10: 'fistart – igniting fire intensity out of range (40–1e5 kW/m²)',
+    11: 'ti – surface fire residence time below min (10 s)',
+    12: 'u – windspeed at fuelbed top below min (0 m/s)',
+    13: 'tamb_c – ambient temperature below min (−40 °C)',
+    14: 'dfm – duff moisture (fraction) above max (1.972)',
+    15: 'fire cannot dry fuel (fire temperature too low)',
+    16: 'no fuel ignited (fire intensity/residence time too low)',
+    # -- Fuel particle ----------------------------------------------------
+    20: 'wdry – dry loading out of range',
+    21: 'ash – ash content out of range',
+    22: 'htval – heat content out of range',
+    23: 'fmois – fuel moisture (fraction) out of range',
+    24: 'dendry – dry mass density out of range',
+    25: 'sigma – surface-area-to-volume ratio out of range',
+    26: 'cheat – heat capacity out of range',
+    27: 'condry – thermal conductivity out of range',
+    28: 'tpig – ignition temperature out of range',
+    29: 'tchar – char temperature out of range',
+    # -- Runtime / other --------------------------------------------------
+    90: 'no fuel particles (all loadings ≤ 0)',
+    91: 'ntimes ≤ 0',
+    99: 'unexpected burnup exception',
+}
+
 
 # ---------------------------------------------------------------------------
 # Helper: triangular pair index  (pure-integer, no float division)

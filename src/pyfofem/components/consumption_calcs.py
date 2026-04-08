@@ -34,6 +34,7 @@ from .burnup import (
     _FIRE_BOUNDS,
     _FUEL_BOUNDS,
     _BURNUP_LIMIT_ADJUST,
+    _BURNUP_LIMIT_ERROR,
 )
 from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
 
@@ -66,7 +67,8 @@ CONSUMPTION_VARS = [
     'FolPre', 'FolCon', 'FolPos', 'BraPre', 'BraCon', 'BraPos', 'MSE', 'DufDepPre', 'DufDepCon', 'DufDepPos',
     'PM10F', 'PM10S', 'PM25F', 'PM25S', 'CH4F', 'CH4S', 'COF', 'COS', 'CO2F', 'CO2S', 'NOXF', 'NOXS', 'SO2F',
     'SO2S', 'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon', 'Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d',
-    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shurb-Equ', 'BurnupLimitAdj'
+    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shurb-Equ',
+    'BurnupLimitAdj', 'BurnupError'
 ]
 SOIL_HEAT_VARS = ['Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d']
 
@@ -1405,7 +1407,31 @@ def _run_burnup_cell(ckw: dict):
         co.append(key)
 
     if not particles:
-        return None
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 90}
+
+    # ------------------------------------------------------------------
+    # Pre-flight checks for non-clipped fire-environment bounds
+    # (return error code instead of letting burnup raise)
+    # ------------------------------------------------------------------
+    _fi_lo, _fi_hi, _ = _FIRE_BOUNDS['fistart']
+    if intensity < _fi_lo or intensity > _fi_hi:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 10}
+
+    _ti_lo2, _, _ = _FIRE_BOUNDS['ti']
+    if ig < _ti_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 11}
+
+    _u_lo2, _, _ = _FIRE_BOUNDS['u']
+    if ws < _u_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 12}
+
+    _t_lo2, _, _ = _FIRE_BOUNDS['tamb_c']
+    if at < _t_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 13}
+
+    _dfm_lo2, _dfm_hi2, _ = _FIRE_BOUNDS['dfm']
+    if duf_si > 0.0 and duf_mf > _dfm_hi2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 14}
 
     try:
         res, summ = _burnup(
@@ -1429,11 +1455,40 @@ def _run_burnup_cell(ckw: dict):
             'duff_smo_si': duff_smo_si,
             'class_order': co,
             'burnup_limit_adjust': burnup_limit_adjust,
+            'burnup_error': 0,
         }
-    except Exception as exc:
-        warnings.warn(
-            f"Cell {ckw['cell_idx']} burnup failed ({exc}); using defaults.",
-            stacklevel=2,
-        )
-        return None
+    except BurnupValidationError as exc:
+        # Classify the validation error into the appropriate error code
+        msg = str(exc).lower()
+        _FUEL_ATTR_TO_CODE = {
+            'dry loading': 20, 'ash content': 21, 'heat content': 22,
+            'fuel moisture': 23, 'dry mass density': 24, 'sav': 25,
+            'heat capacity': 26, 'thermal conductivity': 27,
+            'ignition temperature': 28, 'char temperature': 29,
+        }
+        err_code = 99
+        if 'cannot dry fuel' in msg:
+            err_code = 15
+        elif 'no fuel ignited' in msg:
+            err_code = 16
+        elif 'ntimes' in msg:
+            err_code = 91
+        elif 'fire intensity' in msg or 'igniting fire' in msg:
+            err_code = 10
+        elif 'residence time' in msg:
+            err_code = 11
+        elif 'windspeed' in msg:
+            err_code = 12
+        elif 'ambient temperature' in msg:
+            err_code = 13
+        elif 'duff moisture' in msg:
+            err_code = 14
+        else:
+            for attr_fragment, code in _FUEL_ATTR_TO_CODE.items():
+                if attr_fragment in msg:
+                    err_code = code
+                    break
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': err_code}
+    except Exception:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 99}
 

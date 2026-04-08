@@ -77,7 +77,7 @@ from .components.consumption_calcs import (
     get_moisture_regime,
 )
 
-from .components.burnup import _BURNUP_LIMIT_ADJUST
+from .components.burnup import _BURNUP_LIMIT_ADJUST, _BURNUP_LIMIT_ERROR
 
 from .components.emission_calcs import (
     _EF_GROUP_DEFAULT,
@@ -482,6 +482,7 @@ def run_fofem_emissions(
     smo_dur_arr  = np.full(n, np.nan)
     burnup_ran   = np.zeros(n, dtype=bool)
     burnup_adj_arr = np.zeros(n, dtype=int)
+    burnup_err_arr = np.zeros(n, dtype=int)
 
     if use_burnup:
         # Build per-cell kwargs list
@@ -564,10 +565,18 @@ def run_fofem_emissions(
         for i, cr in enumerate(cell_results):
             if cr is None:
                 continue
+            burnup_adj_arr[i] = cr.get('burnup_limit_adjust', 0)
+            burnup_err_arr[i] = cr.get('burnup_error', 0)
+
+            # If burnup errored, skip consumption merge (use simplified defaults)
+            if cr.get('burnup_error', 0) != 0:
+                continue
+            if 'bcon' not in cr:
+                continue
+
             bcon = cr['bcon']
             fsi  = from_si
             burnup_ran[i] = True
-            burnup_adj_arr[i] = cr.get('burnup_limit_adjust', 0)
 
             if 'litter' in bcon:
                 lit_con_arr[i] = bcon['litter']['consumed'] * fsi
@@ -712,5 +721,6 @@ def run_fofem_emissions(
         'Herb-Equ':   _out_int(herb_eq_arr),
         'Shurb-Equ':  _out_int(shrub_eq_arr),
         'BurnupLimitAdj':  _out_int(burnup_adj_arr),
+        'BurnupError':     _out_int(burnup_err_arr),
     }
 
