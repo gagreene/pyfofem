@@ -15,7 +15,15 @@ from .burnup import (
     BurnResult,
     BurnSummaryRow,
     BurnupValidationError,
+    BurnupArrayResult,
     burnup,
+)
+
+from .burnup_calcs import (
+    BurnupConsumptionResult,
+    run_burnup,
+    burnup_durations,
+    extract_burnup_consumption,
 )
 
 from .soil_heating import (
@@ -53,8 +61,6 @@ from .consumption_calcs import (
     consm_litter,
     consm_mineral_soil,
     consm_shrub,
-    gen_burnup_in_file,
-    run_burnup,
     _MOISTURE_REGIMES,
     get_moisture_regime,
 )
@@ -73,7 +79,13 @@ __all__ = [
     'BurnResult',
     'BurnSummaryRow',
     'BurnupValidationError',
+    'BurnupArrayResult',
     'burnup',
+    # consumption_calcs array
+    'BurnupConsumptionResult',
+    'run_burnup',
+    'burnup_durations',
+    'extract_burnup_consumption',
     # soil heating
     'soil_heat_campbell',
     'soil_heat_massman',
@@ -103,8 +115,6 @@ __all__ = [
     'consm_litter',
     'consm_mineral_soil',
     'consm_shrub',
-    'gen_burnup_in_file',
-    'run_burnup',
     'get_moisture_regime',
     # emissions
     'calc_smoke_emissions',
