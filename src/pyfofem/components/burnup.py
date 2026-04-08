@@ -1275,7 +1275,6 @@ def burnup(
             tis += dt
             fi_cur = _fire_intensity()
             _record(tis)
-            ncalls += 0  # ncalls already incremented at top
 
             # ---- termination ----
             if fi_cur <= fimin or ncalls >= ntimes:
