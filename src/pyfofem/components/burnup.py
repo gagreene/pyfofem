@@ -57,7 +57,7 @@ __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 
@@ -1054,17 +1054,17 @@ def burnup(
                     if tnow >= tlit:
                         ts = tchar_k
                         if l == 0:
-                            r_val = r0_half_dr
-                            gi    = fi_cur + fid_cur
+                            r_val = float(r0_half_dr)
+                            gi    = float(fi_cur + fid_cur)
                         elif l == k:
-                            r_val = r0 + half_dr * (1.0 + flit[ki])
-                            gi    = fi_cur + flit[ki] * fint[ki]
+                            r_val = float(r0 + half_dr * (1.0 + flit[ki]))
+                            gi    = float(fi_cur + flit[ki] * fint[ki])
                         else:
                             li = l - 1
-                            r_val = r0 + half_dr * (1.0 + flit[li])
-                            gi    = fi_cur + fint[ki] + flit[li] * fint[li]
+                            r_val = float(r0 + half_dr * (1.0 + flit[li]))
+                            gi    = float(fi_cur + fint[ki] + flit[li] * fint[li])
 
-                        cache_key = (gi, r_val)
+                        cache_key = cast(Tuple[float, float], (gi, r_val))
                         tf_loc = tf_cache.get(cache_key)
                         if tf_loc is None:
                             tf_loc = _temp_fire(gi, r_val, tamb_k)
@@ -1137,20 +1137,20 @@ def burnup(
                     dryt_val = tdry[kl]
                     if tnow >= dryt_val and tnow < tlit:
                         if l == 0:
-                            r_val = r0
-                            gi = fi_cur + fid_cur
+                            r_val2 = float(r0)
+                            gi2 = float(fi_cur + fid_cur)
                         elif l == k:
-                            r_val = r0
-                            gi = fi_cur
+                            r_val2 = float(r0)
+                            gi2 = float(fi_cur)
                         else:
                             li = l - 1
-                            r_val = r0 + half_dr * flit[li]
-                            gi = fi_cur + flit[li] * fint[li]
+                            r_val2 = float(r0 + half_dr * flit[li])
+                            gi2 = float(fi_cur + flit[li] * fint[li])
 
-                        cache_key = (gi, r_val)
+                        cache_key = cast(Tuple[float, float], (gi2, r_val2))
                         tf_loc = tf_cache.get(cache_key)
                         if tf_loc is None:
-                            tf_loc = _temp_fire(gi, r_val, tamb_k)
+                            tf_loc = _temp_fire(gi2, r_val2, tamb_k)
                             tf_cache[cache_key] = tf_loc
 
                         ts     = tamb_k
@@ -1199,21 +1199,23 @@ def burnup(
                     # --- pre-drying stage ---
                     if tnow < dryt_val:
                         conwet = condry_k + 4.27e-04 * fmois_k * dendry_k
+                        gi3: float
+                        r_val3: float
                         if l == 0:
-                            r_val = r0
-                            gi = fi_cur + fid_cur
+                            r_val3 = float(r0)
+                            gi3 = float(fi_cur + fid_cur)
                         elif l == k:
-                            r_val = r0
-                            gi = fi_cur
+                            r_val3 = float(r0)
+                            gi3 = float(fi_cur)
                         else:
                             li = l - 1
-                            r_val = r0 + half_dr * flit[li]
-                            gi = fi_cur + flit[li] * fint[li]
+                            r_val3 = float(r0 + half_dr * flit[li])
+                            gi3 = float(fi_cur + flit[li] * fint[li])
 
-                        cache_key = (gi, r_val)
+                        cache_key = cast(Tuple[float, float], (gi3, r_val3))
                         tf_loc = tf_cache.get(cache_key)
                         if tf_loc is None:
-                            tf_loc = _temp_fire(gi, r_val, tamb_k)
+                            tf_loc = _temp_fire(gi3, r_val3, tamb_k)
                             tf_cache[cache_key] = tf_loc
 
                         if tf_loc <= _TPDRY + 10.0:
