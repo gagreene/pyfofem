@@ -296,7 +296,6 @@ def run_fofem_emissions(
         recognised.
     """
     import concurrent.futures
-    import warnings
 
     # ------------------------------------------------------------------
     # 0. Moisture regime / guard
