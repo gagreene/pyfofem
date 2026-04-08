@@ -52,6 +52,23 @@ from .components.consumption_calcs import (
     CVR_GRP_CODES,
     SEASON_CODES,
     FUEL_CATEGORY_CODES,
+    calc_carbon,
+    consm_canopy,
+    consm_duff,
+    consm_herb,
+    consm_litter,
+    consm_mineral_soil,
+    consm_shrub,
+    get_moisture_regime,
+    _MOISTURE_REGIMES
+)
+
+from .components.burnup_calcs import (
+    gen_burnup_in_file,
+    run_burnup,
+    _extract_burnup_consumption,
+    _burnup_durations,
+    _run_burnup_cell,
     _DENSITY_SOUND,
     _DENSITY_ROTTEN,
     _SOUND_TPIG,
@@ -61,20 +78,6 @@ from .components.consumption_calcs import (
     _TPAC_TO_KGPM2,
     _KGPM2_TO_TPAC,
     _IN_TO_CM,
-    calc_carbon,
-    consm_canopy,
-    consm_duff,
-    consm_herb,
-    consm_litter,
-    consm_mineral_soil,
-    consm_shrub,
-    gen_burnup_in_file,
-    run_burnup,
-    _extract_burnup_consumption,
-    _burnup_durations,
-    _run_burnup_cell,
-    _MOISTURE_REGIMES,
-    get_moisture_regime,
 )
 
 from .components.burnup import _BURNUP_LIMIT_ADJUST, _BURNUP_LIMIT_ERROR
