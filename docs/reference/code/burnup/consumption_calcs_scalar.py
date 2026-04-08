@@ -30,11 +30,13 @@ from .burnup import (
     BurnResult,
     BurnSummaryRow,
     BurnupValidationError,
-    burnup as _burnup,
     _FIRE_BOUNDS,
     _FUEL_BOUNDS,
     _BURNUP_LIMIT_ADJUST,
     _BURNUP_LIMIT_ERROR,
+)
+from .burnup_scalar import (
+    burnup as _burnup,
 )
 from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
 

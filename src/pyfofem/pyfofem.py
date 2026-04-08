@@ -24,7 +24,6 @@ from .components.burnup import (
     BurnResult,
     BurnSummaryRow,
     BurnupValidationError,
-    burnup as _burnup,
 )
 
 from .components._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
@@ -52,12 +51,6 @@ from .components.consumption_calcs import (
     CVR_GRP_CODES,
     SEASON_CODES,
     FUEL_CATEGORY_CODES,
-    _DENSITY_SOUND,
-    _DENSITY_ROTTEN,
-    _SOUND_TPIG,
-    _ROTTEN_TPIG,
-    _TCHAR,
-    _HTVAL,
     _TPAC_TO_KGPM2,
     _KGPM2_TO_TPAC,
     _IN_TO_CM,
@@ -68,13 +61,19 @@ from .components.consumption_calcs import (
     consm_litter,
     consm_mineral_soil,
     consm_shrub,
-    gen_burnup_in_file,
-    run_burnup,
-    _extract_burnup_consumption,
-    _burnup_durations,
-    _run_burnup_cell,
     _MOISTURE_REGIMES,
     get_moisture_regime,
+)
+
+from .components.burnup_calcs import (
+    _DENSITY_SOUND,
+    _DENSITY_ROTTEN,
+    _SOUND_TPIG,
+    _ROTTEN_TPIG,
+    _TCHAR,
+    _HTVAL,
+    run_burnup,
+    BurnupConsumptionResult,
 )
 
 from .components.burnup import _BURNUP_LIMIT_ADJUST, _BURNUP_LIMIT_ERROR
@@ -295,7 +294,6 @@ def run_fofem_emissions(
     :raises KeyError: If *moisture_regime* or any integer code is not
         recognised.
     """
-    import concurrent.futures
     import warnings
 
     # ------------------------------------------------------------------
@@ -484,155 +482,123 @@ def run_fofem_emissions(
     burnup_err_arr = np.zeros(n, dtype=int)
 
     if use_burnup:
-        # Build per-cell kwargs list
         _DW1HR_ADJ = 0.02; _DW100HR_ADJ = 0.02
         _DW1000HR_ADJ_ROT = 2.5; _BURNUP_MOIST_UPPER = 3.0
 
-        cell_kwargs = []
-        for i in range(n):
-            d10m  = float(dw10_m_a[i])
-            d1km  = float(dw1k_m_a[i])
-            d10f  = d10m / 100.0
-            d1kf  = d1km / 100.0
-            drotf = min(d1kf * _DW1000HR_ADJ_ROT, _BURNUP_MOIST_UPPER)
+        # Vectorise moisture fractions (10-hr and 1000-hr as fraction)
+        d10f = dw10_m_a / 100.0
+        d1kf = dw1k_m_a / 100.0
 
-            fl: Dict[str, float] = {}
-            fm: Dict[str, float] = {}
-            rk: Dict[str, str]   = {}
-            dm: Dict[str, float] = {}
+        # Resolve fire-environment arrays (NaN → sensible defaults)
+        intensity_arr = np.where(np.isnan(hfi_a), 50.0, hfi_a)
+        ig_time_arr   = np.where(np.isnan(frt_a), 60.0, frt_a)
 
-            def _add(key, val, moist):
-                v = float(val) * to_si
-                if v > 0:
-                    fl[key] = v
-                    fm[key] = max(moist, 0.02)
+        # Duff moisture: 2.0 sentinel when duff is absent (matches scalar behaviour)
+        duf_loading_si    = duf_pre_arr * to_si
+        duf_moist_frac_bu = np.where(
+            duf_loading_si > 0.0,
+            np.maximum(duf_m_a / 100.0, 0.02),
+            2.0,
+        )
 
-            _add('litter', lit_pre_arr[i], max(d10f - _DW1HR_ADJ, 0.02))
-            _add('dw1',    dw1_pre_arr[i],  max(d10f - _DW1HR_ADJ, 0.02))
-            _add('dw10',   dw10_pre_arr[i], max(d10f, 0.02))
-            _add('dw100',  dw100_pre_arr[i], max(d10f + _DW100HR_ADJ, 0.02))
-            _add('dwk_3_6',  float(s3_6[i]),  max(d1kf, 0.02))
-            _add('dwk_6_9',  float(s6_9[i]),  max(d1kf, 0.02))
-            _add('dwk_9_20', float(s9_20[i]), max(d1kf, 0.02))
-            _add('dwk_20',   float(s20[i]),   max(d1kf, 0.02))
+        # Map bkw_base key names → run_burnup parameter names
+        bu_r0          = float(bkw_base.get('r0', 1.83))
+        bu_dr          = float(bkw_base.get('dr', 0.4))
+        bu_dt          = float(bkw_base.get('timestep', bkw_base.get('dt', 15.0)))
+        bu_max_ts      = int(bkw_base.get('max_times', bkw_base.get('max_timesteps', 3000)))
+        bu_fint_switch = float(bkw_base.get('fint_switch', 15.0))
+        bu_validate    = bool(bkw_base.get('validate', True))
 
-            _dw_keys = ('dw1','dw10','dw100','dwk_3_6','dwk_6_9','dwk_9_20','dwk_20')
-            if not any(fl.get(k, 0.0) > 0 for k in _dw_keys):
-                fl['dw1'] = 1.1e-6; fm['dw1'] = 0.02
+        bcr = run_burnup(
+            litter      = lit_pre_arr * to_si,
+            dw1         = dw1_pre_arr * to_si,
+            dw10        = dw10_pre_arr * to_si,
+            dw100       = dw100_pre_arr * to_si,
+            dwk_3_6     = s3_6 * to_si,
+            dwk_6_9     = s6_9 * to_si,
+            dwk_9_20    = s9_20 * to_si,
+            dwk_20      = s20 * to_si,
+            dwk_3_6_r   = r3_6 * to_si,
+            dwk_6_9_r   = r6_9 * to_si,
+            dwk_9_20_r  = r9_20 * to_si,
+            dwk_20_r    = r20 * to_si,
+            litter_moist = np.maximum(d10f - _DW1HR_ADJ, 0.02),
+            dw1_moist    = np.maximum(d10f - _DW1HR_ADJ, 0.02),
+            dw10_moist   = np.maximum(d10f, 0.02),
+            dw100_moist  = np.maximum(d10f + _DW100HR_ADJ, 0.02),
+            dwk_moist    = np.maximum(d1kf, 0.02),
+            dwk_r_moist  = np.minimum(np.maximum(d1kf * _DW1000HR_ADJ_ROT, 0.02), _BURNUP_MOIST_UPPER),
+            intensity    = intensity_arr,
+            ig_time      = ig_time_arr,
+            windspeed    = ws_a,
+            depth        = fb_a,
+            ambient_temp = at_a,
+            duff_loading      = duf_loading_si,
+            duff_moist_frac   = duf_moist_frac_bu,
+            duff_pct_consumed = pdc_arr,
+            r0            = bu_r0,
+            dr            = bu_dr,
+            dt            = bu_dt,
+            max_timesteps = bu_max_ts,
+            fint_switch   = bu_fint_switch,
+            validate      = bu_validate,
+        )
 
-            for rkey, skey in (('dwk_3_6_r','dwk_3_6'),('dwk_6_9_r','dwk_6_9'),
-                                ('dwk_9_20_r','dwk_9_20'),('dwk_20_r','dwk_20')):
-                rval_map = {'dwk_3_6_r': r3_6, 'dwk_6_9_r': r6_9,
-                            'dwk_9_20_r': r9_20, 'dwk_20_r': r20}
-                v = float(rval_map[rkey][i]) * to_si
-                if v > 0:
-                    fl[rkey] = v; fm[rkey] = max(drotf, 0.02)
-                    rk[rkey] = skey; dm[rkey] = _DENSITY_ROTTEN
+        burnup_adj_arr = bcr.burnup_limit_adjust.astype(int)
+        burnup_err_arr = bcr.burnup_error.astype(int)
+        ok = burnup_err_arr == 0
+        burnup_ran = ok.copy()
 
-            duf_si   = float(duf_pre_arr[i]) * to_si
-            duf_mf   = max(float(duf_m_a[i]) / 100.0, 0.02) if duf_si > 0 else 2.0
-            hfi_val  = float(hfi_a[i]) if not np.isnan(hfi_a[i]) else None
-            frt_val  = float(frt_a[i]) if not np.isnan(frt_a[i]) else (60.0 if (hfi_val or 0) > 0 else None)
-            intensity = hfi_val if hfi_val is not None else 50.0
-            ig_time   = frt_val if frt_val is not None else 60.0
+        fsi = from_si
 
-            cell_kwargs.append({
-                'fuel_loadings_bu': fl,
-                'fuel_moistures_bu': fm,
-                'rotten_keys': rk,
-                'density_map': dm,
-                'intensity_kw': intensity,
-                'frt_s': ig_time,
-                'ws': float(ws_a[i]),
-                'fb_depth': float(fb_a[i]),
-                'amb_temp': float(at_a[i]),
-                'duf_loading_si': duf_si,
-                'duf_moist_frac': duf_mf,
-                'duf_pct_consumed': float(pdc_arr[i]),  # FOFEM DUF_Mngr pdc → DuffBurn ff
-                'burnup_dt': burnup_dt,
-                'bkw': bkw_base,
-                'cell_idx': i,
-            })
+        # Merge litter
+        lit_con_arr = np.where(ok, bcr.consumed['litter'] * fsi, lit_con_arr)
+        lit_pos_arr = lit_pre_arr - lit_con_arr
+        lit_fla_arr = np.where(ok, bcr.flaming['litter'] * fsi, lit_fla_arr)
+        lit_smo_arr = np.where(ok, bcr.smoldering['litter'] * fsi, lit_smo_arr)
 
-        # Run burnup cells using the top-level (picklable) worker function
-        _tqdm_kw = dict(total=len(cell_kwargs), desc='Burnup', unit='cell',
-                        disable=not show_progress)
-        if num_workers == 1:
-            from tqdm import tqdm
-            cell_results = [
-                _run_burnup_cell(ck)
-                for ck in tqdm(cell_kwargs, **_tqdm_kw)
-            ]
-        else:
-            from tqdm import tqdm
-            with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
-                cell_results = list(tqdm(
-                    pool.map(_run_burnup_cell, cell_kwargs),
-                    **_tqdm_kw,
-                ))
+        # Merge fine fuels (dw1–dw100); fall back to full consumption on error
+        dw1_con_arr   = np.where(ok, bcr.consumed['dw1']   * fsi, dw1_pre_arr)
+        dw1_pos_arr   = dw1_pre_arr - dw1_con_arr
+        dw10_con_arr  = np.where(ok, bcr.consumed['dw10']  * fsi, dw10_pre_arr)
+        dw10_pos_arr  = dw10_pre_arr - dw10_con_arr
+        dw100_con_arr = np.where(ok, bcr.consumed['dw100'] * fsi, dw100_con_arr)
+        dw100_pos_arr = dw100_pre_arr - dw100_con_arr
 
-        # Merge burnup results back into output arrays
-        for i, cr in enumerate(cell_results):
-            if cr is None:
-                continue
-            burnup_adj_arr[i] = cr.get('burnup_limit_adjust', 0)
-            burnup_err_arr[i] = cr.get('burnup_error', 0)
+        # Merge 1000-hr sound (aggregate over size classes)
+        _snd_keys = ('dwk_3_6', 'dwk_6_9', 'dwk_9_20', 'dwk_20')
+        sc   = sum(bcr.consumed[k]    for k in _snd_keys) * fsi
+        sf   = sum(bcr.flaming[k]     for k in _snd_keys) * fsi
+        sm_s = sum(bcr.smoldering[k]  for k in _snd_keys) * fsi
+        dw1ks_con_arr = np.where(ok, sc,   dw1ks_con_arr)
+        dw1ks_pos_arr = dw1ks_pre - dw1ks_con_arr
+        snd_fla_arr   = np.where(ok, sf,   snd_fla_arr)
+        snd_smo_arr   = np.where(ok, sm_s, snd_smo_arr)
 
-            # If burnup errored, skip consumption merge (use simplified defaults)
-            if cr.get('burnup_error', 0) != 0:
-                continue
-            if 'bcon' not in cr:
-                continue
+        # Merge 1000-hr rotten (aggregate over size classes)
+        _rot_keys = ('dwk_3_6_r', 'dwk_6_9_r', 'dwk_9_20_r', 'dwk_20_r')
+        rc   = sum(bcr.consumed[k]    for k in _rot_keys) * fsi
+        rf   = sum(bcr.flaming[k]     for k in _rot_keys) * fsi
+        rm_r = sum(bcr.smoldering[k]  for k in _rot_keys) * fsi
+        dw1kr_con_arr = np.where(ok, rc,   dw1kr_con_arr)
+        dw1kr_pos_arr = dw1kr_pre - dw1kr_con_arr
+        rot_fla_arr   = np.where(ok, rf,   rot_fla_arr)
+        rot_smo_arr   = np.where(ok, rm_r, rot_smo_arr)
 
-            bcon = cr['bcon']
-            fsi  = from_si
-            burnup_ran[i] = True
+        # Fine-fuel flaming / smoldering totals (litter + dw1–dw100)
+        _fine_keys = ('litter', 'dw1', 'dw10', 'dw100')
+        ff_fla = sum(bcr.flaming[k]    for k in _fine_keys) * fsi
+        ff_smo = sum(bcr.smoldering[k] for k in _fine_keys) * fsi
+        fine_fla_arr = np.where(ok, ff_fla, fine_fla_arr)
+        fine_smo_arr = np.where(ok, ff_smo, fine_smo_arr)
 
-            if 'litter' in bcon:
-                lit_con_arr[i] = bcon['litter']['consumed'] * fsi
-                lit_pos_arr[i] = lit_pre_arr[i] - lit_con_arr[i]
-                lit_fla_arr[i] = bcon['litter']['flaming'] * fsi
-                lit_smo_arr[i] = bcon['litter']['smoldering'] * fsi
-
-            dw1_con_arr[i]  = bcon['dw1']['consumed'] * fsi  if 'dw1'  in bcon else dw1_pre_arr[i]
-            dw1_pos_arr[i]  = dw1_pre_arr[i] - dw1_con_arr[i]
-            dw10_con_arr[i] = bcon['dw10']['consumed'] * fsi if 'dw10' in bcon else dw10_pre_arr[i]
-            dw10_pos_arr[i] = dw10_pre_arr[i] - dw10_con_arr[i]
-
-            if 'dw100' in bcon:
-                dw100_con_arr[i] = bcon['dw100']['consumed'] * fsi
-            dw100_pos_arr[i] = dw100_pre_arr[i] - dw100_con_arr[i]
-
-            sc = sm = rc = rm = 0.0
-            for k in ('dwk_3_6','dwk_6_9','dwk_9_20','dwk_20'):
-                if k in bcon:
-                    sc += bcon[k]['consumed']   * fsi
-                    sm += bcon[k]['smoldering'] * fsi
-                    snd_fla_arr[i] += bcon[k]['flaming'] * fsi
-            for k in ('dwk_3_6_r','dwk_6_9_r','dwk_9_20_r','dwk_20_r'):
-                if k in bcon:
-                    rc += bcon[k]['consumed']   * fsi
-                    rm += bcon[k]['smoldering'] * fsi
-                    rot_fla_arr[i] += bcon[k]['flaming'] * fsi
-            dw1ks_con_arr[i] = sc;  dw1ks_pos_arr[i] = dw1ks_pre[i] - sc
-            snd_smo_arr[i]   = sm
-            dw1kr_con_arr[i] = rc;  dw1kr_pos_arr[i] = dw1kr_pre[i] - rc
-            rot_smo_arr[i]   = rm
-
-            ff = fm2 = 0.0
-            for k in ('litter','dw1','dw10','dw100'):
-                if k in bcon:
-                    ff  += bcon[k]['flaming']    * fsi
-                    fm2 += bcon[k]['smoldering'] * fsi
-            fine_fla_arr[i] = ff;  fine_smo_arr[i] = fm2
-
-            fla_dur_arr[i] = cr['fla_dur']
-            smo_dur_arr[i] = cr['smo_dur']
-            # NOTE: duf_con_arr / duf_pos_arr are intentionally NOT updated here.
-            # Duff load consumed is determined entirely by DUF_Mngr's pdc (computed
-            # in the per-cell consm_duff loop above), matching C++ behaviour where
-            # DuffBurn uses f_DufConPerCent from DUF_Mngr and burnup only
-            # controls timing/intensity, not the total consumed amount.
+        fla_dur_arr = np.where(ok, bcr.fla_dur, fla_dur_arr)
+        smo_dur_arr = np.where(ok, bcr.smo_dur, smo_dur_arr)
+        # NOTE: duf_con_arr / duf_pos_arr are intentionally NOT updated here.
+        # Duff consumption is determined entirely by DUF_Mngr's pdc (computed
+        # in the per-cell consm_duff loop above), matching C++ behaviour where
+        # DuffBurn uses f_DufConPerCent from DUF_Mngr and burnup only
+        # controls timing/intensity, not the total consumed amount.
 
     # ------------------------------------------------------------------
     # 5b. Zero out all per-cell outputs for cells with a burnup error
@@ -689,7 +655,7 @@ def run_fofem_emissions(
         np.isin(cvr_a, _fw), 997,
         np.where(reg_a == 'SouthEast', 998, 999)
     )
-    duf_eq_arr = np.select(
+    duf_con_eq_arr = np.select(
         [np.isin(reg_a, ('InteriorWest','PacificWest')) & np.isin(cvr_a, ('Ponderosa pine','PN','Ponderosa')),
          np.isin(reg_a, ('InteriorWest','PacificWest')),
          (reg_a == 'SouthEast') & np.isin(cvr_a, ('Pocosin','PC')),
@@ -698,6 +664,7 @@ def run_fofem_emissions(
         [4, 2, 20, 16, 3],
         default=2,
     )
+    duf_red_eq_arr = 999
     herb_eq_arr = np.where(
         reg_a == 'SouthEast', 222,
         np.where(np.isin(cvr_a, ('Grass','GG','GrassGroup')), 221,
@@ -755,8 +722,8 @@ def run_fofem_emissions(
         'Lay4': float('nan'), 'Lay6': float('nan'),
         'Lay60d': float('nan'), 'Lay275d': float('nan'),
         'Lit-Equ':    _out_int(lit_eq_arr),
-        'DufCon-Equ': _out_int(duf_eq_arr),
-        'DufRed-Equ': _out_int(duf_eq_arr),
+        'DufCon-Equ': _out_int(duf_con_eq_arr),
+        'DufRed-Equ': _out_int(duf_red_eq_arr),
         'MSE-Equ': 10,
         'Herb-Equ':   _out_int(herb_eq_arr),
         'Shurb-Equ':  _out_int(shrub_eq_arr),
