@@ -518,10 +518,6 @@ def run_fofem_emissions(
             _add('dwk_9_20', float(s9_20[i]), max(d1kf, 0.02))
             _add('dwk_20',   float(s20[i]),   max(d1kf, 0.02))
 
-            _dw_keys = ('dw1','dw10','dw100','dwk_3_6','dwk_6_9','dwk_9_20','dwk_20')
-            if not any(fl.get(k, 0.0) > 0 for k in _dw_keys):
-                fl['dw1'] = 1.1e-6; fm['dw1'] = 0.02
-
             for rkey, skey in (('dwk_3_6_r','dwk_3_6'),('dwk_6_9_r','dwk_6_9'),
                                 ('dwk_9_20_r','dwk_9_20'),('dwk_20_r','dwk_20')):
                 rval_map = {'dwk_3_6_r': r3_6, 'dwk_6_9_r': r6_9,
@@ -632,7 +628,7 @@ def run_fofem_emissions(
             smo_dur_arr[i] = cr['smo_dur']
             # NOTE: duf_con_arr / duf_pos_arr are intentionally NOT updated here.
             # Duff load consumed is determined entirely by DUF_Mngr's pdc (computed
-            # in the per-cell consm_duff loop above), matching C++ behaviour where
+            # in the per-cell consm_duff loop above). This matches C++ behaviour where
             # DuffBurn uses f_DufConPerCent from DUF_Mngr and burnup only
             # controls timing/intensity, not the total consumed amount.
 
