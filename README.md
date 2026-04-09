@@ -1,7 +1,7 @@
 
 # pyfofem
 
-**pyfofem** is a Python library for modeling fire effects on forest vegetation, porting the science of the First Order Fire Effects Model (FOFEM) to Python. It provides vectorized, DataFrame-friendly functions for estimating tree mortality, fuel consumption, smoke emissions, soil heating, and related fire effects using published models and species-specific parameters.
+**pyfofem** is a Python library for modeling fire effects on forest vegetation, porting the science of the First Order Fire Effects Model (FOFEM) to Python. It provides vectorized, array and DataFrame-friendly functions for estimating tree mortality, fuel consumption, smoke emissions, soil heating, and related fire effects using published models and species-specific parameters.
 
 ## Directory Structure
 
