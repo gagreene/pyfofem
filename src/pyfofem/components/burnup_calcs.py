@@ -100,6 +100,140 @@ def _extract_burnup_consumption(
         }
     return out
 
+def _run_burnup_cell(ckw: dict):
+    """Run the burnup model for a single spatial cell."""
+    fl     = ckw['fuel_loadings_bu']
+    fm     = ckw['fuel_moistures_bu']
+    rk     = ckw['rotten_keys']
+    dm_map = ckw['density_map']
+    intensity = ckw['intensity_kw']
+    ig     = ckw['frt_s']
+    ws     = ckw['ws']
+    fbd    = ckw['fb_depth']
+    at     = ckw['amb_temp']
+    duf_si = ckw['duf_loading_si']
+    duf_mf = ckw['duf_moist_frac']
+    duf_pct = ckw.get('duf_pct_consumed', -1.0)
+    dt     = ckw['burnup_dt']
+    bkw    = ckw['bkw']
+    adj_codes = []
+    _fi_lo, _fi_hi, _ = _FIRE_BOUNDS['fistart']
+    if intensity > _fi_hi:
+        intensity = _fi_hi
+        adj_codes.append(1)
+    _ti_lo, _ti_hi, _ = _FIRE_BOUNDS['ti']
+    if ig > _ti_hi:
+        ig = _ti_hi
+        adj_codes.append(2)
+    _u_lo, _u_hi, _ = _FIRE_BOUNDS['u']
+    if ws > _u_hi:
+        ws = _u_hi
+        adj_codes.append(3)
+    _d_lo, _d_hi, _ = _FIRE_BOUNDS['d']
+    if fbd < _d_lo:
+        fbd = _d_lo
+        adj_codes.append(4)
+    elif fbd > _d_hi:
+        fbd = _d_hi
+        adj_codes.append(4)
+    _t_lo, _t_hi, _ = _FIRE_BOUNDS['tamb_c']
+    if at > _t_hi:
+        at = _t_hi
+        adj_codes.append(5)
+    _dfm_lo, _dfm_hi, _ = _FIRE_BOUNDS['dfm']
+    if duf_si > 0.0 and duf_mf < _dfm_lo:
+        duf_mf = _dfm_lo
+        adj_codes.append(6)
+    if adj_codes:
+        burnup_limit_adjust = int(''.join(str(c) for c in adj_codes))
+    else:
+        burnup_limit_adjust = 0
+    particles: List[FuelParticle] = []
+    co: List[str] = []
+    for key in _CLASS_ORDER_ALL:
+        ld = fl.get(key, 0.0)
+        if ld <= 0.0:
+            continue
+        mo = fm.get(key, 0.10)
+        sv = _SAV_DEFAULTS[rk[key]] if key in rk else _SAV_DEFAULTS.get(key, 39.4)
+        d  = dm_map.get(key, _DENSITY_SOUND)
+        is_rotten = key in rk
+        particles.append(FuelParticle(
+            wdry=ld, htval=_HTVAL, fmois=mo, dendry=d, sigma=sv,
+            cheat=2750.0, condry=0.133,
+            tpig=_ROTTEN_TPIG if is_rotten else _SOUND_TPIG,
+            tchar=_TCHAR, ash=0.05,
+        ))
+        co.append(key)
+    if not particles:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 90}
+    _fi_lo2, _, _ = _FIRE_BOUNDS['fistart']
+    if intensity < _fi_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 10}
+    _ti_lo2, _, _ = _FIRE_BOUNDS['ti']
+    if ig < _ti_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 11}
+    _u_lo2, _, _ = _FIRE_BOUNDS['u']
+    if ws < _u_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 12}
+    _t_lo2, _, _ = _FIRE_BOUNDS['tamb_c']
+    if at < _t_lo2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 13}
+    _dfm_lo2, _dfm_hi2, _ = _FIRE_BOUNDS['dfm']
+    if duf_si > 0.0 and duf_mf > _dfm_hi2:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 14}
+    try:
+        res, summ = _burnup(
+            particles=particles, fi=intensity, ti=ig, u=ws, d=fbd,
+            tamb=at, r0=bkw['r0'], dr=bkw['dr'], dt=dt,
+            ntimes=bkw['max_times'], wdf=duf_si, dfm=duf_mf,
+            duff_pct_consumed=duf_pct,
+            fint_switch=bkw['fint_switch'], validate=bkw['validate'],
+        )
+        bcon = _extract_burnup_consumption(res, summ, co, dt)
+        fla_dur, smo_dur = _burnup_durations(res)
+        return {
+            'bcon': bcon,
+            'fla_dur': fla_dur,
+            'smo_dur': smo_dur,
+            'class_order': co,
+            'burnup_limit_adjust': burnup_limit_adjust,
+            'burnup_error': 0,
+        }
+    except BurnupValidationError as exc:
+        msg = str(exc).lower()
+        _FUEL_ATTR_TO_CODE = {
+            'dry loading': 20, 'ash content': 21, 'heat content': 22,
+            'fuel moisture': 23, 'dry mass density': 24, 'sav': 25,
+            'heat capacity': 26, 'thermal conductivity': 27,
+            'ignition temperature': 28, 'char temperature': 29,
+        }
+        err_code = 99
+        if 'cannot dry fuel' in msg:
+            err_code = 15
+        elif 'no fuel ignited' in msg:
+            err_code = 16
+        elif 'ntimes' in msg:
+            err_code = 91
+        elif 'fire intensity' in msg or 'igniting fire' in msg:
+            err_code = 10
+        elif 'residence time' in msg:
+            err_code = 11
+        elif 'windspeed' in msg:
+            err_code = 12
+        elif 'ambient temperature' in msg:
+            err_code = 13
+        elif 'duff moisture' in msg:
+            err_code = 14
+        else:
+            for attr_fragment, code in _FUEL_ATTR_TO_CODE.items():
+                if attr_fragment in msg:
+                    err_code = code
+                    break
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': err_code}
+    except Exception:
+        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 99}
+
 def gen_burnup_in_file(
         out_brn_path=None,
         max_times=3000,
@@ -247,138 +381,4 @@ def run_burnup(
         validate=validate,
     )
     return results, summary, class_order
-
-def _run_burnup_cell(ckw: dict):
-    """Run the burnup model for a single spatial cell."""
-    fl     = ckw['fuel_loadings_bu']
-    fm     = ckw['fuel_moistures_bu']
-    rk     = ckw['rotten_keys']
-    dm_map = ckw['density_map']
-    intensity = ckw['intensity_kw']
-    ig     = ckw['frt_s']
-    ws     = ckw['ws']
-    fbd    = ckw['fb_depth']
-    at     = ckw['amb_temp']
-    duf_si = ckw['duf_loading_si']
-    duf_mf = ckw['duf_moist_frac']
-    duf_pct = ckw.get('duf_pct_consumed', -1.0)
-    dt     = ckw['burnup_dt']
-    bkw    = ckw['bkw']
-    adj_codes = []
-    _fi_lo, _fi_hi, _ = _FIRE_BOUNDS['fistart']
-    if intensity > _fi_hi:
-        intensity = _fi_hi
-        adj_codes.append(1)
-    _ti_lo, _ti_hi, _ = _FIRE_BOUNDS['ti']
-    if ig > _ti_hi:
-        ig = _ti_hi
-        adj_codes.append(2)
-    _u_lo, _u_hi, _ = _FIRE_BOUNDS['u']
-    if ws > _u_hi:
-        ws = _u_hi
-        adj_codes.append(3)
-    _d_lo, _d_hi, _ = _FIRE_BOUNDS['d']
-    if fbd < _d_lo:
-        fbd = _d_lo
-        adj_codes.append(4)
-    elif fbd > _d_hi:
-        fbd = _d_hi
-        adj_codes.append(4)
-    _t_lo, _t_hi, _ = _FIRE_BOUNDS['tamb_c']
-    if at > _t_hi:
-        at = _t_hi
-        adj_codes.append(5)
-    _dfm_lo, _dfm_hi, _ = _FIRE_BOUNDS['dfm']
-    if duf_si > 0.0 and duf_mf < _dfm_lo:
-        duf_mf = _dfm_lo
-        adj_codes.append(6)
-    if adj_codes:
-        burnup_limit_adjust = int(''.join(str(c) for c in adj_codes))
-    else:
-        burnup_limit_adjust = 0
-    particles: List[FuelParticle] = []
-    co: List[str] = []
-    for key in _CLASS_ORDER_ALL:
-        ld = fl.get(key, 0.0)
-        if ld <= 0.0:
-            continue
-        mo = fm.get(key, 0.10)
-        sv = _SAV_DEFAULTS[rk[key]] if key in rk else _SAV_DEFAULTS.get(key, 39.4)
-        d  = dm_map.get(key, _DENSITY_SOUND)
-        is_rotten = key in rk
-        particles.append(FuelParticle(
-            wdry=ld, htval=_HTVAL, fmois=mo, dendry=d, sigma=sv,
-            cheat=2750.0, condry=0.133,
-            tpig=_ROTTEN_TPIG if is_rotten else _SOUND_TPIG,
-            tchar=_TCHAR, ash=0.05,
-        ))
-        co.append(key)
-    if not particles:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 90}
-    _fi_lo2, _, _ = _FIRE_BOUNDS['fistart']
-    if intensity < _fi_lo2:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 10}
-    _ti_lo2, _, _ = _FIRE_BOUNDS['ti']
-    if ig < _ti_lo2:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 11}
-    _u_lo2, _, _ = _FIRE_BOUNDS['u']
-    if ws < _u_lo2:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 12}
-    _t_lo2, _, _ = _FIRE_BOUNDS['tamb_c']
-    if at < _t_lo2:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 13}
-    _dfm_lo2, _dfm_hi2, _ = _FIRE_BOUNDS['dfm']
-    if duf_si > 0.0 and duf_mf > _dfm_hi2:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 14}
-    try:
-        res, summ = _burnup(
-            particles=particles, fi=intensity, ti=ig, u=ws, d=fbd,
-            tamb=at, r0=bkw['r0'], dr=bkw['dr'], dt=dt,
-            ntimes=bkw['max_times'], wdf=duf_si, dfm=duf_mf,
-            duff_pct_consumed=duf_pct,
-            fint_switch=bkw['fint_switch'], validate=bkw['validate'],
-        )
-        bcon = _extract_burnup_consumption(res, summ, co, dt)
-        fla_dur, smo_dur = _burnup_durations(res)
-        return {
-            'bcon': bcon,
-            'fla_dur': fla_dur,
-            'smo_dur': smo_dur,
-            'class_order': co,
-            'burnup_limit_adjust': burnup_limit_adjust,
-            'burnup_error': 0,
-        }
-    except BurnupValidationError as exc:
-        msg = str(exc).lower()
-        _FUEL_ATTR_TO_CODE = {
-            'dry loading': 20, 'ash content': 21, 'heat content': 22,
-            'fuel moisture': 23, 'dry mass density': 24, 'sav': 25,
-            'heat capacity': 26, 'thermal conductivity': 27,
-            'ignition temperature': 28, 'char temperature': 29,
-        }
-        err_code = 99
-        if 'cannot dry fuel' in msg:
-            err_code = 15
-        elif 'no fuel ignited' in msg:
-            err_code = 16
-        elif 'ntimes' in msg:
-            err_code = 91
-        elif 'fire intensity' in msg or 'igniting fire' in msg:
-            err_code = 10
-        elif 'residence time' in msg:
-            err_code = 11
-        elif 'windspeed' in msg:
-            err_code = 12
-        elif 'ambient temperature' in msg:
-            err_code = 13
-        elif 'duff moisture' in msg:
-            err_code = 14
-        else:
-            for attr_fragment, code in _FUEL_ATTR_TO_CODE.items():
-                if attr_fragment in msg:
-                    err_code = code
-                    break
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': err_code}
-    except Exception:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 99}
 
