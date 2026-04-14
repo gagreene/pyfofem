@@ -166,7 +166,7 @@ def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.nda
             f"Unknown mortality function '{mort_function}'. "
             f"Valid options: {list(_MORT_FUNC_DICT.keys())}"
         )
-    return _MORT_FUNC_DICT[key](**kwargs)
+    return _MORT_FUNC_DICT[key](**params)
 
 
 # ---------------------------------------------------------------------------
