@@ -104,7 +104,7 @@ _MORT_FUNC_DICT = {
 }
 
 
-def run_fofem_mortality(mort_function: str, **kwargs) -> Union[float, np.ndarray]:
+def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.ndarray]:
     """
     Facade driver for FOFEM post-fire tree mortality modelling.
 
