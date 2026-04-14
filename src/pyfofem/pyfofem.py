@@ -130,7 +130,7 @@ def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.nda
     :param mort_function: Name of the mortality sub-model to use.
         One of ``'bolchar'``, ``'crnsch'``, or ``'crcabe'``
         (case-insensitive).
-    :param kwargs: Keyword arguments forwarded verbatim to the selected
+    :param params: Keyword (parameter) arguments forwarded verbatim to the selected
         mortality function.  See each function's own docstring for the full
         parameter list:
 
