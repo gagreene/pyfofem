@@ -545,8 +545,26 @@ def consm_duff(
                 # nfdth → Eq 3
                 pdc = 114.7 - 4.2 * dw1k
         else:
-            # NorthEast default (Duf_Default) → Eq 2
-            pdc = 83.7 - 0.426 * duff_moist
+            if duff_moist_cat == 'edm':
+                # Eq 15 with pine=0 for NorthEast non-RedJac, non-Balsam.
+                f_rdd = (-0.791 + 0.004 * duff_moist
+                         + 0.8 * (d_pre if d_pre is not None
+                                  else np.zeros_like(duff_moist)))
+                f_red = np.clip(
+                    (d_pre if d_pre is not None
+                     else np.zeros_like(duff_moist)) - f_rdd,
+                    0.0, None,
+                )
+                pdc = np.where(
+                    (d_pre is not None) and (d_pre > 0),
+                    np.clip((f_red / np.maximum(
+                        d_pre if d_pre is not None
+                        else np.ones_like(duff_moist), 1e-12)) * 100, 0, 100),
+                    0.0,
+                )
+            else:
+                # NorthEast default (Duf_Default) → Eq 2
+                pdc = 83.7 - 0.426 * duff_moist
 
     elif is_se:
         if is_pocosin:
@@ -633,18 +651,37 @@ def consm_duff(
     pdc = np.clip(pdc, 0.0, 100.0)
 
     # ------------------------------------------------------------------
-    # ddc / rdd – depth outputs
-    # Per C++ DUF_Mngr Note-5 (2016): depth reduction is NO LONGER derived
-    # from the regression equations.  It is always:
-    #   f_Red = f_DufDep × (f_Per / 100)
-    # We honour the same approach here.
+    # ddc / rdd – depth outputs.
+    # Match golden/C++ equation-level behavior:
+    #   Eq5: ddc = 1.028 - 0.0089*moist + 0.417*d_pre
+    #   Eq6: ddc = 0.8811 - 0.0096*moist + 0.439*d_pre
+    #   Eq7: ddc = 1.773 - 0.1051*dw1000_moist + 0.399*d_pre
+    #   Eq15: rdd = -0.791 + 0.004*moist + 0.8*d_pre + 0.56*pine
+    # Fall back to pdc-derived depth when no specific depth equation applies.
     # ------------------------------------------------------------------
     ddc = None
     rdd = None
     if d_pre is not None:
         d_pre_in = d_pre  # already in inches if units=='SI' was converted above
-        ddc = np.clip(d_pre_in * (pdc / 100.0), 0.0, d_pre_in)
-        rdd = d_pre_in - ddc
+        if is_iw_pw:
+            if duff_moist_cat == 'ldm':
+                ddc = 1.028 - 0.0089 * duff_moist + 0.417 * d_pre_in  # Eq 5
+            elif duff_moist_cat == 'edm':
+                ddc = 0.8811 - 0.0096 * duff_moist + 0.439 * d_pre_in  # Eq 6
+            elif duff_moist_cat == 'nfdth':
+                ddc = 1.773 - 0.1051 * dw1k + 0.399 * d_pre_in  # Eq 7
+            else:
+                ddc = d_pre_in * (pdc / 100.0)
+            ddc = np.clip(ddc, 0.0, d_pre_in)
+            rdd = d_pre_in - ddc
+        elif is_ne and duff_moist_cat == 'edm':
+            pine_flag = 1.0 if is_redjac else 0.0
+            rdd = -0.791 + 0.004 * duff_moist + 0.8 * d_pre_in + 0.56 * pine_flag  # Eq 15
+            rdd = np.clip(rdd, 0.0, d_pre_in)
+            ddc = d_pre_in - rdd
+        else:
+            ddc = np.clip(d_pre_in * (pdc / 100.0), 0.0, d_pre_in)
+            rdd = d_pre_in - ddc
 
         # Convert back to cm for SI callers
         if units == 'SI':

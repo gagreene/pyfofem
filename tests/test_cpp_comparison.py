@@ -37,7 +37,7 @@ from pyfofem.components.burnup_calcs import (
 # ---------------------------------------------------------------------------
 # Paths to C++ reference outputs
 # ---------------------------------------------------------------------------
-_CPP_DIR = os.path.join(_REPO, 'dependencies', 'fofem_cpp')
+_CPP_DIR = os.path.join(_REPO, 'reference', 'fofem_cpp')
 _LOAD_TXT = os.path.join(_CPP_DIR, 'load.txt')
 _EMIS_TXT = os.path.join(_CPP_DIR, 'emis.txt')
 
