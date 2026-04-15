@@ -96,7 +96,7 @@ def main():
     # Determine number of parallel workers
     # ------------------------------------------------------------------
     cpu_count = os.cpu_count() or 4
-    num_workers = 1#max(1, cpu_count - 1)
+    num_workers = 1
     print(f'Using {num_workers} worker(s) (cpu_count={cpu_count})')
 
     # ------------------------------------------------------------------
@@ -163,7 +163,7 @@ def main():
     # ------------------------------------------------------------------
     out_dir = os.path.join(_SCRIPT_DIR, 'test_data', '_results')
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, 'emissions_test_fromGUI_output.csv')
+    out_path = os.path.join(out_dir, 'fofem_emissions_test_fromGUI_output.csv')
     df.to_csv(out_path, index=False)
     print(f'Wrote {len(df):,} rows to {out_path}')
 
