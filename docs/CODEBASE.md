@@ -25,7 +25,7 @@ pyfofem/
 |       |-- species_codes_lut.csv  #    Species <-> FOFEM-code mapping
 |       `-- FOFEM6.7/              #    Bundled FOFEM data files
 |
-|-- dependencies/fofem_cpp/        # <- Official C++ FOFEM reference source
+|-- reference/fofem_cpp/           # <- Official C++ FOFEM reference source
 |   |-- FOF_UNIX/                  #    Portable core science code
 |   |-- FOF_DLL/                   #    Windows DLL + Massman HMV solver
 |   |-- FOF_GUI/                   #    Windows .NET GUI
@@ -55,7 +55,7 @@ pyfofem/
 - `tests/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions.
 - `tests/compare_cpp_python.py` runs scripted multi-case comparisons.
 - `tests/fofem_emissions_example.py` is the current emissions batch/example driver.
-- `dependencies/fofem_cpp/FOF_UNIX/test_harness.cpp` is the parameterized C++ CSV harness (`fofem_test`).
+- `reference/fofem_cpp/FOF_UNIX/test_harness.cpp` is the parameterized C++ CSV harness (`fofem_test`).
 
 ## Architecture Overview
 
@@ -79,7 +79,7 @@ converting back via `_is_scalar` / `_maybe_scalar`).
 | **Soil Heating** | `components/soil_heating.py` | Campbell (1D equilibrium) and Massman HMV (non-equilibrium) models using `scipy.integrate.solve_ivp` |
 | **Data** | `supporting_data/` | Species lookup CSV, emission factor CSV, bundled FOFEM 6.7 files |
 
-### C++ Reference (`dependencies/fofem_cpp/`)
+### C++ Reference (`reference/fofem_cpp/`)
 
 The C++ codebase follows a **manager-pattern** with struct-in / struct-out
 interfaces.  Each subsystem has:

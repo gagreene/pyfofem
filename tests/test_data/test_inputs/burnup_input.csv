@@ -1,4 +1,4 @@
-# Burnup test inputs — reconstructed from dependencies/fofem_cpp/load.txt
+# Burnup test inputs — reconstructed from reference/fofem_cpp/load.txt
 # All sound-wood size classes; 1.0 T/ac each for fine fuels, 0.125 T/ac each for 1000-hr.
 # Fire environment: intensity=50 kW/m2, ig_time=60 s, windspeed=0 m/s,
 #                   depth=0.3 m, ambient_temp=21 C, timestep=15 s, max_times=3000

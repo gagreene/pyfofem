@@ -33,7 +33,7 @@ _EF_DUFF_GROUP_DEFAULT = 8        # DuffRSC — duff smoldering
 _ef_df_cache: Optional[DataFrame] = None
 
 # Legacy/original C++ Burnup emissions mode constants (ES_Calc path).
-# See dependencies/fofem_cpp/FOF_UNIX/bur_brn.h and bur_brn.cpp.
+# See reference/fofem_cpp/FOF_UNIX/bur_brn.h and bur_brn.cpp.
 _LEGACY_COMEFF_FLA = 0.97
 _LEGACY_COMEFF_SMO = 0.67
 

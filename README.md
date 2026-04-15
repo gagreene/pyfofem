@@ -27,7 +27,7 @@ pyfofem/
 │   ├── test_burnup_array.py        # Burnup array-mode tests
 │   ├── test_consumption_calcs_array.py
 │   └── test_data/                  # Input CSVs and expected outputs for validation
-├── dependencies/fofem_cpp/         # C++ FOFEM reference source (read-only)
+├── reference/fofem_cpp/            # C++ FOFEM reference source (read-only)
 ├── docs/reference/                 # Published literature and papers
 ├── CODEBASE.md                     # Detailed architecture and science mapping
 └── README.md

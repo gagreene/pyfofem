@@ -3,8 +3,8 @@
 test_cpp_comparison.py - Compare Python burnup outputs against existing C++ reference.
 
 The C++ ansi_mai.cpp has been compiled and run, producing:
-  - dependencies/fofem_cpp/load.txt  (per-component burnup summary)
-  - dependencies/fofem_cpp/emis.txt  (per-timestep emissions time-series)
+  - reference/fofem_cpp/load.txt  (per-component burnup summary)
+  - reference/fofem_cpp/emis.txt  (per-timestep emissions time-series)
 
 This script replicates the exact same inputs in Python and compares results.
 """
