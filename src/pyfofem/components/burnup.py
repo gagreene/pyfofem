@@ -686,6 +686,8 @@ def burnup(
     duff_pct_consumed: float = -1.0,
     fint_switch: float = 15.0,
     validate: bool = True,
+    hsf_consumed: float = 0.0,
+    brafol_consumed: float = 0.0,
 ) -> Tuple[List[BurnResult], List[BurnSummaryRow]]:
     """Run the complete BURNUP post-frontal combustion simulation.
 
@@ -716,6 +718,14 @@ def burnup(
     :param fint_switch: Flaming / smoldering intensity threshold (kW/m²).
         Default 15.
     :param validate: If ``True`` (default), run range-checks on all inputs.
+    :param hsf_consumed: Total herb + shrub consumed (kg/m²).  In C++,
+        ``BRN_Run`` receives herb and shrub consumed amounts and distributes
+        them at a linear rate (default 10 T/ac/min) adding fire intensity
+        at each timestep via ``BRN_Intensity()``.  Default 0 (no HSF
+        contribution — standalone burnup without FOFEM pipeline).
+    :param brafol_consumed: Total branch + foliage consumed (kg/m²).  In
+        C++, this is consumed entirely in the first timestep and adds fire
+        intensity via ``BRN_Intensity()``.  Default 0.
     :return: ``(results, summary)`` where *results* is a list of
         :class:`BurnResult` (one per completed timestep) and *summary* is
         a list of :class:`BurnSummaryRow` (one per fuel component).
@@ -757,6 +767,7 @@ def burnup(
     # 3. Sort by increasing size (decreasing sigma)
     # ------------------------------------------------------------------
     key = _sort_fuels(sigma, fmois, dendry)
+    inv_key = np.argsort(key)   # inverse permutation – restores original input order
     wdry   = wdry[key]
     ash    = ash[key]
     htval  = htval[key]
@@ -915,7 +926,11 @@ def burnup(
                 if dnext <= 0.0:
                     flit[ki] -= xmat[kl]
                     fout[ki] += xmat[kl]
-                    wodot[kl] = 0.0
+                    # Keep wodot[kl] non-zero here so _fire_intensity() (called
+                    # immediately below) sees the frontal-pass burn rate for
+                    # particles that are fully consumed during ignition. The C++
+                    # code achieves the same effect via gd_Fudge1/gd_Fudge2.
+                    # The time-step loop handles zeroing via "if tnow >= tdun".
                     ddot[kl]  = 0.0
 
     ncalls = 0
@@ -984,9 +999,52 @@ def burnup(
         ))
 
     # ------------------------------------------------------------------
+    # 10b. Herb / shrub / branch / foliage fire-intensity contribution
+    # ------------------------------------------------------------------
+    # Mirrors C++ HSB_Init / HSB_Get / BRN_Intensity mechanism.
+    # Herb+shrub are distributed linearly at a fixed rate (C++ default:
+    # 10 T/ac per minute = 10 / 4.4609 / 60 kg/m²/s in SI).
+    # Branch+foliage is consumed entirely in the first timestep.
+    # Fire intensity (kW/m²) = htval (J/kg) × consumed_rate (kg/m²/s) × 1e-3.
+    # We use 1.86e7 J/kg as the heat content, matching C++ e_htval*1000.
+    _HSF_HTVAL = 1.86e7  # J/kg — same heat content used for all FOFEM fuels
+    _HSF_RATE_TPAC_PER_MIN = 10.0  # C++ default: 10 tons/acre/minute
+    _HSF_RATE_SI = _HSF_RATE_TPAC_PER_MIN / 4.4609 / 60.0  # kg/m²/s
+    _hsf_remaining = float(hsf_consumed)
+    _brafol_remaining = float(brafol_consumed)
+
+    def _hsf_fi(step_seconds: float) -> float:
+        """Compute and consume herb+shrub fire intensity for this timestep.
+
+        Returns intensity contribution in kW/m².
+        """
+        nonlocal _hsf_remaining
+        amount = min(_HSF_RATE_SI * step_seconds, _hsf_remaining)
+        _hsf_remaining -= amount
+        if amount <= 0.0 or step_seconds <= 0.0:
+            return 0.0
+        return _HSF_HTVAL * amount / step_seconds * 1.0e-3
+
+    def _brafol_fi(step_seconds: float) -> float:
+        """Consume all branch+foliage fire intensity in one call.
+
+        Returns intensity contribution in kW/m².
+        """
+        nonlocal _brafol_remaining
+        amount = _brafol_remaining
+        _brafol_remaining = 0.0
+        if amount <= 0.0 or step_seconds <= 0.0:
+            return 0.0
+        return _HSF_HTVAL * amount / step_seconds * 1.0e-3
+
+    # ------------------------------------------------------------------
     # 11. Time-step loop
     # ------------------------------------------------------------------
     fi_cur = _fire_intensity()
+
+    # First-timestep HSF/brafol intensity (consumed over ti seconds)
+    fi_cur += _hsf_fi(ti) + _brafol_fi(ti)
+
     _record(ti)
 
     fimin = 0.1
@@ -1273,6 +1331,7 @@ def burnup(
             # ---- advance time, recompute, record ----
             tis += dt
             fi_cur = _fire_intensity()
+            fi_cur += _hsf_fi(dt)  # herb/shrub fire-intensity contribution
             _record(tis)
 
             # ---- termination ----
@@ -1306,6 +1365,24 @@ def burnup(
             remaining=rem,
             frac_remaining=rem / wdry[mi] if wdry[mi] > 0.0 else 0.0,
         ))
+
+    # ------------------------------------------------------------------
+    # 13. Restore original input order
+    # ------------------------------------------------------------------
+    # burnup() sorted particles internally (by sigma/fmois/dendry), interleaving
+    # sound and rotten classes.  summary[] and comp_flaming/comp_smoldering inside
+    # each BurnResult are in that sorted order.  Callers (_extract_burnup_consumption
+    # etc.) expect them in the original input order so that summary[i] and
+    # comp_flaming[i] match class_order[i].  Permute back using inv_key.
+    summary = [summary[int(inv_key[i])] for i in range(number)]
+    for r in results:
+        if r.comp_flaming is not None:
+            r.comp_flaming = [r.comp_flaming[int(inv_key[i])] for i in range(number)]
+        if r.comp_smoldering is not None:
+            orig = r.comp_smoldering
+            r.comp_smoldering = (
+                [orig[int(inv_key[i])] for i in range(number)] + [orig[number]]
+            )
 
     return results, summary
 

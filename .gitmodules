@@ -1,0 +1,3 @@
+[submodule "dependencies/fofem_cpp"]
+	path = dependencies/fofem_cpp
+	url = https://github.com/bran-jnw/fofem_wuinity.git

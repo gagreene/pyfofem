@@ -24,7 +24,7 @@ _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_TESTS_DIR)
 sys.path.insert(0, os.path.join(_PROJECT_ROOT, 'src'))
 
-from pyfofem.components.burnup_scalar import (
+from pyfofem.components.burnup import (
     burnup as scalar_burnup,
 )
 from pyfofem.components.burnup import (

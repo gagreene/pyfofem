@@ -24,39 +24,12 @@ import pandas as pd
 
 from pyfofem import run_fofem_emissions
 
-# ---------------------------------------------------------------------------
-# Output columns produced by run_fofem_emissions
-# ---------------------------------------------------------------------------
-_OUT_COLS = [
-    'LitPre', 'LitCon', 'LitPos',
-    'DW1Pre', 'DW1Con', 'DW1Pos',
-    'DW10Pre', 'DW10Con', 'DW10Pos',
-    'DW100Pre', 'DW100Con', 'DW100Pos',
-    'DW1kSndPre', 'DW1kSndCon', 'DW1kSndPos',
-    'DW1kRotPre', 'DW1kRotCon', 'DW1kRotPos',
-    'DufPre', 'DufCon', 'DufPos',
-    'HerPre', 'HerCon', 'HerPos',
-    'ShrPre', 'ShrCon', 'ShrPos',
-    'FolPre', 'FolCon', 'FolPos',
-    'BraPre', 'BraCon', 'BraPos',
-    'MSE',
-    'DufDepPre', 'DufDepCon', 'DufDepPos',
-    'PM10F', 'PM10S', 'PM25F', 'PM25S',
-    'CH4F', 'CH4S', 'COF', 'COS',
-    'CO2F', 'CO2S', 'NOXF', 'NOXS',
-    'SO2F', 'SO2S',
-    'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon',
-    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shurb-Equ',
-    'BurnupLimitAdj', 'BurnupError',
-]
-
-
 def main():
     # ------------------------------------------------------------------
     # Load CSV
     # ------------------------------------------------------------------
     csv_path = os.path.join(
-        _SCRIPT_DIR, 'test_data', 'test_inputs', 'fofem_emissions_test.csv'
+        _SCRIPT_DIR, 'test_data', 'test_inputs', 'fofem_emissions_test_fromGUI.csv'
     )
     df = pd.read_csv(csv_path, comment=None)#[:1000]
     df.columns = [c.lstrip('#') for c in df.columns]
@@ -95,7 +68,6 @@ def main():
     crown_foliage   = _arr('CrownFoliage')
     crown_branch    = _arr('CrownBranch')
     pct_crown_burned= _arr('PercentCrownBurned')
-    l_moist         = _arr('wfl10HourMoisture')   # 1-hr moisture proxy = 10-hr
     dw10_moist      = _arr('wfl10HourMoisture')
     dw1000_moist    = _arr('wfl1000HourMoisture')
     dw1             = _arr('wfl1Hour')
@@ -124,7 +96,7 @@ def main():
     # Determine number of parallel workers
     # ------------------------------------------------------------------
     cpu_count = os.cpu_count() or 4
-    num_workers = max(1, cpu_count - 1)
+    num_workers = 1#max(1, cpu_count - 1)
     print(f'Using {num_workers} worker(s) (cpu_count={cpu_count})')
 
     # ------------------------------------------------------------------
@@ -147,7 +119,6 @@ def main():
         season=season,
         fuel_category=fuel_category,
         duff_moist=duff_moist,
-        l_moist=l_moist,
         dw10_moist=dw10_moist,
         dw1000_moist=dw1000_moist,
         dw1=dw1,
@@ -167,6 +138,7 @@ def main():
         ambient_temp=ambient_temp,
         windspeed=windspeed,
         use_burnup=True,
+        em_mode='legacy',
         units='Imperial',
         num_workers=num_workers,
         show_progress=True,
@@ -180,19 +152,18 @@ def main():
     # ------------------------------------------------------------------
     _INT_COLS = {'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ',
                  'Herb-Equ', 'Shurb-Equ', 'BurnupLimitAdj', 'BurnupError'}
-    for col in _OUT_COLS:
-        if col in results:
-            if col in _INT_COLS:
-                df[col] = np.asarray(results[col], dtype=int)
-            else:
-                df[col] = np.asarray(results[col], dtype=float)
+    for col, val in results.items():
+        if col in _INT_COLS:
+            df[col] = np.asarray(val, dtype=int)
+        else:
+            df[col] = np.asarray(val, dtype=float)
 
     # ------------------------------------------------------------------
     # Save results
     # ------------------------------------------------------------------
     out_dir = os.path.join(_SCRIPT_DIR, 'test_data', '_results')
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, 'emissions_test_output.csv')
+    out_path = os.path.join(out_dir, 'emissions_test_fromGUI_output.csv')
     df.to_csv(out_path, index=False)
     print(f'Wrote {len(df):,} rows to {out_path}')
 

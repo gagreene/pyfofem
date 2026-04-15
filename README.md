@@ -1,7 +1,7 @@
 
 # pyfofem
 
-**pyfofem** is a Python library for modeling fire effects on forest vegetation, porting the science of the First Order Fire Effects Model (FOFEM) to Python. It provides vectorized, array and DataFrame-friendly functions for estimating tree mortality, fuel consumption, smoke emissions, soil heating, and related fire effects using published models and species-specific parameters.
+**pyfofem** is a Python library for modelling fire effects on forest vegetation, porting the science of the First Order Fire Effects Model (FOFEM) to Python. It provides vectorized, array and DataFrame-friendly functions for estimating tree mortality, fuel consumption, smoke emissions, soil heating, and related fire effects using published models and species-specific parameters.
 
 ## Directory Structure
 
@@ -40,7 +40,7 @@ pyfofem/
 - **Published, species-specific models**: implements FOFEM equations and species lookups for 60+ tree species.
 - **Burnup post-frontal combustion engine**: Python port of Albini & Reinhardt's (1989) model, validated against C++ outputs.
 - **Soil heating models**: Campbell (1D equilibrium) and Massman HMV (non-equilibrium heat-moisture-vapor) using `scipy.integrate.solve_ivp`.
-- **Smoke emissions**: default and expanded emission factor systems driven by a bundled CSV database (8 groups, 200+ chemical species).
+- **Smoke emissions**: three modes are supported: `legacy` (original C++ `ES_Calc` parity), `default` (single EF-group), and `expanded` (flame/coarse-smolder/duff groups) using the bundled emission-factor database.
 - **Parallel execution**: `run_fofem_emissions` dispatches per-cell burnup in parallel via `concurrent.futures.ProcessPoolExecutor`.
 - **Data-driven**: bundled species code lookups, emission factors, and FOFEM 6.7 reference data.
 - **Test suite**: golden tests, batch input/output validation, and science regression tests.
@@ -111,7 +111,27 @@ print(results['PM10F'])   # PM10 flaming emissions (g/m² or lb/ac)
 print(results['DufCon'])  # duff consumed (kg/m² or T/ac)
 ```
 
+To match legacy FOFEM GUI/C++ emissions behavior, pass `em_mode='legacy'`.
+
 Returns a dict with 70+ keys covering pre/consumed/post loads for every fuel class, emissions (PM10, PM2.5, CH4, CO, CO2, NOx, SO2), burnup durations, and carbon.
+
+### Emissions modes (`em_mode`)
+
+`run_fofem_emissions(..., em_mode=...)` supports three emissions modes:
+
+- `legacy`
+  Replicates the original C++ Burnup `ES_Calc` pathway (`f_CriInt < 0` behavior). Uses fixed combustion-efficiency-derived factors (not the emissions-factor CSV groups). Use this when matching legacy FOFEM GUI/C++ outputs.
+- `default`
+  Uses one emissions-factor group (`ef_group`, default group 3) for both flaming and smoldering emissions. This is the simplest CSV-driven mode.
+- `expanded`
+  Uses three emissions-factor groups, matching the newer C++ architecture:
+  `ef_group` for flaming, `ef_smoldering_group` for coarse-wood smoldering, and `ef_duff_group` for duff smoldering. Duff is split from smoldering and reported separately in `*_Duff` outputs.
+
+Typical choices:
+
+- Use `legacy` for parity checks against historical GUI runs.
+- Use `expanded` for modern factor-group workflows where duff/coarse/flaming factors are separated.
+- Use `default` for simple single-group analyses.
 
 ### Component-level functions
 

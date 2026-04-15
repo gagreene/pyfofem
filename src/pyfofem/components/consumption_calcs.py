@@ -14,8 +14,8 @@ Functions:
     consm_litter           – Litter fuel consumption.
     consm_mineral_soil     – Mineral soil exposure.
     consm_shrub            – Shrub fuel consumption.
-    _extract_burnup_consumption  – Internal helper to extract per-class consumption.
-    _burnup_durations      – Internal helper to extract flaming/smoldering durations.
+    _extract_burnup_consumption     – Internal helper to extract per-class consumption.
+    _burnup_durations               – Internal helper to extract flaming/smoldering durations.
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
@@ -60,11 +60,16 @@ _CARBON_DUFF_KEYS = frozenset({'duff', 'litter'})
 
 CONSUMPTION_VARS = [
     'LitPre', 'LitCon', 'LitPos', 'DW1Pre', 'DW1Con', 'DW1Pos', 'DW10Pre', 'DW10Con', 'DW10Pos',
-    'DW100Pre', 'DW100Con', 'DW100Pos', 'DW1kSndPre', 'DW1kSndCon', 'DW1kSndPos', 'DW1kRotPre', 'DW1kRotCon',
-    'DW1kRotPos', 'DufPre', 'DufCon', 'DufPos', 'HerPre', 'HerCon', 'HerPos', 'ShrPre', 'ShrCon', 'ShrPos',
-    'FolPre', 'FolCon', 'FolPos', 'BraPre', 'BraCon', 'BraPos', 'MSE', 'DufDepPre', 'DufDepCon', 'DufDepPos',
-    'PM10F', 'PM10S', 'PM25F', 'PM25S', 'CH4F', 'CH4S', 'COF', 'COS', 'CO2F', 'CO2S', 'NOXF', 'NOXS', 'SO2F',
-    'SO2S', 'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon', 'Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d',
+    'DW100Pre', 'DW100Con', 'DW100Pos', 'DW1kSndPre', 'DW1kSndCon', 'DW1kSndPos',
+    'DW1kRotPre', 'DW1kRotCon', 'DW1kRotPos', 'DufPre', 'DufCon', 'DufPos',
+    'HerPre', 'HerCon', 'HerPos', 'ShrPre', 'ShrCon', 'ShrPos',
+    'FolPre', 'FolCon', 'FolPos', 'BraPre', 'BraCon', 'BraPos',
+    'MSE', 'DufDepPre', 'DufDepCon', 'DufDepPos',
+    'PM10F', 'PM10S', 'PM25F', 'PM25S', 'CH4F', 'CH4S', 'COF', 'COS', 'CO2F', 'CO2S',
+    'NOXF', 'NOXS', 'SO2F', 'SO2S',
+    'PM10S_Duff', 'PM25S_Duff', 'CH4S_Duff', 'COS_Duff', 'CO2S_Duff', 'NOXS_Duff', 'SO2S_Duff',
+    'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon',
+    'Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d',
     'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shrub-Equ',
     'BurnupLimitAdj', 'BurnupError'
 ]
@@ -965,9 +970,11 @@ def consm_shrub(
     # Eq 234 – SE non-Pocosin (requires optional params; fall back to nan)
     if all(x is not None for x in (pre_ll, pre_dl, pre_rl, duff_moist, llc, ddc)):
         combo = pre_ll + pre_dl
+        combo_safe = np.where(combo > 0, combo, np.nan)
+        denom_safe = np.where((pre_sl + pre_rl) > 0, (pre_sl + pre_rl), np.nan)
         eq234 = (((3.2484 + (0.4322 * combo) + (0.6765 * (pre_sl + pre_rl)) -
-                   (0.0276 * duff_moist) - (5.0796 / combo)) -
-                  (llc + ddc)) / (pre_sl + pre_rl)) * 100
+                   (0.0276 * duff_moist) - (5.0796 / combo_safe)) -
+                  (llc + ddc)) / denom_safe) * 100
     else:
         eq234 = np.full(n, np.nan)
 

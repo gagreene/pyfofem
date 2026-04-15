@@ -276,7 +276,8 @@ def run_fofem_emissions(
     :param use_burnup: If True (default), run the burnup model.
     :param burnup_kwargs: Optional dict of advanced parameters for
         :func:`run_burnup`.
-    :param em_mode: Emission factor mode: ``'default'`` or ``'expanded'``.
+    :param em_mode: Emission factor mode: ``'legacy'`` (C++ ES_Calc parity),
+        ``'default'`` (single EF group), or ``'expanded'`` (flame/coarse/duff groups).
     :param ef_group: Emission factor group (1-8; default 3).
     :param ef_csv_path: Path to ``emissions_factors.csv`` override.
     :param units: Unit system. ``'Imperial'`` (T/ac, in) or ``'SI'``
@@ -310,6 +311,11 @@ def run_fofem_emissions(
         dw1000_moist = regime_vals['3plus']
         l_moist      = regime_vals['10hr'] - 2.0
     else:
+        if dw10_moist is None or dw1000_moist is None or duff_moist is None:
+            raise ValueError('Missing at least one required moisture input: dw10_moist, dw1000_moist, duff_moist. '
+                             'Either provide these explicitly, or specify a moisture_regime.')
+        if l_moist is None:
+            l_moist = dw10_moist - 2.0
         _missing = [name for name, val in (
             ('duff_moist',   duff_moist),
             ('l_moist',      l_moist),
@@ -354,7 +360,7 @@ def run_fofem_emissions(
     hfi_a   = np.broadcast_to(np.atleast_1d(np.asarray(hfi,   dtype=float)) if hfi   is not None else np.full(n, np.nan), (n,)).copy()
     frt_a   = np.broadcast_to(np.atleast_1d(np.asarray(flame_res_time, dtype=float)) if flame_res_time is not None else np.full(n, np.nan), (n,)).copy()
     fb_a    = np.broadcast_to(np.atleast_1d(np.asarray(fuel_bed_depth, dtype=float)) if fuel_bed_depth is not None else np.full(n, 0.3), (n,)).copy()
-    at_a    = np.broadcast_to(np.atleast_1d(np.asarray(ambient_temp,   dtype=float)) if ambient_temp   is not None else np.full(n, 21.0), (n,)).copy()
+    at_a    = np.broadcast_to(np.atleast_1d(np.asarray(ambient_temp,   dtype=float)) if ambient_temp   is not None else np.full(n, 27.0), (n,)).copy()
     ws_a    = np.broadcast_to(np.atleast_1d(np.asarray(windspeed,      dtype=float)) if windspeed      is not None else np.full(n, 0.0), (n,)).copy()
 
     # Categorical arrays
@@ -410,12 +416,6 @@ def run_fofem_emissions(
     her_pos_arr = her_pre_arr - her_con_arr
 
     shr_pre_arr = shr_a.copy()
-    slc_pct_arr = np.clip(
-        np.asarray(consm_shrub(reg_a, cvr_a, shr_a, season=sea_a, units=units), dtype=float),
-        0.0, 100.0,
-    )
-    shr_con_arr = shr_pre_arr * slc_pct_arr / 100.0
-    shr_pos_arr = shr_pre_arr - shr_con_arr
 
     crown_res   = consm_canopy(pcb_a, fol_a, bra_a, units=units)
     fol_pre_arr = fol_a.copy()
@@ -440,6 +440,8 @@ def run_fofem_emissions(
     rdd_list = np.empty(n, dtype=float)
 
     for _i in range(n):
+        _pre_l110 = float(lit_a[_i] + dw10_a[_i] + dw1_a[_i])
+        _pre_dl110 = float(_pre_l110 + duf_a[_i])
         _res = consm_duff(
             float(duf_a[_i]), float(duf_m_a[_i]),
             reg=str(reg_a[_i]) if reg_a.size > 0 else None,
@@ -447,6 +449,8 @@ def run_fofem_emissions(
             duff_moist_cat='edm',
             d_pre=float(duf_dep_a[_i]),
             dw1000_moist=float(dw1k_m_a[_i]),
+            pre_l110=_pre_l110,
+            pre_dl110=_pre_dl110,
             units=units,
         )
         pdc_list[_i] = float(np.asarray(_res['pdc']).ravel()[0])
@@ -461,6 +465,43 @@ def run_fofem_emissions(
     # ------------------------------------------------------------------
     # 5. Per-cell burnup (parallelised)
     # ------------------------------------------------------------------
+    slc_pct_arr = np.clip(
+        np.asarray(consm_shrub(
+            reg_a, cvr_a, shr_a, season=sea_a,
+            pre_ll=lit_a,
+            pre_dl=duf_a,
+            pre_rl=np.zeros_like(shr_a),
+            duff_moist=duf_m_a,
+            llc=lit_con_arr,
+            ddc=duf_a * pdc_arr / 100.0,
+            units=units,
+        ), dtype=float),
+        0.0, 100.0,
+    )
+    # C++ Eq 234 parity for SouthEast non-Pocosin non-Flatwoods shrub.
+    # The C++ route uses Equation_16 and Eq_234_Per directly from CI loads.
+    _fw = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _is_se_np = (
+        (reg_a == 'SouthEast') &
+        ~np.isin(cvr_a, ('Pocosin', 'PC')) &
+        ~np.isin(cvr_a, _fw)
+    )
+    if np.any(_is_se_np):
+        _wpre = lit_a + duf_a + dw10_a + dw1_a
+        _wpre_safe = np.maximum(_wpre, 1e-12)
+        _eq16_w = 3.4958 + (0.3833 * _wpre) - (0.0237 * duf_m_a) - (5.6075 / _wpre_safe)
+        _shr_safe = np.maximum(shr_pre_arr, 1e-12)
+        _f = (
+            (3.2484 + (0.4322 * _wpre) + (0.6765 * shr_pre_arr) -
+             (0.0276 * duf_m_a) - (5.0796 / _wpre_safe) - _eq16_w) / _shr_safe
+        )
+        _f = np.where((_wpre <= 0.0) | (shr_pre_arr <= 0.0) | (_eq16_w == 0.0), 0.0, _f)
+        _eq234_pct = np.clip(_f * 100.0, 0.0, 100.0)
+        slc_pct_arr = np.where(_is_se_np, _eq234_pct, slc_pct_arr)
+
+    shr_con_arr = shr_pre_arr * slc_pct_arr / 100.0
+    shr_pos_arr = shr_pre_arr - shr_con_arr
+
     # Output arrays initialised to simplified-default values
     duf_con_arr   = duf_pre_arr * pdc_arr / 100.0
     duf_pos_arr   = duf_pre_arr - duf_con_arr
@@ -496,6 +537,7 @@ def run_fofem_emissions(
             d1km  = float(dw1k_m_a[i])
             d10f  = d10m / 100.0
             d1kf  = d1km / 100.0
+            # Rotten 1000-hr moisture content = min(sound 1000-hr moisture content * 2.5, 300%)
             drotf = min(d1kf * _DW1000HR_ADJ_ROT, _BURNUP_MOIST_UPPER)
 
             fl: Dict[str, float] = {}
@@ -528,11 +570,24 @@ def run_fofem_emissions(
                     rk[rkey] = skey; dm[rkey] = _DENSITY_ROTTEN
 
             duf_si   = float(duf_pre_arr[i]) * to_si
+            # C++ BCM_SetInputs: if DW1 load is zero, inject 0.0000001 kg/m²
+            # so burnup always has at least one fuel particle. This lets
+            # burnup handle duff-only burns correctly.
+            if not fl and duf_si > 0:
+                fl['dw1'] = 1e-7  # matches C++ BCM_SetInputs guard
+                fm['dw1'] = max(d10f - _DW1HR_ADJ, 0.02)
             duf_mf   = max(float(duf_m_a[i]) / 100.0, 0.02) if duf_si > 0 else 2.0
             hfi_val  = float(hfi_a[i]) if not np.isnan(hfi_a[i]) else None
             frt_val  = float(frt_a[i]) if not np.isnan(frt_a[i]) else (60.0 if (hfi_val or 0) > 0 else None)
             intensity = hfi_val if hfi_val is not None else 50.0
             ig_time   = frt_val if frt_val is not None else 60.0
+
+            # Herb+shrub and branch+foliage consumed (kg/m²) for burnup
+            # fire-intensity contribution — mirrors C++ BRN_Run / HSB / BRN_Intensity.
+            _her_v = float(her_con_arr[i]) if not np.isnan(her_con_arr[i]) else 0.0
+            _shr_v = float(shr_con_arr[i]) if not np.isnan(shr_con_arr[i]) else 0.0
+            hsf_si = (_her_v + _shr_v) * to_si
+            brafol_si = (float(fol_con_arr[i]) + float(bra_con_arr[i])) * to_si
 
             cell_kwargs.append({
                 'fuel_loadings_bu': fl,
@@ -547,6 +602,8 @@ def run_fofem_emissions(
                 'duf_loading_si': duf_si,
                 'duf_moist_frac': duf_mf,
                 'duf_pct_consumed': float(pdc_arr[i]),  # FOFEM DUF_Mngr pdc → DuffBurn ff
+                'hsf_consumed_si': hsf_si,
+                'brafol_consumed_si': brafol_si,
                 'burnup_dt': burnup_dt,
                 'bkw': bkw_base,
                 'cell_idx': i,
@@ -587,8 +644,19 @@ def run_fofem_emissions(
             burnup_ran[i] = True
 
             if 'litter' in bcon:
-                lit_con_arr[i] = bcon['litter']['consumed'] * fsi
-                lit_pos_arr[i] = lit_pre_arr[i] - lit_con_arr[i]
+                # C++ BCM_Mngr: for SouthEast and Pine Flatwoods, the
+                # regional litter equation (998/997) overrides burnup's
+                # litter consumed. Burnup still runs with the litter for
+                # fire intensity, but the consumed amount comes from the
+                # regional equation computed earlier in step 4.
+                _fw = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+                _is_se_lit_override = (
+                    str(reg_a[i]) == 'SouthEast' or
+                    str(cvr_a[i]) in _fw
+                )
+                if not _is_se_lit_override:
+                    lit_con_arr[i] = bcon['litter']['consumed'] * fsi
+                    lit_pos_arr[i] = lit_pre_arr[i] - lit_con_arr[i]
                 lit_fla_arr[i] = bcon['litter']['flaming'] * fsi
                 lit_smo_arr[i] = bcon['litter']['smoldering'] * fsi
 
@@ -618,7 +686,7 @@ def run_fofem_emissions(
             rot_smo_arr[i]   = rm
 
             ff = fm2 = 0.0
-            for k in ('litter','dw1','dw10','dw100'):
+            for k in ('dw1','dw10','dw100'):  # litter is tracked in lit_fla_arr/lit_smo_arr
                 if k in bcon:
                     ff  += bcon[k]['flaming']    * fsi
                     fm2 += bcon[k]['smoldering'] * fsi
@@ -666,6 +734,23 @@ def run_fofem_emissions(
     for i in range(n):
         if burnup_err_arr[i] != 0:
             continue
+        # C++ DuffBurn parity for duff-only cases.
+        # When there are no non-duff fuels, C++ duration tracks DuffBurn tdf:
+        #   tdf = 1e4 * ff * wdf / (7.5 - 2.7 * dfm)
+        # where ff is duff fraction consumed and wdf is kg/m^2.
+        _non_duff_pre = (
+            lit_pre_arr[i] + dw1_pre_arr[i] + dw10_pre_arr[i] + dw100_pre_arr[i] +
+            dw1ks_pre[i] + dw1kr_pre[i] + her_pre_arr[i] + shr_pre_arr[i] +
+            fol_pre_arr[i] + bra_pre_arr[i]
+        )
+        if _non_duff_pre <= 0.0 and duf_con_arr[i] > 0.0:
+            _dfm = float(duf_m_a[i]) / 100.0
+            _wdf = float(duf_pre_arr[i]) * to_si if is_imperial else float(duf_pre_arr[i])
+            _ff = float(pdc_arr[i]) / 100.0 if 0.0 <= float(pdc_arr[i]) <= 100.0 else (0.837 - 0.426 * _dfm)
+            _den = 7.5 - 2.7 * _dfm
+            if _wdf > 0.0 and _dfm < 1.96 and _den > 0.0 and _ff > 0.0:
+                smo_dur_arr[i] = 1.0e4 * _ff * _wdf / _den
+                continue
         if np.isnan(smo_dur_arr[i]) and not np.isnan(duf_dep_con_arr[i]) and duf_dep_con_arr[i] > 0:
             dep_cm  = duf_dep_con_arr[i] * _IN_TO_CM if is_imperial else duf_dep_con_arr[i]
             brate   = max(0.05 * np.exp(-0.025 * float(duf_m_a[i])), 1e-6)
@@ -712,7 +797,8 @@ def run_fofem_emissions(
     # 9. Smoke emissions (vectorised call)
     # ------------------------------------------------------------------
     emissions = calc_smoke_emissions(
-        fla_con_arr, smo_con_arr,
+        flaming_load=fla_con_arr,
+        smoldering_load=smo_con_arr,
         mode=em_mode,
         ef_group=ef_group,
         duff_load=duf_con_arr,
@@ -749,9 +835,9 @@ def run_fofem_emissions(
         **{k: (_out(v) if isinstance(v, np.ndarray) else v) for k, v in emissions.items()},
         'FlaDur':  _out(fla_dur_arr),  'SmoDur':  _out(smo_dur_arr),
         'FlaCon':  _out(fla_con_arr),  'SmoCon':  _out(smo_con_arr),
-        'Lay0': float('nan'), 'Lay2': float('nan'),
-        'Lay4': float('nan'), 'Lay6': float('nan'),
-        'Lay60d': float('nan'), 'Lay275d': float('nan'),
+        # 'Lay0': float('nan'), 'Lay2': float('nan'),
+        # 'Lay4': float('nan'), 'Lay6': float('nan'),
+        # 'Lay60d': float('nan'), 'Lay275d': float('nan'),
         'Lit-Equ':    _out_int(lit_eq_arr),
         'DufCon-Equ': _out_int(duf_eq_arr),
         'DufRed-Equ': _out_int(duf_eq_arr),

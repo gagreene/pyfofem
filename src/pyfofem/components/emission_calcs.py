@@ -32,6 +32,11 @@ _EF_DUFF_GROUP_DEFAULT = 8        # DuffRSC — duff smoldering
 # Module-level cache so the CSV is parsed at most once per session.
 _ef_df_cache: Optional[DataFrame] = None
 
+# Legacy/original C++ Burnup emissions mode constants (ES_Calc path).
+# See dependencies/fofem_cpp/FOF_UNIX/bur_brn.h and bur_brn.cpp.
+_LEGACY_COMEFF_FLA = 0.97
+_LEGACY_COMEFF_SMO = 0.67
+
 
 def _load_ef_csv(csv_path: Optional[str] = None) -> DataFrame:
     """Load and cache the emission-factors CSV.
@@ -139,11 +144,53 @@ def calc_smoke_emissions(
     # Load emission factors from the bundled CSV
     ef_df = _load_ef_csv(ef_csv_path)
 
-    if mode not in ('default', 'expanded'):
+    if mode not in ('legacy', 'default', 'expanded'):
         raise ValueError(
             f"Unknown emissions mode '{mode}'. "
-            "Valid options: 'default', 'expanded'."
+            "Valid options: 'legacy', 'default', 'expanded'."
         )
+
+    if mode == 'legacy':
+        # Original C++ ES_Calc factors (g/kg), based on combustion efficiencies.
+        # Using these with load[T/ac] * factor[g/kg] * 2 gives lb/ac.
+        pm25_f = 67.4 - (_LEGACY_COMEFF_FLA * 66.8)
+        pm25_s = 67.4 - (_LEGACY_COMEFF_SMO * 66.8)
+        ch4_f = 42.7 - (_LEGACY_COMEFF_FLA * 43.2)
+        ch4_s = 42.7 - (_LEGACY_COMEFF_SMO * 43.2)
+        co_f = 961.0 - (_LEGACY_COMEFF_FLA * 984.0)
+        co_s = 961.0 - (_LEGACY_COMEFF_SMO * 984.0)
+        co2_f = _LEGACY_COMEFF_FLA * 1833.0
+        co2_s = _LEGACY_COMEFF_SMO * 1833.0
+        pm10_f = pm25_f * 1.18
+        pm10_s = pm25_s * 1.18
+        nox_f, nox_s = 3.2, 0.0
+        so2_f, so2_s = 1.0, 1.0
+
+        unit_conv = 1.0 if units.upper() == 'SI' else 2.0
+        return {
+            'PM10F': pm10_f * f_kg * unit_conv,
+            'PM10S': pm10_s * s_kg * unit_conv,
+            'PM25F': pm25_f * f_kg * unit_conv,
+            'PM25S': pm25_s * s_kg * unit_conv,
+            'CH4F': ch4_f * f_kg * unit_conv,
+            'CH4S': ch4_s * s_kg * unit_conv,
+            'COF': co_f * f_kg * unit_conv,
+            'COS': co_s * s_kg * unit_conv,
+            'CO2F': co2_f * f_kg * unit_conv,
+            'CO2S': co2_s * s_kg * unit_conv,
+            'NOXF': nox_f * f_kg * unit_conv,
+            'NOXS': nox_s * s_kg * unit_conv,
+            'SO2F': so2_f * f_kg * unit_conv,
+            'SO2S': so2_s * s_kg * unit_conv,
+            # Legacy path reports duff-only smolder as same smolder factors.
+            'PM10S_Duff': pm10_s * d_kg * unit_conv,
+            'PM25S_Duff': pm25_s * d_kg * unit_conv,
+            'CH4S_Duff': ch4_s * d_kg * unit_conv,
+            'COS_Duff': co_s * d_kg * unit_conv,
+            'CO2S_Duff': co2_s * d_kg * unit_conv,
+            'NOXS_Duff': nox_s * d_kg * unit_conv,
+            'SO2S_Duff': so2_s * d_kg * unit_conv,
+        }
 
     if mode == 'default':
         # EF in g/kg → result in g/m² (SI) or g/T * T/ac = g/ac

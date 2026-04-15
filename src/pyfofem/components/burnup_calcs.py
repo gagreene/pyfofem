@@ -74,13 +74,17 @@ def _extract_burnup_consumption(
     out: Dict[str, Dict[str, float]] = {}
     comp_fla = [0.0] * n_comp
     comp_smo = [0.0] * n_comp
+    prev_time = 0.0
     for r in results:
+        # The first record covers [0, ti] (ti = r.time); subsequent records cover dt seconds.
+        interval = r.time - prev_time
+        prev_time = r.time
         if r.comp_flaming is not None:
             for i in range(n_comp):
-                comp_fla[i] += r.comp_flaming[i] * dt
+                comp_fla[i] += r.comp_flaming[i] * interval
         if r.comp_smoldering is not None:
             for i in range(n_comp):
-                comp_smo[i] += r.comp_smoldering[i] * dt
+                comp_smo[i] += r.comp_smoldering[i] * interval
     for i, key in enumerate(class_order):
         row = summary[i]
         consumed = row.wdry * (1.0 - row.frac_remaining)
@@ -114,6 +118,8 @@ def _run_burnup_cell(ckw: dict):
     duf_si = ckw['duf_loading_si']
     duf_mf = ckw['duf_moist_frac']
     duf_pct = ckw.get('duf_pct_consumed', -1.0)
+    hsf_si  = ckw.get('hsf_consumed_si', 0.0)
+    brafol_si = ckw.get('brafol_consumed_si', 0.0)
     dt     = ckw['burnup_dt']
     bkw    = ckw['bkw']
     adj_codes = []
@@ -189,6 +195,7 @@ def _run_burnup_cell(ckw: dict):
             ntimes=bkw['max_times'], wdf=duf_si, dfm=duf_mf,
             duff_pct_consumed=duf_pct,
             fint_switch=bkw['fint_switch'], validate=bkw['validate'],
+            hsf_consumed=hsf_si, brafol_consumed=brafol_si,
         )
         bcon = _extract_burnup_consumption(res, summ, co, dt)
         fla_dur, smo_dur = _burnup_durations(res)
@@ -317,24 +324,39 @@ def run_burnup(
     ash_content: float = 0.05,
     duff_loading: float = 0.0,
     duff_moisture: float = 2.0,
+    duff_pct_consumed: float = -1.0,
     densities: Optional[Dict[str, float]] = None,
     fint_switch: float = 15.0,
     validate: bool = True,
+    hsf_consumed: float = 0.0,
+    brafol_consumed: float = 0.0,
 ) -> Tuple[List[BurnResult], List[BurnSummaryRow], List[str]]:
-    """Run the BURNUP post-frontal combustion model."""
+    """Run the BURNUP post-frontal combustion model.
+
+    Recognized fuel-loading / moisture keys:
+      - sound: ``litter``, ``dw1``, ``dw10``, ``dw100``,
+        ``dwk_3_6``, ``dwk_6_9``, ``dwk_9_20``, ``dwk_20``
+      - rotten: ``dwk_3_6_r``, ``dwk_6_9_r``, ``dwk_9_20_r``, ``dwk_20_r``
+    """
     _sigma_map: Dict[str, float] = {
         'litter':   surat_lit,
         'dw1':      surat_dw1,
         'dw10':     surat_dw10,
         'dw100':    surat_dw100,
         'dwk_3_6':  surat_dwk_3_6,
+        'dwk_3_6_r':  surat_dwk_3_6,
         'dwk_6_9':  surat_dwk_6_9,
+        'dwk_6_9_r':  surat_dwk_6_9,
         'dwk_9_20': surat_dwk_9_20,
+        'dwk_9_20_r': surat_dwk_9_20,
         'dwk_20':   surat_dwk_20,
+        'dwk_20_r':   surat_dwk_20,
     }
     _class_order = [
         'litter', 'dw1', 'dw10', 'dw100',
-        'dwk_3_6', 'dwk_6_9', 'dwk_9_20', 'dwk_20',
+        # Match C++ component order in load.txt: sound+rotten interleaved by size.
+        'dwk_3_6', 'dwk_3_6_r', 'dwk_6_9', 'dwk_6_9_r',
+        'dwk_9_20', 'dwk_9_20_r', 'dwk_20', 'dwk_20_r',
     ]
     default_moisture = 0.10
     particles: List[FuelParticle] = []
@@ -345,7 +367,10 @@ def run_burnup(
             continue
         moisture = fuel_moistures.get(key, default_moisture)
         sigma = _sigma_map[key]
-        d = densities.get(key, density) if densities else density
+        is_rotten = key.endswith('_r')
+        default_density = _DENSITY_ROTTEN if is_rotten else density
+        d = densities.get(key, default_density) if densities else default_density
+        tpig = _ROTTEN_TPIG if is_rotten else ignition_temp
         particles.append(FuelParticle(
             wdry=loading,
             htval=heat_content,
@@ -354,7 +379,7 @@ def run_burnup(
             sigma=sigma,
             cheat=heat_capacity,
             condry=conductivity,
-            tpig=ignition_temp,
+            tpig=tpig,
             tchar=char_temp,
             ash=ash_content,
         ))
@@ -377,8 +402,11 @@ def run_burnup(
         ntimes=max_times,
         wdf=duff_loading,
         dfm=duff_moisture,
+        duff_pct_consumed=duff_pct_consumed,
         fint_switch=fint_switch,
         validate=validate,
+        hsf_consumed=hsf_consumed,
+        brafol_consumed=brafol_consumed,
     )
     return results, summary, class_order
 
