@@ -1,0 +1,2 @@
+litter,duff,duff_depth,duff_moist,herb,shrub,crown_fol,crown_bra,pct_crown_burn,dw10_moist,dw1000_moist,dw1,dw10,dw100,snd_dw3,snd_dw6,snd_dw9,snd_dw20,rot_dw3,rot_dw6,rot_dw9,rot_dw20,region,season,fuel_cat,intensity,ig_time,windspeed,depth,ambient_temp,cri_int
+0.6,10,1,40,0.2,0.35,6,3,75,10,15,0.23,0.67,0.8,0.875,0.875,0.875,0.875,0.875,0.875,0.875,0.875,InteriorWest,Summer,Natural,472.989,60,0,0.4,21,-1
