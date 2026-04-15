@@ -14,7 +14,7 @@ All component calculations are delegated to the sub-modules in
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 # ---------------------------------------------------------------------------
 # Re-export component symbols for backward compatibility
