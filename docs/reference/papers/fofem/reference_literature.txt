@@ -1,0 +1,42 @@
+Literature Cited (FOFEM)
+Generated from files in docs/reference/papers/fofem
+
+Note:
+- Citations below are best-effort reconstructions from filenames.
+- Journal/report series, volume, issue, pages, and report numbers should be verified from each document title page.
+
+Peer-reviewed papers and reports
+
+1. Andrews, P. L. (2012). Modeling wind adjustment factor and midflame wind speed for Rothermel's surface fire spread model.
+
+2. Hood, S. M., & Lutes, D. C. (2017). Predicting post-fire tree mortality for 12 western U.S. conifers using FOFEM.
+
+3. Hood, S. M., et al. (2007). Evaluation of a post-fire tree mortality model for western USA conifers.
+
+4. Hood, S. M., et al. (2018). Fire and tree death: Understanding and improving modeling of fire-induced tree mortality.
+
+5. Keyser, T. L. (2018). Short-term mortality of 10 deciduous broadleaved species following prescribed burning in upland forest of the southern U.S.
+
+6. Lutes, D. C. (2020). FOFEM 6.7 User Guide.
+
+7. Nelson, R. M., Jr. (2002). An effective wind speed for models of fire spread.
+
+8. Reardon, J. J., et al. (2007). Factors affecting sustained smouldering in organic soils from pocosin and pond pine woodland wetlands.
+
+9. Reinhardt, E. D., & Crookston, N. L. (Eds.). (2003). The Fire and Fuels Extension to the Forest Vegetation Simulator.
+
+10. Reinhardt, E. D., et al. (1997). FOFEM 4.0 User's Guide.
+
+11. Ryan, K. C., & Amman, G. D. (1994). Interactions between fire-injured trees and insects in the Greater Yellowstone Area.
+
+12. Ryan, K. C., & Reinhardt, E. D. (1988). Predicting postfire mortality of seven western conifers.
+
+13. Wang, G. G., et al. (2007). Modify FOFEM for use in the Coastal Plain region of the southeastern U.S.
+
+14. Wright, C. S. (2013). Fuel consumption models for pine flatwoods fuel types in the southeastern U.S.
+
+Supplementary spreadsheets (non-paper references)
+
+15. Unknown author(s). (n.d.). BC SoilTexture conversion to FOFEM SoilFamily.
+
+16. Unknown author(s). (n.d.). FOFEM variables for batch processing.

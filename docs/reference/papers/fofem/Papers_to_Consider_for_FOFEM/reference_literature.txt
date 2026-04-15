@@ -1,0 +1,15 @@
+Reference Literature: Papers_to_Consider_for_FOFEM
+
+Note:
+- Citations are best-effort from filenames and should be verified against the PDFs for exact publication details.
+
+1. Alexander, M. E. (1982). Calculating and interpreting forest fire intensities.
+
+2. Alexander, M. E., & Cruz, M. G. (2021). Interdependencies between flame length and fireline intensity in predicting crown fire initiation and crown scorch height.
+
+3. Alexander, M. E., et al. (2019). Crown scorch height.
+
+4. Byram, G. M. (1959). Combustion of forest fuels.
+
+5. Van Wagner, C. E. (1973). Height of crown scorch in forest fires.
+

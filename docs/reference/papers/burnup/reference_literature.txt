@@ -1,0 +1,16 @@
+Literature Cited (Burnup)
+Generated from files in docs/reference/papers/burnup
+
+Note:
+- Citations below are best-effort reconstructions from filenames.
+- Where journal/report metadata is not explicit in the filename, entries are listed as title-level citations and should be verified against the source PDF title page.
+
+1. Albini, F. A. (1994). Program BURNUP: Simulation model of the burning of large woody natural fuels.
+
+2. Albini, F. A., & Reinhardt, E. D. (1995). Modeling ignition and burning rate of large woody natural fuels.
+
+3. Albini, F. A., & Reinhardt, E. D. (1997). Improved calibration of a large fuel burnout model.
+
+4. Albini, F. A., Reinhardt, E. D., & colleagues. (1995). Calibration of a large fuel burnout model.
+
+5. Lutes, D. C. (2013). Predicted down woody fuel consumption in the BURNUP model: Sensitivity to four user inputs.
