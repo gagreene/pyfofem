@@ -213,7 +213,7 @@ def mort_crnsch(
     :param scorch_ht: Scorch height (m). Scalar or np.ndarray. Optional; if not
         provided, estimated from ``fire_intensity``, ``amb_t``, and
         ``instand_ws``.
-    :param instand_ws: Instantaneous windspeed (m/s). Scalar or np.ndarray.
+    :param instand_ws: In-stand windspeed (m/s). Scalar or np.ndarray.
         Default 1 m/s. Used when estimating scorch height.
     :param aspen_sev: Aspen severity class for equation selection; ``'low'`` or
         ``'high'``. Default ``'low'``.
