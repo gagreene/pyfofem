@@ -10,7 +10,7 @@ if _TESTS_DIR not in sys.path:
 if os.path.join(_REPO, "src") not in sys.path:
     sys.path.insert(0, os.path.join(_REPO, "src"))
 
-from compare_cpp_python_soil import (  # noqa: E402
+from compare_cpp_python_soil_heating import (  # noqa: E402
     SOIL_TMP,
     _parse_soil_tmp,
     _cpp_lay_values_from_soil_tmp,
