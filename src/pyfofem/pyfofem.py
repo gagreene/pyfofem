@@ -381,7 +381,6 @@ def run_fofem_emissions(
     _scalar_inputs = [
         litter, duff, duff_depth, herb, shrub, crown_foliage, crown_branch,
         pct_crown_burned, duff_moist, l_moist, dw10_moist, dw1000_moist,
-        soil_moisture,
         dw1, dw10, dw100, dw1000s, dw1000r,
         dw3_6s, dw6_9s, dw9_20s, dw20s, dw3_6r, dw6_9r, dw9_20r, dw20r,
     ]
@@ -390,7 +389,7 @@ def run_fofem_emissions(
         not isinstance(v, np.ndarray)
         for v in (region, cvr_grp, season, fuel_category, soil_family)
     )
-    scalar_call = _cat_scalar and all(_is_scalar(v) for v in _scalar_inputs)
+    scalar_call = _cat_scalar and all(_is_scalar(v) for v in _scalar_inputs) and _is_scalar(soil_moisture)
 
     # Broadcast numeric inputs to a common 1-D array shape
     arrs = np.broadcast_arrays(*[np.atleast_1d(np.asarray(v, dtype=float)) for v in _scalar_inputs])
