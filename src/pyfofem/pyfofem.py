@@ -14,7 +14,7 @@ All component calculations are delegated to the sub-modules in
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import numpy as np
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 # ---------------------------------------------------------------------------
 # Re-export component symbols for backward compatibility
@@ -46,8 +46,12 @@ from .components.mortality_calcs import (
 )
 
 from .components.consumption_calcs import (
-    CONSUMPTION_VARS,
+    DEFAULT_CONSUMPTION_VARS,
+    EXPANDED_CONSUMPTION_VARS,
+    TOTAL_DURATION_CONSUMED_VARS,
     SOIL_HEAT_VARS,
+    EQUATION_VARS,
+    ERROR_VARS,
     REGION_CODES,
     CVR_GRP_CODES,
     SEASON_CODES,
@@ -81,6 +85,7 @@ from .components.burnup_calcs import (
 )
 
 from .components.burnup import _BURNUP_LIMIT_ADJUST, _BURNUP_LIMIT_ERROR
+from .components.soil_heating import soil_heat_campbell
 
 from .components.emission_calcs import (
     _EF_GROUP_DEFAULT,
@@ -89,6 +94,34 @@ from .components.emission_calcs import (
     _load_ef_csv,
     calc_smoke_emissions,
 )
+
+
+_SOIL_FAMILY_ALIASES = {
+    'loamy-skeletal': 'loamy-skeletal',
+    'loamy skeletal': 'loamy-skeletal',
+    'fine-silty': 'fine-silty',
+    'fine-silt': 'fine-silty',
+    'fine silt': 'fine-silty',
+    'fine': 'fine',
+    'coarse-silty': 'coarse-silty',
+    'coarse-silt': 'coarse-silty',
+    'coarse silt': 'coarse-silty',
+    'coarse-loamy': 'coarse-loamy',
+    'coarse-loam': 'coarse-loamy',
+    'coarse loam': 'coarse-loamy',
+}
+
+
+def _normalize_soil_family(value: str) -> str:
+    """Map GUI/C++/user soil family strings to soil_heating.py keys."""
+    key = str(value).strip().lower()
+    if key in _SOIL_FAMILY_ALIASES:
+        return _SOIL_FAMILY_ALIASES[key]
+    raise ValueError(
+        f"Unrecognised soil_family '{value}'. "
+        "Valid options include: Loamy-Skeletal, Fine-Silt(y), Fine, "
+        "Coarse-Silt(y), Coarse-Loam(y)."
+    )
 
 
 
@@ -215,6 +248,9 @@ def run_fofem_emissions(
     ef_csv_path: Optional[str] = None,
     units: str = 'Imperial',
     moisture_regime: Optional[str] = None,
+    soil_moisture: Optional[Union[float, np.ndarray]] = None,
+    soil_heating: Union[bool, dict] = False,
+    soil_family: Optional[Union[str, np.ndarray]] = None,
     num_workers: int = 1,
     show_progress: bool = False,
 ) -> dict:
@@ -286,6 +322,15 @@ def run_fofem_emissions(
         ``'wet'``, ``'moderate'``, ``'dry'``, or ``'very dry'``
         (case-insensitive). Overrides *duff_moist*, *dw10_moist*,
         *dw1000_moist*, and *l_moist* when provided.
+    :param soil_moisture: Optional mineral-soil moisture content (%),
+        scalar or array. Used by soil heating when enabled.
+    :param soil_heating: ``False`` (default) to skip soil heating;
+        ``True`` to run with defaults; or ``dict`` of overrides
+        (e.g., ``start_temp``, ``efficiency_wl``, ``efficiency_hs``,
+        ``efficiency_duff``).
+    :param soil_family: Optional soil family used by the soil-heating model.
+        Accepts GUI/C++ names (e.g., ``'Fine-Silt'``) or pyfofem names
+        (e.g., ``'fine-silty'``), scalar or array.
     :param num_workers: Number of parallel workers for the burnup loop.
         ``1`` (default) runs sequentially. ``>1`` uses
         ``ProcessPoolExecutor``.
@@ -336,13 +381,14 @@ def run_fofem_emissions(
     _scalar_inputs = [
         litter, duff, duff_depth, herb, shrub, crown_foliage, crown_branch,
         pct_crown_burned, duff_moist, l_moist, dw10_moist, dw1000_moist,
+        soil_moisture,
         dw1, dw10, dw100, dw1000s, dw1000r,
         dw3_6s, dw6_9s, dw9_20s, dw20s, dw3_6r, dw6_9r, dw9_20r, dw20r,
     ]
     # Also check categorical params for scalar-ness
     _cat_scalar = all(
         not isinstance(v, np.ndarray)
-        for v in (region, cvr_grp, season, fuel_category)
+        for v in (region, cvr_grp, season, fuel_category, soil_family)
     )
     scalar_call = _cat_scalar and all(_is_scalar(v) for v in _scalar_inputs)
 
@@ -372,6 +418,61 @@ def run_fofem_emissions(
     cvr_a  = np.broadcast_to(cvr_a,  (n,)) if cvr_a.size  == 1 else cvr_a
     sea_a  = np.broadcast_to(sea_a,  (n,)) if sea_a.size  == 1 else sea_a
     ft_a   = np.broadcast_to(ft_a,   (n,)) if ft_a.size   == 1 else ft_a
+
+    soil_cfg: Dict[str, Any]
+    if isinstance(soil_heating, dict):
+        soil_cfg = dict(soil_heating)
+        soil_enabled = bool(soil_cfg.get('enabled', True))
+    else:
+        soil_cfg = {}
+        soil_enabled = bool(soil_heating)
+
+    if soil_enabled and soil_family is None:
+        raise ValueError(
+            "soil_heating requested but soil_family was not provided."
+        )
+
+    if soil_family is None:
+        soil_family_a = np.full(n, '', dtype=object)
+    elif isinstance(soil_family, np.ndarray):
+        sf_arr = soil_family.ravel()
+        if sf_arr.size == 1:
+            sf_arr = np.full(n, sf_arr[0], dtype=object)
+        elif sf_arr.size != n:
+            raise ValueError(
+                f"soil_family array length ({sf_arr.size}) must equal number of cells ({n}) or be scalar."
+            )
+        soil_family_a = np.array([_normalize_soil_family(v) for v in sf_arr], dtype=object)
+    else:
+        sf_norm = _normalize_soil_family(str(soil_family))
+        soil_family_a = np.full(n, sf_norm, dtype=object)
+
+    if moisture_regime is not None:
+        soil_moist_default = float(regime_vals['soil'])
+    else:
+        # Fallback handled per-cell from duf_m_a (clipped to 0..25).
+        soil_moist_default = float("nan")
+
+    soil_start_temp = float(soil_cfg.get('start_temp', 21.0))
+    soil_moist_override = soil_cfg.get('soil_moisture', None)
+    if soil_moisture is not None:
+        _sm = np.atleast_1d(np.asarray(soil_moisture, dtype=float))
+        if _sm.size == 1:
+            soil_moist_arr = np.full(n, float(_sm[0]), dtype=float)
+        elif _sm.size == n:
+            soil_moist_arr = _sm.astype(float)
+        else:
+            raise ValueError(
+                f"soil_moisture length ({_sm.size}) must equal number of cells ({n}) or be scalar."
+            )
+    else:
+        soil_moist_arr = None
+    eff_wl_default = float(soil_cfg.get('efficiency_wl', 0.15))
+    eff_hs_default = float(soil_cfg.get('efficiency_hs', 0.10))
+    eff_duff_default = float(soil_cfg.get('efficiency_duff', 1.0))
+    depth_layers = [float(d) for d in soil_cfg.get('depth_layers_cm', list(range(1, 14)))]
+    if len(depth_layers) != 13:
+        raise ValueError("soil_heating depth_layers_cm must contain exactly 13 depths.")
 
     is_imperial = units.strip().lower() in ('imperial', 'english')
     to_si  = _TPAC_TO_KGPM2 if is_imperial else 1.0
@@ -525,6 +626,16 @@ def run_fofem_emissions(
     burnup_ran   = np.zeros(n, dtype=bool)
     burnup_adj_arr = np.zeros(n, dtype=int)
     burnup_err_arr = np.zeros(n, dtype=int)
+    burnup_times_cells = [None] * n
+    burnup_wl_cells = [None] * n
+    burnup_hs_cells = [None] * n
+
+    lay0_arr = np.full(n, np.nan)
+    lay2_arr = np.full(n, np.nan)
+    lay4_arr = np.full(n, np.nan)
+    lay6_arr = np.full(n, np.nan)
+    lay60d_arr = np.full(n, np.nan)
+    lay275d_arr = np.full(n, np.nan)
 
     if use_burnup:
         # Build per-cell kwargs list
@@ -640,6 +751,9 @@ def run_fofem_emissions(
                 continue
 
             bcon = cr['bcon']
+            burnup_times_cells[i] = cr.get('burnup_times_s')
+            burnup_wl_cells[i] = cr.get('burnup_fi_wl')
+            burnup_hs_cells[i] = cr.get('burnup_fi_hs')
             fsi  = from_si
             burnup_ran[i] = True
 
@@ -757,6 +871,111 @@ def run_fofem_emissions(
             smo_dur_arr[i] = (dep_cm / brate) * 60.0
 
     # ------------------------------------------------------------------
+    # 6b. Soil heating (FOFEM SH_Mngr parity path)
+    # ------------------------------------------------------------------
+    if soil_enabled:
+        def _cfg_float_at(key: str, default: float, idx: int) -> float:
+            val = soil_cfg.get(key, default)
+            if isinstance(val, np.ndarray):
+                arr = val.ravel()
+                if arr.size == 1:
+                    return float(arr[0])
+                if arr.size == n:
+                    return float(arr[idx])
+                raise ValueError(f"soil_heating['{key}'] length must be 1 or {n}.")
+            if isinstance(val, (list, tuple)):
+                if len(val) == 1:
+                    return float(val[0])
+                if len(val) == n:
+                    return float(val[idx])
+                raise ValueError(f"soil_heating['{key}'] length must be 1 or {n}.")
+            return float(val)
+
+        for i in range(n):
+            if burnup_err_arr[i] != 0:
+                continue
+
+            if soil_moist_arr is not None:
+                soil_moist_i = float(soil_moist_arr[i])
+            elif soil_moist_override is not None:
+                soil_moist_i = _cfg_float_at('soil_moisture', soil_moist_default, i)
+            elif moisture_regime is not None:
+                soil_moist_i = soil_moist_default
+            else:
+                soil_moist_i = float(np.clip(duf_m_a[i], 0.0, 25.0))
+            soil_params = {
+                'soil_family': str(soil_family_a[i]),
+                'start_water': float(np.clip(soil_moist_i / 100.0, 0.0, 1.0)),
+                'start_temp': _cfg_float_at('start_temp', soil_start_temp, i),
+            }
+
+            duf_depth_pre_in = float(duf_dep_pre_arr[i]) if is_imperial else float(duf_dep_pre_arr[i]) / 2.54
+            duf_load_pre_tac = float(duf_pre_arr[i]) if is_imperial else float(duf_pre_arr[i]) * _KGPM2_TO_TPAC
+            duf_pct = float(pdc_arr[i])
+            duf_moist_pct = float(duf_m_a[i])
+
+            model = 'duff' if duf_depth_pre_in > 0.0 else 'non_duff'
+            try:
+                if model == 'duff':
+                    df_soil = soil_heat_campbell(
+                        model='duff',
+                        duff_params={
+                            'duff_load': duf_load_pre_tac,
+                            'duff_depth': duf_depth_pre_in,
+                            'duff_moisture': duf_moist_pct,
+                            'pct_consumed': duf_pct,
+                            'efficiency_duff': _cfg_float_at('efficiency_duff', eff_duff_default, i),
+                        },
+                        soil_params=soil_params,
+                        depth_layers=depth_layers,
+                        timestep=_cfg_float_at('timestep_s', 10.0, i),
+                    )
+                else:
+                    wl_series = burnup_wl_cells[i]
+                    hs_series = burnup_hs_cells[i]
+                    t_series = burnup_times_cells[i]
+                    if not wl_series or not t_series:
+                        fi_fallback = float(hfi_a[i]) if not np.isnan(hfi_a[i]) else 20.0
+                        t_fallback = float(frt_a[i]) if not np.isnan(frt_a[i]) else 60.0
+                        wl_series = [max(fi_fallback, 0.0)]
+                        hs_series = [0.0]
+                        t_series = [max(t_fallback, 1.0)]
+
+                    df_soil = soil_heat_campbell(
+                        model='non_duff',
+                        duff_params={},
+                        soil_params=soil_params,
+                        depth_layers=depth_layers,
+                        burnup_intensity=wl_series,
+                        burnup_intensity_hs=hs_series,
+                        burnup_times=t_series,
+                        efficiency_wl=_cfg_float_at('efficiency_wl', eff_wl_default, i),
+                        efficiency_hs=_cfg_float_at('efficiency_hs', eff_hs_default, i),
+                        timestep=_cfg_float_at('timestep_s', 10.0, i),
+                    )
+
+                max_t = df_soil.max(axis=0)
+                lay0_arr[i] = float(max_t.get('Surface', np.nan))
+                lay2_arr[i] = float(max_t.get('2cm', np.nan))
+                lay4_arr[i] = float(max_t.get('4cm', np.nan))
+                lay6_arr[i] = float(max_t.get('6cm', np.nan))
+
+                lay_cols = ['Surface'] + [f"{int(d)}cm" for d in depth_layers]
+                lay60 = -1
+                lay275 = -1
+                for lay_idx, col in enumerate(lay_cols):
+                    if col in df_soil and bool((df_soil[col] > 60.0).any()):
+                        lay60 = lay_idx
+                    if col in df_soil and bool((df_soil[col] > 275.0).any()):
+                        lay275 = lay_idx
+                lay60d_arr[i] = float(lay60)
+                lay275d_arr[i] = float(lay275)
+            except Exception:
+                # Preserve pipeline robustness: failed soil model should not
+                # invalidate consumption/emissions outputs.
+                continue
+
+    # ------------------------------------------------------------------
     # 7. Flaming / smoldering totals
     # ------------------------------------------------------------------
     fla_con_arr = (lit_fla_arr + fine_fla_arr + her_con_arr + shr_con_arr
@@ -835,9 +1054,9 @@ def run_fofem_emissions(
         **{k: (_out(v) if isinstance(v, np.ndarray) else v) for k, v in emissions.items()},
         'FlaDur':  _out(fla_dur_arr),  'SmoDur':  _out(smo_dur_arr),
         'FlaCon':  _out(fla_con_arr),  'SmoCon':  _out(smo_con_arr),
-        # 'Lay0': float('nan'), 'Lay2': float('nan'),
-        # 'Lay4': float('nan'), 'Lay6': float('nan'),
-        # 'Lay60d': float('nan'), 'Lay275d': float('nan'),
+        'Lay0': _out(lay0_arr), 'Lay2': _out(lay2_arr),
+        'Lay4': _out(lay4_arr), 'Lay6': _out(lay6_arr),
+        'Lay60d': _out(lay60d_arr), 'Lay275d': _out(lay275d_arr),
         'Lit-Equ':    _out_int(lit_eq_arr),
         'DufCon-Equ': _out_int(duf_eq_arr),
         'DufRed-Equ': _out_int(duf_eq_arr),

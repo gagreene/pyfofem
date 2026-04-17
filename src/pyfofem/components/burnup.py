@@ -124,12 +124,18 @@ class BurnResult:
     :param comp_smoldering: Per-component cumulative smoldering mass consumed
         (kg/m²) since the last record, in sorted component order.  Index
         ``number`` holds the duff smoldering rate.  ``None`` when not tracked.
+    :param fi_wl: Wood+litter fire intensity (kW/m²) for this timestep
+        snapshot (C++ ``fr_SFI`` analogue).
+    :param fi_hs: Herb+shrub fire intensity (kW/m²) for this timestep
+        snapshot (C++ ``fr_SFIhs`` analogue).
     """
     time: float
     wdf: float
     ff: float
     comp_flaming: Optional[List[float]] = None
     comp_smoldering: Optional[List[float]] = None
+    fi_wl: Optional[float] = None
+    fi_hs: Optional[float] = None
 
 
 @dataclass
@@ -976,7 +982,7 @@ def burnup(
 
     results: List[BurnResult] = []
 
-    def _record(time_val: float) -> None:
+    def _record(time_val: float, fi_wl: float, fi_hs: float) -> None:
         """Append a :class:`BurnResult` snapshot.
 
         :param time_val: Current simulation time (s).
@@ -996,6 +1002,8 @@ def burnup(
             ff=wt_flam / denom if denom > 0.0 else 0.0,
             comp_flaming=cf,
             comp_smoldering=cs,
+            fi_wl=float(fi_wl),
+            fi_hs=float(fi_hs),
         ))
 
     # ------------------------------------------------------------------
@@ -1040,12 +1048,13 @@ def burnup(
     # ------------------------------------------------------------------
     # 11. Time-step loop
     # ------------------------------------------------------------------
-    fi_cur = _fire_intensity()
+    fi_wl = _fire_intensity()
+    fi_hs = _hsf_fi(ti)
 
     # First-timestep HSF/brafol intensity (consumed over ti seconds)
-    fi_cur += _hsf_fi(ti) + _brafol_fi(ti)
+    fi_cur = fi_wl + fi_hs + _brafol_fi(ti)
 
-    _record(ti)
+    _record(ti, fi_wl=fi_wl, fi_hs=fi_hs)
 
     fimin = 0.1
     tis = ti
@@ -1330,9 +1339,10 @@ def burnup(
 
             # ---- advance time, recompute, record ----
             tis += dt
-            fi_cur = _fire_intensity()
-            fi_cur += _hsf_fi(dt)  # herb/shrub fire-intensity contribution
-            _record(tis)
+            fi_wl = _fire_intensity()
+            fi_hs = _hsf_fi(dt)  # herb/shrub fire-intensity contribution
+            fi_cur = fi_wl + fi_hs
+            _record(tis, fi_wl=fi_wl, fi_hs=fi_hs)
 
             # ---- termination ----
             if fi_cur <= fimin or ncalls >= ntimes:

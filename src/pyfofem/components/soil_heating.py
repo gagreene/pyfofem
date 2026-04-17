@@ -292,6 +292,61 @@ def _make_nonduff_flux_fn(
     return flux, last_time
 
 
+def _make_nonduff_flux_fn_split(
+    burnup_intensity_wl: Optional[list],
+    burnup_intensity_hs: Optional[list],
+    burnup_times: Optional[list],
+    efficiency_wl: float,
+    efficiency_hs: float,
+) -> tuple:
+    """Like _make_nonduff_flux_fn, but accepts separate WL and HS series."""
+    if burnup_intensity_wl is None:
+        return _make_nonduff_flux_fn(
+            burnup_intensity=None,
+            burnup_times=burnup_times,
+            efficiency_wl=efficiency_wl,
+            efficiency_hs=efficiency_hs,
+        )
+    if burnup_intensity_hs is None:
+        return _make_nonduff_flux_fn(
+            burnup_intensity=burnup_intensity_wl,
+            burnup_times=burnup_times,
+            efficiency_wl=efficiency_wl,
+            efficiency_hs=efficiency_hs,
+        )
+    if burnup_times is None:
+        return _make_nonduff_flux_fn(
+            burnup_intensity=None,
+            burnup_times=None,
+            efficiency_wl=efficiency_wl,
+            efficiency_hs=efficiency_hs,
+        )
+
+    bt = np.asarray(burnup_times, dtype=float)
+    bi_wl = np.asarray(burnup_intensity_wl, dtype=float)
+    bi_hs = np.asarray(burnup_intensity_hs, dtype=float)
+    if bi_wl.shape != bi_hs.shape:
+        raise ValueError(
+            "burnup_intensity_hs must have same shape as burnup_intensity_wl."
+        )
+    wl_interp = interp1d(
+        bt, bi_wl, kind="linear", bounds_error=False, fill_value=(bi_wl[0], 0.0)
+    )
+    hs_interp = interp1d(
+        bt, bi_hs, kind="linear", bounds_error=False, fill_value=(bi_hs[0], 0.0)
+    )
+    last_time = float(bt[-1])
+    wl_factor = efficiency_wl * 1000.0
+    hs_factor = efficiency_hs * 1000.0
+
+    def flux(t: float) -> float:
+        if t > last_time:
+            return 0.0
+        return float(wl_interp(t)) * wl_factor + float(hs_interp(t)) * hs_factor
+
+    return flux, last_time
+
+
 def _make_bfd_flux_fn(q_abs: float, t_m_s: float, t_d_s: float):
     """
     BFD (beta-function-derived) surface heat flux for Massman model.
@@ -528,6 +583,7 @@ def soil_heat_campbell(
     soil_params: dict,
     depth_layers: list,
     burnup_intensity: Optional[list] = None,
+    burnup_intensity_hs: Optional[list] = None,
     burnup_times: Optional[list] = None,
     efficiency_wl: float = 0.15,
     efficiency_hs: float = 0.10,
@@ -608,8 +664,8 @@ def soil_heat_campbell(
         flux_fn = _make_duff_flux_fn(q_duff, duration_s)
         t_end = max(duration_s + 2.0 * 3600.0, 4.0 * 3600.0)
     else:
-        flux_fn, last_time = _make_nonduff_flux_fn(
-            burnup_intensity, burnup_times, efficiency_wl, efficiency_hs
+        flux_fn, last_time = _make_nonduff_flux_fn_split(
+            burnup_intensity, burnup_intensity_hs, burnup_times, efficiency_wl, efficiency_hs
         )
         t_end = last_time + 2.0 * 3600.0
 

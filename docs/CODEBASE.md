@@ -36,14 +36,16 @@ pyfofem/
 |   `-- papers/                    #    Literature references
 |
 |-- tests/
-|   |-- fofem_emissions_example.py
+|   |-- example_fofem_emissions_batch.py
 |   |-- test_cpp_comparison.py
 |   |-- compare_cpp_python.py
+|   |-- test_soil_cpp_parity.py
+|   |-- compare_cpp_python_soil.py
 |   `-- test_data/
 |       |-- test_inputs/
 |       `-- _results/
 |
-|-- CODEBASE.md                    # <- This file
+|-- docs/CODEBASE.md               # <- This file
 |-- MISSING_COMPONENTS.md
 `-- README.md
 ```
@@ -54,7 +56,8 @@ pyfofem/
 
 - `tests/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions.
 - `tests/compare_cpp_python.py` runs scripted multi-case comparisons.
-- `tests/fofem_emissions_example.py` is the current emissions batch/example driver.
+- `tests/test_soil_cpp_parity.py` and `tests/compare_cpp_python_soil.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
+- `tests/example_fofem_emissions_batch.py` is the current emissions batch/example driver.
 - `reference/fofem_cpp/FOF_UNIX/test_harness.cpp` is the parameterized C++ CSV harness (`fofem_test`).
 
 ## Architecture Overview
@@ -194,7 +197,7 @@ flowchart TD
 
     SHC["soil_heat_campbell()"]
     SHM["soil_heat_massman()"]
-    SOUT["DataFrame / dict\ntemp  depth  time"]
+    SOUT["Lay0/Lay2/Lay4/Lay6\nLay60d/Lay275d"]
 
     MB["mort_bolchar()"]
     MC["mort_crnsch()"]
@@ -207,11 +210,13 @@ flowchart TD
     RB --> BE
     BE --> EX
     EX -->|"per-class consumed,\nflaming/smoldering,\ndurations"| RFE
+    RFE -->|"optional (soil_heating)"| SHC
     RFE --> CSE
     CSE --> OUT
+    SHC --> OUT
     CL & CD & CH & CS & CC & CM --> OUT
 
-    USER -->|"separate call"| SHC & SHM
+    USER -->|"optional separate call"| SHM
     SHC & SHM --> SOUT
 
     USER -->|"separate call"| MB & MC & MK
@@ -403,12 +408,19 @@ either lb/acre (`units='Imperial'`) or g/m (`units='SI'`).
 C++ defines `"Summer"`, `"Spring"`, `"Winter"`, `"Fall"`. Python normalizes
 input season strings to canonical title-case labels before equation routing.
 
-### 13. Soil heating is decoupled in Python
+### 13. Soil heating integration in Python
 
 The C++ pipes `fr_SFI[]` (burnup intensity time-series) directly from `d_CO`
-into `SH_Mngr`.  In Python, soil heating must be called separately.
-`run_fofem_emissions` sets `Lay*` keys to `NaN`  the caller feeds burnup
-results into `soil_heat_campbell()` or `soil_heat_massman()`.
+into `SH_Mngr`. Python now mirrors this path inside `run_fofem_emissions`
+when `soil_heating` is enabled:
+
+- `soil_family` is required (GUI/C++ aliases are normalized internally).
+- Soil moisture is resolved from `soil_moisture`, `soil_heating['soil_moisture']`,
+  `moisture_regime`, or a clipped `duff_moist` fallback.
+- Duff vs non-duff routing follows the C++-style branch, and `Lay*` outputs are
+  populated in the returned dict.
+
+When `soil_heating=False`, `Lay*` outputs remain `NaN`.
 
 ### 14. C++ `cheat` upper limit is 3000, Python now matches
 
@@ -464,7 +476,7 @@ C++ `d_CO.f_FlaDur` / `f_SmoDur` are in **seconds**.  ** RESOLVED: Python's `_bu
 | Smoke emissions (legacy) |  Done | `calc_smoke_emissions(mode='legacy')` (C++ ES_Calc parity) |
 | Smoke emissions (default) |  Done | `calc_smoke_emissions(mode='default')` |
 | Smoke emissions (expanded) |  Done | `calc_smoke_emissions(mode='expanded')` |
-| Master orchestrator |  Done | `run_fofem_emissions`  integrates burnup for woody/duff |
+| Master orchestrator |  Done | `run_fofem_emissions` integrates burnup for woody/duff and optional soil heating (`Lay*`) |
 | Crown scorch mortality |  Done | `mort_crnsch` |
 | Crown volume + cambium mortality |  Done | `mort_crcabe` |
 | Bole char mortality |  Done | `mort_bolchar` |
@@ -472,7 +484,8 @@ C++ `d_CO.f_FlaDur` / `f_SmoDur` are in **seconds**.  ** RESOLVED: Python's `_bu
 | Soil heating  Massman HMV |  Done | `soil_heat_massman` |
 | Moisture adjustments (0.02, 2.5 rotten) |  Done | See `run_fofem_emissions()`  Gotcha #1 resolved |
 | Zero-load guard (`1e-7` kg/m^2 in DW1) |  Done | See `run_fofem_emissions()`  Gotcha #2 resolved |
-| Batch processing driver/example |  Done (example) | `tests/fofem_emissions_example.py` performs array/batch runs and writes CSV outputs |
+| Batch processing driver/example |  Done (example) | `tests/example_fofem_emissions_batch.py` performs array/batch runs and writes CSV outputs |
+| C++ soil-heating parity checks |  Done | `tests/test_soil_cpp_parity.py` + `tests/compare_cpp_python_soil.py` |
 | Cover-type auto-lookup (SAF/NVCS/FCC) |  Not started | C++: `CVT_*.cpp` / `fof_fccs.csv` |
 | Weight distribution (1000-hr  size classes) |  Not started | C++: `cr_WD` in `d_CI` |
 | Duration units reconciliation (sec vs min) |  Done | `_burnup_durations()` and `run_fofem_emissions()` now return seconds  Gotcha #15 resolved |

@@ -199,10 +199,16 @@ def _run_burnup_cell(ckw: dict):
         )
         bcon = _extract_burnup_consumption(res, summ, co, dt)
         fla_dur, smo_dur = _burnup_durations(res)
+        burnup_times_s = [float(r.time) for r in res]
+        burnup_fi_wl = [float(r.fi_wl or 0.0) for r in res]
+        burnup_fi_hs = [float(r.fi_hs or 0.0) for r in res]
         return {
             'bcon': bcon,
             'fla_dur': fla_dur,
             'smo_dur': smo_dur,
+            'burnup_times_s': burnup_times_s,
+            'burnup_fi_wl': burnup_fi_wl,
+            'burnup_fi_hs': burnup_fi_hs,
             'class_order': co,
             'burnup_limit_adjust': burnup_limit_adjust,
             'burnup_error': 0,
