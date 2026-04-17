@@ -39,6 +39,31 @@ from .mortality_calcs import (
     mort_crcabe,
 )
 
+from .consumption_calcs import (
+    DEFAULT_CONSUMPTION_VARS,
+    EXPANDED_CONSUMPTION_VARS,
+    TOTAL_DURATION_CONSUMED_VARS,
+    SOIL_HEAT_VARS,
+    EQUATION_VARS,
+    ERROR_VARS,
+    REGION_CODES,
+    CVR_GRP_CODES,
+    SEASON_CODES,
+    FUEL_CATEGORY_CODES,
+    calc_carbon,
+    consm_canopy,
+    consm_duff,
+    consm_herb,
+    consm_litter,
+    consm_mineral_soil,
+    consm_shrub,
+    get_moisture_regime,
+)
+
+from .emission_calcs import (
+    calc_smoke_emissions,
+)
+
 from .burnup_calcs import (
     gen_burnup_in_file,
     run_burnup,
@@ -79,8 +104,12 @@ __all__ = [
     'mort_crnsch',
     'mort_crcabe',
     # consumption
-    'CONSUMPTION_VARS',
+    'DEFAULT_CONSUMPTION_VARS',
+    'EXPANDED_CONSUMPTION_VARS',
+    'TOTAL_DURATION_CONSUMED_VARS',
     'SOIL_HEAT_VARS',
+    'EQUATION_VARS',
+    'ERROR_VARS',
     'REGION_CODES',
     'CVR_GRP_CODES',
     'SEASON_CODES',
