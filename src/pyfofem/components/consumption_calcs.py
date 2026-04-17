@@ -58,7 +58,7 @@ _CARBON_DUFF_KEYS = frozenset({'duff', 'litter'})
 # Output variable lists
 # ---------------------------------------------------------------------------
 
-CONSUMPTION_VARS = [
+DEFAULT_CONSUMPTION_VARS = [
     'LitPre', 'LitCon', 'LitPos', 'DW1Pre', 'DW1Con', 'DW1Pos', 'DW10Pre', 'DW10Con', 'DW10Pos',
     'DW100Pre', 'DW100Con', 'DW100Pos', 'DW1kSndPre', 'DW1kSndCon', 'DW1kSndPos',
     'DW1kRotPre', 'DW1kRotCon', 'DW1kRotPos', 'DufPre', 'DufCon', 'DufPos',
@@ -67,14 +67,13 @@ CONSUMPTION_VARS = [
     'MSE', 'DufDepPre', 'DufDepCon', 'DufDepPos',
     'PM10F', 'PM10S', 'PM25F', 'PM25S', 'CH4F', 'CH4S', 'COF', 'COS', 'CO2F', 'CO2S',
     'NOXF', 'NOXS', 'SO2F', 'SO2S',
-    'PM10S_Duff', 'PM25S_Duff', 'CH4S_Duff', 'COS_Duff', 'CO2S_Duff', 'NOXS_Duff', 'SO2S_Duff',
-    'FlaDur', 'SmoDur', 'FlaCon', 'SmoCon',
-    'Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d',
-    'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shrub-Equ',
-    'BurnupLimitAdj', 'BurnupError'
 ]
+EXPANDED_CONSUMPTION_VARS = ['PM10S_Duff', 'PM25S_Duff', 'CH4S_Duff',
+                             'COS_Duff', 'CO2S_Duff', 'NOXS_Duff', 'SO2S_Duff']
+TOTAL_DURATION_CONSUMED_VARS = ['FlaDur', 'SmoDur', 'FlaCon', 'SmoCon',]
 SOIL_HEAT_VARS = ['Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d']
-
+EQUATION_VARS = ['Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shrub-Equ']
+ERROR_VARS = ['BurnupLimitAdj', 'BurnupError']
 
 # ---------------------------------------------------------------------------
 # Categorical parameter lookup tables (int code → string label)
