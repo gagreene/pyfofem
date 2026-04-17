@@ -248,8 +248,8 @@ def run_fofem_emissions(
     ef_csv_path: Optional[str] = None,
     units: str = 'Imperial',
     moisture_regime: Optional[str] = None,
-    soil_moisture: Optional[Union[float, np.ndarray]] = None,
     soil_heating: Union[bool, dict] = False,
+    soil_moisture: Optional[Union[float, np.ndarray]] = None,
     soil_family: Optional[Union[str, np.ndarray]] = None,
     num_workers: int = 1,
     show_progress: bool = False,
@@ -431,8 +431,10 @@ def run_fofem_emissions(
             "soil_heating requested but soil_family was not provided."
         )
 
+    soil_family_a = np.full(n, '', dtype=object)
+    soil_family_valid = np.zeros(n, dtype=bool)
     if soil_family is None:
-        soil_family_a = np.full(n, '', dtype=object)
+        pass
     elif isinstance(soil_family, np.ndarray):
         sf_arr = soil_family.ravel()
         if sf_arr.size == 1:
@@ -441,10 +443,31 @@ def run_fofem_emissions(
             raise ValueError(
                 f"soil_family array length ({sf_arr.size}) must equal number of cells ({n}) or be scalar."
             )
-        soil_family_a = np.array([_normalize_soil_family(v) for v in sf_arr], dtype=object)
+        if soil_enabled:
+            for i, v in enumerate(sf_arr):
+                try:
+                    soil_family_a[i] = _normalize_soil_family(v)
+                    soil_family_valid[i] = True
+                except ValueError:
+                    # Invalid per-cell soil families are skipped in soil-heating.
+                    continue
+        else:
+            soil_family_a = np.array([_normalize_soil_family(v) for v in sf_arr], dtype=object)
+            soil_family_valid[:] = True
     else:
-        sf_norm = _normalize_soil_family(str(soil_family))
-        soil_family_a = np.full(n, sf_norm, dtype=object)
+        sf_val = str(soil_family)
+        if soil_enabled:
+            try:
+                sf_norm = _normalize_soil_family(sf_val)
+                soil_family_a[:] = sf_norm
+                soil_family_valid[:] = True
+            except ValueError:
+                # Invalid scalar family skips soil-heating for all cells.
+                pass
+        else:
+            sf_norm = _normalize_soil_family(sf_val)
+            soil_family_a[:] = sf_norm
+            soil_family_valid[:] = True
 
     if moisture_regime is not None:
         soil_moist_default = float(regime_vals['soil'])
@@ -892,6 +915,8 @@ def run_fofem_emissions(
 
         for i in range(n):
             if burnup_err_arr[i] != 0:
+                continue
+            if not soil_family_valid[i]:
                 continue
 
             if soil_moist_arr is not None:
