@@ -77,10 +77,14 @@ def calc_smoke_emissions(
     """
     Compute smoke-emission mass per unit area from fuel consumption totals.
 
-    Both modes read emission factors from ``emissions_factors.csv`` (bundled
+    All modes read emission factors from ``emissions_factors.csv`` (bundled
     with the package under ``supporting_data/``).
 
-    Two emission-factor modes are available:
+    Three emission-factor modes are available:
+
+    **legacy** - reproduces original C++ ``ES_Calc`` behavior with fixed
+    factors. In this mode, smoldering NOx is fixed at 0, so ``NOXS`` and
+    ``NOXS_Duff`` are expected to be 0 by design.
 
     **default** – uses a single emission-factor group (``ef_group``, default 3
     = Western Forest-Rx) applied identically to both flaming and smoldering
@@ -102,12 +106,12 @@ def calc_smoke_emissions(
     :param smoldering_load: Total smoldering fuel consumption; same format as
         *flaming_load*.  When ``duff_load`` is non-zero in expanded mode,
         this should include the duff portion — it will be separated internally.
-    :param mode: ``'default'`` or ``'expanded'``.
+    :param mode: ``'legacy'``, ``'default'``, or ``'expanded'``.
     :param ef_group: Emission-factor group (1–8).  In default mode this group
         is applied to both flaming and smoldering.  In expanded mode it is the
         STFS flaming group.  Default 3 (Western Forest-Rx).
     :param ef_smoldering_group: CWDRSC coarse-wood smoldering group (1–8)
-        for expanded mode.  Default 7 (Woody RSC).
+        for expanded mode.  Default 7 (Woody RSC; bundled ``NOx as NO`` is 0).
     :param ef_duff_group: DuffRSC duff smoldering group (1–8) for expanded
         mode.  Default 8 (Duff RSC).
     :param duff_load: Duff consumption included in *smoldering_load*.  In
@@ -127,7 +131,8 @@ def calc_smoke_emissions(
         ``'PM10S_Duff'``, ``'PM25S_Duff'``, ``'CH4S_Duff'``, ``'COS_Duff'``,
         ``'CO2S_Duff'``, ``'NOXS_Duff'``, ``'SO2S_Duff'``.
         Values are in g/m² (SI) or lb/acre (imperial).
-    :raises ValueError: If *mode* is not ``'default'`` or ``'expanded'``.
+    :raises ValueError: If *mode* is not ``'legacy'``, ``'default'``, or
+        ``'expanded'``.
     :raises FileNotFoundError: If the CSV cannot be found.
     """
     # Resolve total loads — supports scalars, arrays, or dicts

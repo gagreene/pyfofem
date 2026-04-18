@@ -314,6 +314,7 @@ def run_fofem_emissions(
         :func:`run_burnup`.
     :param em_mode: Emission factor mode: ``'legacy'`` (C++ ES_Calc parity),
         ``'default'`` (single EF group), or ``'expanded'`` (flame/coarse/duff groups).
+        In ``'legacy'`` mode, smoldering NOx is 0 by design (matching C++).
     :param ef_group: Emission factor group (1-8; default 3).
     :param ef_csv_path: Path to ``emissions_factors.csv`` override.
     :param units: Unit system. ``'Imperial'`` (T/ac, in) or ``'SI'``
@@ -336,9 +337,11 @@ def run_fofem_emissions(
         ``ProcessPoolExecutor``.
     :param show_progress: If ``True``, display a :mod:`tqdm` progress bar
         during the per-cell burnup loop. Default ``False``.
-    :returns: Dict with all :data:`CONSUMPTION_VARS` keys.  Values are
-        plain Python ``float``/``int`` when all inputs are scalars, otherwise
-        ``np.ndarray``.
+    :returns: Dict of modeled outputs. Values are plain Python ``float``/``int``
+        when all inputs are scalars, otherwise ``np.ndarray``. Expanded
+        emission outputs are only included for ``em_mode='legacy'`` or
+        ``em_mode='expanded'``; soil-heating outputs are only included when
+        ``soil_heating`` is enabled.
     :raises ValueError: If *moisture_regime* is ``None`` and any of the
         four moisture parameters are also ``None``.
     :raises KeyError: If *moisture_regime* or any integer code is not
@@ -1061,7 +1064,7 @@ def run_fofem_emissions(
         a = np.asarray(arr, dtype=int)
         return int(a[0]) if scalar_call else a
 
-    return {
+    result = {
         'LitPre':  _out(lit_pre_arr),  'LitCon':  _out(lit_con_arr),  'LitPos':  _out(lit_pos_arr),
         'DW1Pre':  _out(dw1_pre_arr),  'DW1Con':  _out(dw1_con_arr),  'DW1Pos':  _out(dw1_pos_arr),
         'DW10Pre': _out(dw10_pre_arr), 'DW10Con': _out(dw10_con_arr), 'DW10Pos': _out(dw10_pos_arr),
@@ -1075,12 +1078,8 @@ def run_fofem_emissions(
         'BraPre':  _out(bra_pre_arr),  'BraCon':  _out(bra_con_arr),  'BraPos':  _out(bra_pos_arr),
         'MSE':     _out(mse_arr),
         'DufDepPre':_out(duf_dep_pre_arr),'DufDepCon':_out(duf_dep_con_arr),'DufDepPos':_out(duf_dep_pos_arr),
-        **{k: (_out(v) if isinstance(v, np.ndarray) else v) for k, v in emissions.items()},
         'FlaDur':  _out(fla_dur_arr),  'SmoDur':  _out(smo_dur_arr),
         'FlaCon':  _out(fla_con_arr),  'SmoCon':  _out(smo_con_arr),
-        'Lay0': _out(lay0_arr), 'Lay2': _out(lay2_arr),
-        'Lay4': _out(lay4_arr), 'Lay6': _out(lay6_arr),
-        'Lay60d': _out(lay60d_arr), 'Lay275d': _out(lay275d_arr),
         'Lit-Equ':    _out_int(lit_eq_arr),
         'DufCon-Equ': _out_int(duf_eq_arr),
         'DufRed-Equ': _out_int(duf_eq_arr),
@@ -1090,4 +1089,24 @@ def run_fofem_emissions(
         'BurnupLimitAdj':  _out_int(burnup_adj_arr),
         'BurnupError':     _out_int(burnup_err_arr),
     }
+
+    # Emissions are always modeled, but include duff-split keys only when
+    # that mode was actually requested.
+    emission_out = {k: (_out(v) if isinstance(v, np.ndarray) else v) for k, v in emissions.items()}
+    if em_mode in ('legacy', 'expanded'):
+        result.update(emission_out)
+    else:
+        for key, val in emission_out.items():
+            if key not in EXPANDED_CONSUMPTION_VARS:
+                result[key] = val
+
+    # Include soil-heating outputs only when the soil-heating model ran.
+    if soil_enabled:
+        result.update({
+            'Lay0': _out(lay0_arr), 'Lay2': _out(lay2_arr),
+            'Lay4': _out(lay4_arr), 'Lay6': _out(lay6_arr),
+            'Lay60d': _out(lay60d_arr), 'Lay275d': _out(lay275d_arr),
+        })
+
+    return result
 

@@ -72,6 +72,9 @@ print(results["Lay2"])
 ```
 
 To match legacy GUI/C++ emissions behavior, pass `em_mode="legacy"`.
+In this mode, smoldering NOx (`NOXS`) is expected to be `0` by design.
+In `expanded` mode, default smolder group 7 (`CWDRSC`) also has `NOx as NO = 0`,
+so `NOXS` mainly comes from the duff group unless you change factor groups.
 
 ### Soil-heating options in `run_fofem_emissions`
 
