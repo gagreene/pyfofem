@@ -16,18 +16,18 @@ import pytest
 # ---------------------------------------------------------------------------
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_TESTS_DIR)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, 'src'))
+_REPO_ROOT = os.path.dirname(os.path.dirname(_PROJECT_ROOT))
+sys.path.insert(0, _PROJECT_ROOT)
 
-from pyfofem.components.burnup_calcs import (
+from burnup_array_calcs import (
     BurnupConsumptionResult,
-    run_burnup as run_burnup_array,
+    run_burnup_array,
 )
-from pyfofem.components.burnup import FuelParticle
 
 # ---------------------------------------------------------------------------
 # File paths
 # ---------------------------------------------------------------------------
-_INPUTS_DIR = os.path.join(_TESTS_DIR, 'test_data', 'test_inputs')
+_INPUTS_DIR = os.path.join(_REPO_ROOT, 'tests', 'test_data', 'test_inputs')
 _INPUT_CSV = os.path.join(_INPUTS_DIR, 'burnup_input.csv')
 _TAC_TO_KGM2 = 1.0 / 4.4609
 

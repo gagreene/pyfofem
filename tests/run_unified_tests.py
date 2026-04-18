@@ -23,6 +23,7 @@ import importlib
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import List
 
 
@@ -49,6 +50,30 @@ def _resolve_tests(suite: str) -> List[str]:
     if suite == "full":
         tests.extend(FULL_EXTRA_TESTS)
     return tests
+
+
+def _discover_active_test_modules() -> List[str]:
+    """Return active pytest modules under tests/ that should be accounted for."""
+    tests_dir = Path(_repo_root()) / "tests"
+    paths = []
+    for path in sorted(tests_dir.glob("test_*.py")):
+        rel = path.relative_to(_repo_root()).as_posix()
+        if rel == "tests/run_unified_tests.py":
+            continue
+        paths.append(rel)
+    return paths
+
+
+def _validate_suite_coverage() -> None:
+    """Fail fast if a new test module was added but not assigned to a suite."""
+    configured = set(CORE_TESTS) | set(FULL_EXTRA_TESTS)
+    discovered = set(_discover_active_test_modules())
+    missing = sorted(discovered - configured)
+    if missing:
+        raise RuntimeError(
+            "run_unified_tests.py is missing active test modules:\n"
+            + "\n".join(f"  - {path}" for path in missing)
+        )
 
 
 def _verify_pytest_available() -> None:
@@ -115,6 +140,7 @@ def main() -> int:
 
     _verify_pytest_available()
     _check_import(installed_only=bool(args.installed_only))
+    _validate_suite_coverage()
 
     tests = _resolve_tests(args.suite)
     missing = [p for p in tests if not os.path.isfile(os.path.join(_repo_root(), p))]
@@ -129,4 +155,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

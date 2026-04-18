@@ -9,6 +9,7 @@ Usage:
 """
 import os, sys, csv
 import numpy as np
+import pytest
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO, 'src'))
@@ -144,6 +145,50 @@ def main():
         print('\nAll checks passed!')
 
     return 1 if failures else 0
+
+
+def test_cpp_python_case_summary_matches():
+    """Compare Python outputs against the CSV-based C++ golden summary."""
+    with open(_INPUT_CSV) as f:
+        inputs = list(csv.DictReader(f))
+    with open(_CPP_SUMMARY) as f:
+        cpp_rows = list(csv.DictReader(f))
+
+    failures = []
+
+    for i, (inp, cpp) in enumerate(zip(inputs, cpp_rows)):
+        case = i + 1
+        py = _run_python_case(inp)
+
+        for py_key, cpp_key in _PY_TO_CPP.items():
+            if cpp_key not in _COMPARE_COLS:
+                continue
+            if cpp_key == 'TotCon':
+                continue
+
+            tol = _COMPARE_COLS[cpp_key]
+            py_val = float(py.get(py_key, 0.0))
+            cpp_val = float(cpp[cpp_key])
+            diff = abs(py_val - cpp_val)
+            if diff > tol:
+                failures.append(
+                    f'case {case} {cpp_key}: py={py_val:.4f} cpp={cpp_val:.4f} diff={diff:.4f} tol={tol:.4f}'
+                )
+
+        py_tot = sum(float(py.get(k, 0.0)) for k in [
+            'LitCon', 'DW1Con', 'DW10Con', 'DW100Con', 'DW1kSndCon', 'DW1kRotCon',
+            'DufCon', 'HerCon', 'ShrCon', 'FolCon', 'BraCon',
+        ])
+        cpp_tot = float(cpp['TotCon'])
+        diff = abs(py_tot - cpp_tot)
+        tol = _COMPARE_COLS['TotCon']
+        if diff > tol:
+            failures.append(
+                f'case {case} TotCon: py={py_tot:.4f} cpp={cpp_tot:.4f} diff={diff:.4f} tol={tol:.4f}'
+            )
+
+    if failures:
+        pytest.fail("C++ vs Python CSV comparison failures:\n" + "\n".join(failures))
 
 if __name__ == '__main__':
     sys.exit(main())
