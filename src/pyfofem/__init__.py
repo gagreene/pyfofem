@@ -4,6 +4,8 @@ pyfofem – Python port of the FOFEM fire-effects model.
 """
 from __future__ import annotations
 
+__version__ = "0.1.0"
+
 from .components.soil_heating import (
     soil_heat_campbell,
     soil_heat_massman,

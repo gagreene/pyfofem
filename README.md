@@ -40,13 +40,15 @@ pyfofem/
 ```bash
 git clone https://github.com/gagreene/pyfofem.git
 cd pyfofem
-pip install numpy pandas scipy tqdm pytest
+python -m pip install -r requirements.txt
+python -m pip install .
 ```
 
-There is no package build file yet (`setup.py` / `pyproject.toml`), so add `src/` to `PYTHONPATH` before importing:
+For development with test dependencies:
 
 ```bash
-export PYTHONPATH=/path/to/pyfofem/src:$PYTHONPATH
+python -m pip install -r requirements-test.txt
+python -m pip install -e .[test]
 ```
 
 ## Usage
@@ -136,6 +138,9 @@ python tests/run_unified_tests.py --suite core --installed-only
 PyPI wheel/sdist check:
 
 ```bash
+python -m pip install build twine
+python -m build
+python -m twine check dist/*
 python -m pip install .
 python tests/run_unified_tests.py --suite core --installed-only
 ```
@@ -147,6 +152,9 @@ test:
   commands:
     - python tests/run_unified_tests.py --suite core --installed-only
 ```
+
+The Conda recipe lives in `conda-recipe/`. See `conda-recipe/README.md` for
+build and test commands.
 
 Key parity checks:
 
