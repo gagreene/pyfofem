@@ -142,20 +142,17 @@ def calc_smoke_emissions(
             return np.sum(np.stack([np.asarray(v, dtype=float) for v in vals], axis=0), axis=0)
         return np.asarray(load, dtype=float)
 
-    f_kg = _total(flaming_load)
-    s_kg = _total(smoldering_load)
-    d_kg = np.asarray(duff_load, dtype=float)
-
-    # Load emission factors from the bundled CSV
-    ef_df = _load_ef_csv(ef_csv_path)
-
     if mode not in ('legacy', 'default', 'expanded'):
         raise ValueError(
             f"Unknown emissions mode '{mode}'. "
             "Valid options: 'legacy', 'default', 'expanded'."
         )
 
+    f_kg = _total(flaming_load)
+    s_kg = _total(smoldering_load)
+
     if mode == 'legacy':
+        d_kg = np.asarray(duff_load, dtype=float)
         # Original C++ ES_Calc factors (g/kg), based on combustion efficiencies.
         # Using these with load[T/ac] * factor[g/kg] * 2 gives lb/ac.
         pm25_f = 67.4 - (_LEGACY_COMEFF_FLA * 66.8)
@@ -196,6 +193,9 @@ def calc_smoke_emissions(
             'NOXS_Duff': nox_s * d_kg * unit_conv,
             'SO2S_Duff': so2_s * d_kg * unit_conv,
         }
+
+    # Non-legacy modes use emission-factor tables.
+    ef_df = _load_ef_csv(ef_csv_path)
 
     if mode == 'default':
         # EF in g/kg → result in g/m² (SI) or g/T * T/ac = g/ac
@@ -240,6 +240,7 @@ def calc_smoke_emissions(
         }
 
     elif mode == 'expanded':
+        d_kg = np.asarray(duff_load, dtype=float)
 
         def _validate_group(grp, name):
             if grp < 1 or grp > len(ef_df):

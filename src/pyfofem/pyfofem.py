@@ -14,6 +14,7 @@ All component calculations are delegated to the sub-modules in
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import numpy as np
+from math import ceil
 from typing import Any, Dict, Optional, Union
 
 # ---------------------------------------------------------------------------
@@ -746,7 +747,10 @@ def run_fofem_emissions(
             })
 
         # Run burnup cells using the top-level (picklable) worker function
-        _tqdm_kw = dict(total=len(cell_kwargs), desc='Burnup', unit='cell',
+        chunk_size = 50
+        _tqdm_kw = dict(total=len(cell_kwargs),
+                        desc='Burnup',
+                        unit='cells',
                         disable=not show_progress)
         if num_workers == 1:
             from tqdm import tqdm
@@ -758,7 +762,7 @@ def run_fofem_emissions(
             from tqdm import tqdm
             with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
                 cell_results = list(tqdm(
-                    pool.map(_run_burnup_cell, cell_kwargs),
+                    pool.map(_run_burnup_cell, cell_kwargs, chunksize=chunk_size),
                     **_tqdm_kw,
                 ))
 
@@ -1042,12 +1046,13 @@ def run_fofem_emissions(
     # ------------------------------------------------------------------
     # 9. Smoke emissions (vectorised call)
     # ------------------------------------------------------------------
+    duff_load_for_emissions = duf_con_arr if em_mode in ('legacy', 'expanded') else 0.0
     emissions = calc_smoke_emissions(
         flaming_load=fla_con_arr,
         smoldering_load=smo_con_arr,
         mode=em_mode,
         ef_group=ef_group,
-        duff_load=duf_con_arr,
+        duff_load=duff_load_for_emissions,
         ef_csv_path=ef_csv_path,
         units=units,
     )

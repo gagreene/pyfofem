@@ -76,6 +76,16 @@ In this mode, smoldering NOx (`NOXS`) is expected to be `0` by design.
 In `expanded` mode, default smolder group 7 (`CWDRSC`) also has `NOx as NO = 0`,
 so `NOXS` mainly comes from the duff group unless you change factor groups.
 
+## Examples
+
+Example scripts live in `examples/`:
+
+- `examples/emissions_batch.py`
+
+Example input datasets are in `examples/example_data/`:
+
+- `fofem_emissions_batch_test.csv`
+
 ### Soil-heating options in `run_fofem_emissions`
 
 - `soil_heating`: `False` (default), `True`, or `dict`
@@ -102,6 +112,40 @@ Run the full test suite:
 
 ```bash
 pytest tests/
+```
+
+Run the unified publish-oriented suite (recommended for CI/package checks):
+
+```bash
+# Fast publish-safe suite
+python tests/run_unified_tests.py --suite core
+
+# Extended suite with parity/comparison tests
+python tests/run_unified_tests.py --suite full
+```
+
+For package-validation workflows where you want to ensure tests are running
+against the installed package (not local `src/`), use:
+
+```bash
+python tests/run_unified_tests.py --suite core --installed-only
+```
+
+### Packaging pipeline usage
+
+PyPI wheel/sdist check:
+
+```bash
+python -m pip install .
+python tests/run_unified_tests.py --suite core --installed-only
+```
+
+Conda recipe `test:commands` example:
+
+```yaml
+test:
+  commands:
+    - python tests/run_unified_tests.py --suite core --installed-only
 ```
 
 Key parity checks:
