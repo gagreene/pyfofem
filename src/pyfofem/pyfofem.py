@@ -14,7 +14,6 @@ All component calculations are delegated to the sub-modules in
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import numpy as np
-from math import ceil
 from typing import Any, Dict, Optional, Union
 
 # ---------------------------------------------------------------------------
@@ -94,6 +93,12 @@ from .components.emission_calcs import (
     _EF_DUFF_GROUP_DEFAULT,
     _load_ef_csv,
     calc_smoke_emissions,
+)
+from .components.emission_pipeline import (
+    compute_pre_burnup_consumption,
+    initialize_burnup_outputs,
+    compute_equation_arrays,
+    build_emissions_result,
 )
 
 
@@ -532,136 +537,50 @@ def run_fofem_emissions(
     sea_a = np.array([s.capitalize() for s in sea_a], dtype=object)
 
     # ------------------------------------------------------------------
-    # 4. Vectorised sub-model outputs (litter, herb, shrub, canopy, mse, duff)
+    # 4. Vectorized pre-burnup consumption and default output state
     # ------------------------------------------------------------------
-    lit_con_arr = np.asarray(consm_litter(lit_a, l_m_a, cvr_grp=cvr_a, reg=reg_a, units=units), dtype=float)
-    lit_pre_arr = lit_a.copy()
-    lit_pos_arr = lit_pre_arr - lit_con_arr
-
-    her_pre_arr = her_a.copy()
-    her_con_arr = np.asarray(consm_herb(reg_a, cvr_a, lit_a, her_a, season=sea_a, units=units), dtype=float)
-    her_pos_arr = her_pre_arr - her_con_arr
-
-    shr_pre_arr = shr_a.copy()
-
-    crown_res   = consm_canopy(pcb_a, fol_a, bra_a, units=units)
-    fol_pre_arr = fol_a.copy()
-    fol_con_arr = np.asarray(crown_res['flc'], dtype=float)
-    fol_pos_arr = fol_pre_arr - fol_con_arr
-    bra_pre_arr = bra_a.copy()
-    bra_con_arr = np.asarray(crown_res['blc'], dtype=float)
-    bra_pos_arr = bra_pre_arr - bra_con_arr
-
-    mse_arr = np.clip(
-        np.asarray(consm_mineral_soil(reg_a, cvr_a, ft_a, duf_m_a, 'edm'), dtype=float),
-        0.0, 100.0,
+    pre = compute_pre_burnup_consumption(
+        lit_a=lit_a, l_m_a=l_m_a, cvr_a=cvr_a, reg_a=reg_a, units=units,
+        her_a=her_a, sea_a=sea_a, shr_a=shr_a, pcb_a=pcb_a,
+        fol_a=fol_a, bra_a=bra_a, ft_a=ft_a, duf_m_a=duf_m_a, duf_a=duf_a,
+        duf_dep_a=duf_dep_a, dw10_a=dw10_a, dw1_a=dw1_a, dw1k_m_a=dw1k_m_a,
     )
+    lit_pre_arr = pre['lit_pre_arr']; lit_con_arr = pre['lit_con_arr']; lit_pos_arr = pre['lit_pos_arr']
+    her_pre_arr = pre['her_pre_arr']; her_con_arr = pre['her_con_arr']; her_pos_arr = pre['her_pos_arr']
+    shr_pre_arr = pre['shr_pre_arr']; shr_con_arr = pre['shr_con_arr']; shr_pos_arr = pre['shr_pos_arr']
+    fol_pre_arr = pre['fol_pre_arr']; fol_con_arr = pre['fol_con_arr']; fol_pos_arr = pre['fol_pos_arr']
+    bra_pre_arr = pre['bra_pre_arr']; bra_con_arr = pre['bra_con_arr']; bra_pos_arr = pre['bra_pos_arr']
+    mse_arr = pre['mse_arr']
+    duf_pre_arr = pre['duf_pre_arr']; duf_dep_pre_arr = pre['duf_dep_pre_arr']
+    duf_dep_con_arr = pre['duf_dep_con_arr']; duf_dep_pos_arr = pre['duf_dep_pos_arr']
+    pdc_arr = pre['pdc_arr']
 
-    duf_pre_arr     = duf_a.copy()
-    duf_dep_pre_arr = duf_dep_a.copy()
-
-    # Call consm_duff per-cell so region/cover-group routing is correct,
-    # then stack results into arrays.
-    pdc_list = np.empty(n, dtype=float)
-    ddc_list = np.empty(n, dtype=float)
-    rdd_list = np.empty(n, dtype=float)
-
-    for _i in range(n):
-        _pre_l110 = float(lit_a[_i] + dw10_a[_i] + dw1_a[_i])
-        _pre_dl110 = float(_pre_l110 + duf_a[_i])
-        _res = consm_duff(
-            float(duf_a[_i]), float(duf_m_a[_i]),
-            reg=str(reg_a[_i]) if reg_a.size > 0 else None,
-            cvr_grp=str(cvr_a[_i]) if cvr_a.size > 0 else None,
-            duff_moist_cat='edm',
-            d_pre=float(duf_dep_a[_i]),
-            dw1000_moist=float(dw1k_m_a[_i]),
-            pre_l110=_pre_l110,
-            pre_dl110=_pre_dl110,
-            units=units,
-        )
-        pdc_list[_i] = float(np.asarray(_res['pdc']).ravel()[0])
-        ddc_list[_i] = float(np.asarray(_res['ddc']).ravel()[0]) if _res['ddc'] is not None else np.nan
-        rdd_list[_i] = float(np.asarray(_res['rdd']).ravel()[0]) if _res['rdd'] is not None else np.nan
-
-    pdc_arr = np.clip(pdc_list, 0.0, 100.0)
-
-    duf_dep_con_arr = np.clip(ddc_list, 0.0, duf_dep_pre_arr)
-    duf_dep_pos_arr = duf_dep_pre_arr - duf_dep_con_arr
+    init = initialize_burnup_outputs(
+        n=n, duf_pre_arr=duf_pre_arr, pdc_arr=pdc_arr, dw1_a=dw1_a,
+        dw10_a=dw10_a, dw100_a=dw100_a, dw10_m_a=dw10_m_a, dw1k_m_a=dw1k_m_a,
+        dw1ks_pre=dw1ks_pre, dw1kr_pre=dw1kr_pre, lit_con_arr=lit_con_arr, frt_a=frt_a,
+    )
+    duf_con_arr = init['duf_con_arr']; duf_pos_arr = init['duf_pos_arr']
+    dw1_pre_arr = init['dw1_pre_arr']; dw1_con_arr = init['dw1_con_arr']; dw1_pos_arr = init['dw1_pos_arr']
+    dw10_pre_arr = init['dw10_pre_arr']; dw10_con_arr = init['dw10_con_arr']; dw10_pos_arr = init['dw10_pos_arr']
+    dw100_pre_arr = init['dw100_pre_arr']; dw100_con_arr = init['dw100_con_arr']; dw100_pos_arr = init['dw100_pos_arr']
+    dw1ks_con_arr = init['dw1ks_con_arr']; dw1ks_pos_arr = init['dw1ks_pos_arr']
+    dw1kr_con_arr = init['dw1kr_con_arr']; dw1kr_pos_arr = init['dw1kr_pos_arr']
+    snd_fla_arr = init['snd_fla_arr']; snd_smo_arr = init['snd_smo_arr']
+    rot_fla_arr = init['rot_fla_arr']; rot_smo_arr = init['rot_smo_arr']
+    fine_fla_arr = init['fine_fla_arr']; fine_smo_arr = init['fine_smo_arr']
+    lit_fla_arr = init['lit_fla_arr']; lit_smo_arr = init['lit_smo_arr']
+    fla_dur_arr = init['fla_dur_arr']; smo_dur_arr = init['smo_dur_arr']
+    burnup_adj_arr = init['burnup_adj_arr']; burnup_err_arr = init['burnup_err_arr']; burnup_ran = init['burnup_ran']
+    lay0_arr = init['lay0_arr']; lay2_arr = init['lay2_arr']; lay4_arr = init['lay4_arr']
+    lay6_arr = init['lay6_arr']; lay60d_arr = init['lay60d_arr']; lay275d_arr = init['lay275d_arr']
 
     # ------------------------------------------------------------------
     # 5. Per-cell burnup (parallelised)
     # ------------------------------------------------------------------
-    slc_pct_arr = np.clip(
-        np.asarray(consm_shrub(
-            reg_a, cvr_a, shr_a, season=sea_a,
-            pre_ll=lit_a,
-            pre_dl=duf_a,
-            pre_rl=np.zeros_like(shr_a),
-            duff_moist=duf_m_a,
-            llc=lit_con_arr,
-            ddc=duf_a * pdc_arr / 100.0,
-            units=units,
-        ), dtype=float),
-        0.0, 100.0,
-    )
-    # C++ Eq 234 parity for SouthEast non-Pocosin non-Flatwoods shrub.
-    # The C++ route uses Equation_16 and Eq_234_Per directly from CI loads.
-    _fw = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
-    _is_se_np = (
-        (reg_a == 'SouthEast') &
-        ~np.isin(cvr_a, ('Pocosin', 'PC')) &
-        ~np.isin(cvr_a, _fw)
-    )
-    if np.any(_is_se_np):
-        _wpre = lit_a + duf_a + dw10_a + dw1_a
-        _wpre_safe = np.maximum(_wpre, 1e-12)
-        _eq16_w = 3.4958 + (0.3833 * _wpre) - (0.0237 * duf_m_a) - (5.6075 / _wpre_safe)
-        _shr_safe = np.maximum(shr_pre_arr, 1e-12)
-        _f = (
-            (3.2484 + (0.4322 * _wpre) + (0.6765 * shr_pre_arr) -
-             (0.0276 * duf_m_a) - (5.0796 / _wpre_safe) - _eq16_w) / _shr_safe
-        )
-        _f = np.where((_wpre <= 0.0) | (shr_pre_arr <= 0.0) | (_eq16_w == 0.0), 0.0, _f)
-        _eq234_pct = np.clip(_f * 100.0, 0.0, 100.0)
-        slc_pct_arr = np.where(_is_se_np, _eq234_pct, slc_pct_arr)
-
-    shr_con_arr = shr_pre_arr * slc_pct_arr / 100.0
-    shr_pos_arr = shr_pre_arr - shr_con_arr
-
-    # Output arrays initialised to simplified-default values
-    duf_con_arr   = duf_pre_arr * pdc_arr / 100.0
-    duf_pos_arr   = duf_pre_arr - duf_con_arr
-
-    dw1_pre_arr   = dw1_a.copy();   dw1_con_arr  = dw1_pre_arr.copy();   dw1_pos_arr  = np.zeros(n)
-    dw10_pre_arr  = dw10_a.copy();  dw10_con_arr = dw10_pre_arr.copy();  dw10_pos_arr = np.zeros(n)
-    pct100 = np.clip(0.95 - 0.008 * np.maximum(dw10_m_a - 10.0, 0.0), 0.50, 1.00)
-    dw100_pre_arr = dw100_a.copy(); dw100_con_arr = dw100_pre_arr * pct100; dw100_pos_arr = dw100_pre_arr - dw100_con_arr
-    pct1ks = np.clip(0.15 - 0.001 * dw1k_m_a, 0.02, 0.20)
-    dw1ks_con_arr = dw1ks_pre * pct1ks;  dw1ks_pos_arr = dw1ks_pre - dw1ks_con_arr
-    pct1kr = np.clip(0.45 - 0.003 * dw1k_m_a, 0.05, 0.50)
-    dw1kr_con_arr = dw1kr_pre * pct1kr;  dw1kr_pos_arr = dw1kr_pre - dw1kr_con_arr
-
-    snd_fla_arr = np.zeros(n);   snd_smo_arr = dw1ks_con_arr.copy()
-    rot_fla_arr = np.zeros(n);   rot_smo_arr = dw1kr_con_arr.copy()
-    fine_fla_arr = dw1_con_arr + dw10_con_arr + dw100_con_arr
-    fine_smo_arr = np.zeros(n)
-    lit_fla_arr  = lit_con_arr.copy();  lit_smo_arr = np.zeros(n)
-    fla_dur_arr  = np.where(np.isnan(frt_a), np.nan, frt_a)
-    smo_dur_arr  = np.full(n, np.nan)
-    burnup_ran   = np.zeros(n, dtype=bool)
-    burnup_adj_arr = np.zeros(n, dtype=int)
-    burnup_err_arr = np.zeros(n, dtype=int)
     burnup_times_cells = [None] * n
     burnup_wl_cells = [None] * n
     burnup_hs_cells = [None] * n
-
-    lay0_arr = np.full(n, np.nan)
-    lay2_arr = np.full(n, np.nan)
-    lay4_arr = np.full(n, np.nan)
-    lay6_arr = np.full(n, np.nan)
-    lay60d_arr = np.full(n, np.nan)
-    lay275d_arr = np.full(n, np.nan)
 
     if use_burnup:
         # Build per-cell kwargs list
@@ -1015,33 +934,9 @@ def run_fofem_emissions(
                    + snd_smo_arr + rot_smo_arr)
 
     # ------------------------------------------------------------------
-    # 8. Equation number arrays (broadcast from scalar categoricals)
+    # 8. Equation number arrays
     # ------------------------------------------------------------------
-    _fw = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
-    lit_eq_arr = np.where(
-        np.isin(cvr_a, _fw), 997,
-        np.where(reg_a == 'SouthEast', 998, 999)
-    )
-    duf_eq_arr = np.select(
-        [np.isin(reg_a, ('InteriorWest','PacificWest')) & np.isin(cvr_a, ('Ponderosa pine','PN','Ponderosa')),
-         np.isin(reg_a, ('InteriorWest','PacificWest')),
-         (reg_a == 'SouthEast') & np.isin(cvr_a, ('Pocosin','PC')),
-         reg_a == 'SouthEast',
-         reg_a == 'NorthEast'],
-        [4, 2, 20, 16, 3],
-        default=2,
-    )
-    herb_eq_arr = np.where(
-        reg_a == 'SouthEast', 222,
-        np.where(np.isin(cvr_a, ('Grass','GG','GrassGroup')), 221,
-        np.where(np.isin(cvr_a, _fw), 223, 22))
-    )
-    shrub_eq_arr = np.where(
-        reg_a == 'SouthEast', np.where(np.isin(cvr_a, ('Pocosin','PC')), 233, 234),
-        np.where(np.isin(cvr_a, ('Sagebrush','SB')), 232,
-        np.where(np.isin(cvr_a, _fw), 236,
-        np.where(np.isin(cvr_a, ('Shrub','SG','ShrubGroup')), 231, 23)))
-    )
+    lit_eq_arr, duf_eq_arr, herb_eq_arr, shrub_eq_arr = compute_equation_arrays(reg_a, cvr_a)
 
     # ------------------------------------------------------------------
     # 9. Smoke emissions (vectorised call)
@@ -1058,60 +953,32 @@ def run_fofem_emissions(
     )
 
     # ------------------------------------------------------------------
-    # 10. Squeeze back to scalars when called with scalar inputs
+    # 10. Build final output
     # ------------------------------------------------------------------
-    def _out(arr):
-        """Return scalar float if scalar_call, otherwise np.ndarray."""
-        a = np.asarray(arr, dtype=float)
-        return float(a[0]) if scalar_call else a
-
-    def _out_int(arr):
-        a = np.asarray(arr, dtype=int)
-        return int(a[0]) if scalar_call else a
-
-    result = {
-        'LitPre':  _out(lit_pre_arr),  'LitCon':  _out(lit_con_arr),  'LitPos':  _out(lit_pos_arr),
-        'DW1Pre':  _out(dw1_pre_arr),  'DW1Con':  _out(dw1_con_arr),  'DW1Pos':  _out(dw1_pos_arr),
-        'DW10Pre': _out(dw10_pre_arr), 'DW10Con': _out(dw10_con_arr), 'DW10Pos': _out(dw10_pos_arr),
-        'DW100Pre':_out(dw100_pre_arr),'DW100Con':_out(dw100_con_arr),'DW100Pos':_out(dw100_pos_arr),
-        'DW1kSndPre':_out(dw1ks_pre), 'DW1kSndCon':_out(dw1ks_con_arr),'DW1kSndPos':_out(dw1ks_pos_arr),
-        'DW1kRotPre':_out(dw1kr_pre), 'DW1kRotCon':_out(dw1kr_con_arr),'DW1kRotPos':_out(dw1kr_pos_arr),
-        'DufPre':  _out(duf_pre_arr),  'DufCon':  _out(duf_con_arr),  'DufPos':  _out(duf_pos_arr),
-        'HerPre':  _out(her_pre_arr),  'HerCon':  _out(her_con_arr),  'HerPos':  _out(her_pos_arr),
-        'ShrPre':  _out(shr_pre_arr),  'ShrCon':  _out(shr_con_arr),  'ShrPos':  _out(shr_pos_arr),
-        'FolPre':  _out(fol_pre_arr),  'FolCon':  _out(fol_con_arr),  'FolPos':  _out(fol_pos_arr),
-        'BraPre':  _out(bra_pre_arr),  'BraCon':  _out(bra_con_arr),  'BraPos':  _out(bra_pos_arr),
-        'MSE':     _out(mse_arr),
-        'DufDepPre':_out(duf_dep_pre_arr),'DufDepCon':_out(duf_dep_con_arr),'DufDepPos':_out(duf_dep_pos_arr),
-        'FlaDur':  _out(fla_dur_arr),  'SmoDur':  _out(smo_dur_arr),
-        'FlaCon':  _out(fla_con_arr),  'SmoCon':  _out(smo_con_arr),
-        'Lit-Equ':    _out_int(lit_eq_arr),
-        'DufCon-Equ': _out_int(duf_eq_arr),
-        'DufRed-Equ': _out_int(duf_eq_arr),
-        'MSE-Equ': 10,
-        'Herb-Equ':   _out_int(herb_eq_arr),
-        'Shurb-Equ':  _out_int(shrub_eq_arr),
-        'BurnupLimitAdj':  _out_int(burnup_adj_arr),
-        'BurnupError':     _out_int(burnup_err_arr),
-    }
-
-    # Emissions are always modeled, but include duff-split keys only when
-    # that mode was actually requested.
-    emission_out = {k: (_out(v) if isinstance(v, np.ndarray) else v) for k, v in emissions.items()}
-    if em_mode in ('legacy', 'expanded'):
-        result.update(emission_out)
-    else:
-        for key, val in emission_out.items():
-            if key not in EXPANDED_CONSUMPTION_VARS:
-                result[key] = val
-
-    # Include soil-heating outputs only when the soil-heating model ran.
-    if soil_enabled:
-        result.update({
-            'Lay0': _out(lay0_arr), 'Lay2': _out(lay2_arr),
-            'Lay4': _out(lay4_arr), 'Lay6': _out(lay6_arr),
-            'Lay60d': _out(lay60d_arr), 'Lay275d': _out(lay275d_arr),
-        })
-
-    return result
+    return build_emissions_result(
+        scalar_call=scalar_call,
+        soil_enabled=soil_enabled,
+        em_mode=em_mode,
+        expanded_consumption_vars=set(EXPANDED_CONSUMPTION_VARS),
+        emissions=emissions,
+        lit_pre_arr=lit_pre_arr, lit_con_arr=lit_con_arr, lit_pos_arr=lit_pos_arr,
+        dw1_pre_arr=dw1_pre_arr, dw1_con_arr=dw1_con_arr, dw1_pos_arr=dw1_pos_arr,
+        dw10_pre_arr=dw10_pre_arr, dw10_con_arr=dw10_con_arr, dw10_pos_arr=dw10_pos_arr,
+        dw100_pre_arr=dw100_pre_arr, dw100_con_arr=dw100_con_arr, dw100_pos_arr=dw100_pos_arr,
+        dw1ks_pre=dw1ks_pre, dw1ks_con_arr=dw1ks_con_arr, dw1ks_pos_arr=dw1ks_pos_arr,
+        dw1kr_pre=dw1kr_pre, dw1kr_con_arr=dw1kr_con_arr, dw1kr_pos_arr=dw1kr_pos_arr,
+        duf_pre_arr=duf_pre_arr, duf_con_arr=duf_con_arr, duf_pos_arr=duf_pos_arr,
+        her_pre_arr=her_pre_arr, her_con_arr=her_con_arr, her_pos_arr=her_pos_arr,
+        shr_pre_arr=shr_pre_arr, shr_con_arr=shr_con_arr, shr_pos_arr=shr_pos_arr,
+        fol_pre_arr=fol_pre_arr, fol_con_arr=fol_con_arr, fol_pos_arr=fol_pos_arr,
+        bra_pre_arr=bra_pre_arr, bra_con_arr=bra_con_arr, bra_pos_arr=bra_pos_arr,
+        mse_arr=mse_arr,
+        duf_dep_pre_arr=duf_dep_pre_arr, duf_dep_con_arr=duf_dep_con_arr, duf_dep_pos_arr=duf_dep_pos_arr,
+        fla_dur_arr=fla_dur_arr, smo_dur_arr=smo_dur_arr,
+        fla_con_arr=fla_con_arr, smo_con_arr=smo_con_arr,
+        lit_eq_arr=lit_eq_arr, duf_eq_arr=duf_eq_arr, herb_eq_arr=herb_eq_arr, shrub_eq_arr=shrub_eq_arr,
+        burnup_adj_arr=burnup_adj_arr, burnup_err_arr=burnup_err_arr,
+        lay0_arr=lay0_arr, lay2_arr=lay2_arr, lay4_arr=lay4_arr, lay6_arr=lay6_arr,
+        lay60d_arr=lay60d_arr, lay275d_arr=lay275d_arr,
+    )
 
