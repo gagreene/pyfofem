@@ -2,6 +2,8 @@
 
 `pyfofem` is a Python library for modeling first-order fire effects, porting key FOFEM science and workflows to Python. It provides vectorized APIs for tree mortality, fuel consumption, smoke emissions, burnup, and soil heating.
 
+Start with the quick start guide: [docs/QUICK_START.md](docs/QUICK_START.md)
+
 ## Directory Structure
 
 ```text
