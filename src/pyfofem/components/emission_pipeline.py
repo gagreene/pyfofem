@@ -274,36 +274,96 @@ def initialize_burnup_outputs(
     }
 
 
-def compute_equation_arrays(reg_a: np.ndarray, cvr_a: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Compute equation-id outputs for litter/duff/herb/shrub."""
+def compute_equation_arrays(
+    reg_a: np.ndarray,
+    cvr_a: np.ndarray,
+    sea_a: np.ndarray,
+    ft_a: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Compute C++-aligned equation-id outputs for litter/duff/herb/shrub/MSE."""
     fw = ("Flatwood", "Pine Flatwoods", "PFL", "PinFltwd")
-    lit_eq_arr = np.where(np.isin(cvr_a, fw), 997, np.where(reg_a == "SouthEast", 998, 999))
-    duf_eq_arr = np.select(
-        [
-            np.isin(reg_a, ("InteriorWest", "PacificWest")) & np.isin(cvr_a, ("Ponderosa pine", "PN", "Ponderosa")),
-            np.isin(reg_a, ("InteriorWest", "PacificWest")),
-            (reg_a == "SouthEast") & np.isin(cvr_a, ("Pocosin", "PC")),
-            reg_a == "SouthEast",
-            reg_a == "NorthEast",
-        ],
-        [4, 2, 20, 16, 3],
-        default=2,
+    is_flatwood = np.isin(cvr_a, fw)
+    is_se = reg_a == "SouthEast"
+    is_ne = reg_a == "NorthEast"
+    is_iw_pw = np.isin(reg_a, ("InteriorWest", "PacificWest"))
+    is_pocosin = np.isin(cvr_a, ("Pocosin", "PC"))
+    is_ponderosa = np.isin(cvr_a, ("Ponderosa pine", "PN", "Ponderosa"))
+    is_redjac = np.isin(cvr_a, ("Red Jack Pine", "Red, Jack Pine", "RedJacPin", "RJP"))
+    is_balsam = np.isin(
+        cvr_a,
+        ("Balsam", "Black Spruce", "Red Spruce", "White Spruce", "BalBRWSpr", "Balsam Fir", "BFS"),
     )
+    is_chaparral = np.isin(cvr_a, ("Chaparral", "Shrub-Chaparral", "SGC", "ShrubGroupChaparral"))
+    is_sage = np.isin(cvr_a, ("Sagebrush", "SB"))
+    is_shrubgrp = np.isin(cvr_a, ("Shrub", "SG", "ShrubGroup"))
+    is_grass = np.isin(cvr_a, ("Grass", "GG", "GrassGroup"))
+    is_spring = sea_a == "Spring"
+    is_summer = sea_a == "Summer"
+    is_fall = sea_a == "Fall"
+    is_winter = sea_a == "Winter"
+    lit_eq_arr = np.where(is_flatwood, 997, np.where(is_se, 998, 999))
+
+    duf_con_eq_arr = np.full(reg_a.shape, 2, dtype=int)
+    duf_red_eq_arr = np.full(reg_a.shape, 6, dtype=int)
+    mse_eq_arr = np.full(reg_a.shape, 10, dtype=int)
+
+    duf_con_eq_arr = np.where(is_chaparral, 19, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(is_chaparral, 19, duf_red_eq_arr)
+    mse_eq_arr = np.where(is_chaparral, 19, mse_eq_arr)
+
+    iw_pw_ponderosa = is_iw_pw & is_ponderosa
+    iw_pw_other = is_iw_pw & ~is_ponderosa
+    duf_con_eq_arr = np.where(iw_pw_ponderosa | iw_pw_other, 2, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(iw_pw_ponderosa | iw_pw_other, 6, duf_red_eq_arr)
+    mse_eq_arr = np.where(iw_pw_ponderosa | iw_pw_other, 10, mse_eq_arr)
+
+    ne_other = is_ne & ~is_redjac & ~is_balsam
+    ne_redjac = is_ne & is_redjac
+    ne_balsam = is_ne & is_balsam
+    duf_con_eq_arr = np.where(ne_other, 2, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(ne_other, 6, duf_red_eq_arr)
+    mse_eq_arr = np.where(ne_other, 10, mse_eq_arr)
+    duf_con_eq_arr = np.where(ne_redjac | ne_balsam, 15, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(ne_redjac | ne_balsam, 15, duf_red_eq_arr)
+    mse_eq_arr = np.where(ne_redjac | ne_balsam, 14, mse_eq_arr)
+
+    se_pocosin = is_se & is_pocosin
+    se_other = is_se & ~is_pocosin
+    duf_con_eq_arr = np.where(se_pocosin, 20, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(se_pocosin, 20, duf_red_eq_arr)
+    mse_eq_arr = np.where(se_pocosin, 202, mse_eq_arr)
+    duf_con_eq_arr = np.where(se_other, 16, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(se_other, 16, duf_red_eq_arr)
+    mse_eq_arr = np.where(se_other, 14, mse_eq_arr)
+
     herb_eq_arr = np.where(
-        reg_a == "SouthEast",
-        222,
-        np.where(np.isin(cvr_a, ("Grass", "GG", "GrassGroup")), 221, np.where(np.isin(cvr_a, fw), 223, 22)),
+        is_flatwood,
+        223,
+        np.where(is_se, 222, np.where(is_grass & is_spring, 221, 22)),
     )
+
     shrub_eq_arr = np.where(
-        reg_a == "SouthEast",
-        np.where(np.isin(cvr_a, ("Pocosin", "PC")), 233, 234),
+        is_sage & is_fall,
+        233,
         np.where(
-            np.isin(cvr_a, ("Sagebrush", "SB")),
+            is_sage,
             232,
-            np.where(np.isin(cvr_a, fw), 236, np.where(np.isin(cvr_a, ("Shrub", "SG", "ShrubGroup")), 231, 23)),
+            np.where(
+                is_flatwood,
+                236,
+                np.where(
+                    is_shrubgrp,
+                    231,
+                    np.where(
+                        se_pocosin & (is_spring | is_winter),
+                        233,
+                        np.where(se_pocosin & (is_summer | is_fall), 235, np.where(is_se, 234, 23)),
+                    ),
+                ),
+            ),
         ),
     )
-    return lit_eq_arr, duf_eq_arr, herb_eq_arr, shrub_eq_arr
+    return lit_eq_arr, duf_con_eq_arr, duf_red_eq_arr, herb_eq_arr, shrub_eq_arr, mse_eq_arr
 
 
 def build_emissions_result(
@@ -355,9 +415,11 @@ def build_emissions_result(
     fla_con_arr: np.ndarray,
     smo_con_arr: np.ndarray,
     lit_eq_arr: np.ndarray,
-    duf_eq_arr: np.ndarray,
+    duf_con_eq_arr: np.ndarray,
+    duf_red_eq_arr: np.ndarray,
     herb_eq_arr: np.ndarray,
     shrub_eq_arr: np.ndarray,
+    mse_eq_arr: np.ndarray,
     burnup_adj_arr: np.ndarray,
     burnup_err_arr: np.ndarray,
     lay0_arr: np.ndarray,
@@ -394,9 +456,9 @@ def build_emissions_result(
         "FlaDur": out(fla_dur_arr), "SmoDur": out(smo_dur_arr),
         "FlaCon": out(fla_con_arr), "SmoCon": out(smo_con_arr),
         "Lit-Equ": out_int(lit_eq_arr),
-        "DufCon-Equ": out_int(duf_eq_arr),
-        "DufRed-Equ": out_int(duf_eq_arr),
-        "MSE-Equ": 10,
+        "DufCon-Equ": out_int(duf_con_eq_arr),
+        "DufRed-Equ": out_int(duf_red_eq_arr),
+        "MSE-Equ": out_int(mse_eq_arr),
         "Herb-Equ": out_int(herb_eq_arr),
         "Shurb-Equ": out_int(shrub_eq_arr),
         "BurnupLimitAdj": out_int(burnup_adj_arr),
@@ -423,4 +485,3 @@ def build_emissions_result(
             }
         )
     return result
-

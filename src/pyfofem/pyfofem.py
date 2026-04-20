@@ -411,11 +411,16 @@ def run_fofem_emissions(
     n = len(lit_a)
 
     # Optional fire environment arrays (default to broadcast scalar)
-    hfi_a   = np.broadcast_to(np.atleast_1d(np.asarray(hfi,   dtype=float)) if hfi   is not None else np.full(n, np.nan), (n,)).copy()
-    frt_a   = np.broadcast_to(np.atleast_1d(np.asarray(flame_res_time, dtype=float)) if flame_res_time is not None else np.full(n, np.nan), (n,)).copy()
-    fb_a    = np.broadcast_to(np.atleast_1d(np.asarray(fuel_bed_depth, dtype=float)) if fuel_bed_depth is not None else np.full(n, 0.3), (n,)).copy()
-    at_a    = np.broadcast_to(np.atleast_1d(np.asarray(ambient_temp,   dtype=float)) if ambient_temp   is not None else np.full(n, 27.0), (n,)).copy()
-    ws_a    = np.broadcast_to(np.atleast_1d(np.asarray(windspeed,      dtype=float)) if windspeed      is not None else np.full(n, 0.0), (n,)).copy()
+    hfi_a   = np.broadcast_to(np.atleast_1d(np.asarray(hfi,   dtype=float))
+                              if hfi   is not None else np.full(n, np.nan), (n,)).copy()
+    frt_a   = np.broadcast_to(np.atleast_1d(np.asarray(flame_res_time, dtype=float))
+                              if flame_res_time is not None else np.full(n, np.nan), (n,)).copy()
+    fb_a    = np.broadcast_to(np.atleast_1d(np.asarray(fuel_bed_depth, dtype=float))
+                              if fuel_bed_depth is not None else np.full(n, 0.3), (n,)).copy()
+    at_a    = np.broadcast_to(np.atleast_1d(np.asarray(ambient_temp,   dtype=float))
+                              if ambient_temp   is not None else np.full(n, 27.0), (n,)).copy()
+    ws_a    = np.broadcast_to(np.atleast_1d(np.asarray(windspeed,      dtype=float))
+                              if windspeed      is not None else np.full(n, 0.0), (n,)).copy()
 
     # Categorical arrays
     reg_a  = _to_str_arr(region,        REGION_CODES)
@@ -936,7 +941,14 @@ def run_fofem_emissions(
     # ------------------------------------------------------------------
     # 8. Equation number arrays
     # ------------------------------------------------------------------
-    lit_eq_arr, duf_eq_arr, herb_eq_arr, shrub_eq_arr = compute_equation_arrays(reg_a, cvr_a)
+    (
+        lit_eq_arr,
+        duf_con_eq_arr,
+        duf_red_eq_arr,
+        herb_eq_arr,
+        shrub_eq_arr,
+        mse_eq_arr,
+    ) = compute_equation_arrays(reg_a, cvr_a, sea_a, ft_a)
 
     # ------------------------------------------------------------------
     # 9. Smoke emissions (vectorised call)
@@ -976,7 +988,12 @@ def run_fofem_emissions(
         duf_dep_pre_arr=duf_dep_pre_arr, duf_dep_con_arr=duf_dep_con_arr, duf_dep_pos_arr=duf_dep_pos_arr,
         fla_dur_arr=fla_dur_arr, smo_dur_arr=smo_dur_arr,
         fla_con_arr=fla_con_arr, smo_con_arr=smo_con_arr,
-        lit_eq_arr=lit_eq_arr, duf_eq_arr=duf_eq_arr, herb_eq_arr=herb_eq_arr, shrub_eq_arr=shrub_eq_arr,
+        lit_eq_arr=lit_eq_arr,
+        duf_con_eq_arr=duf_con_eq_arr,
+        duf_red_eq_arr=duf_red_eq_arr,
+        herb_eq_arr=herb_eq_arr,
+        shrub_eq_arr=shrub_eq_arr,
+        mse_eq_arr=mse_eq_arr,
         burnup_adj_arr=burnup_adj_arr, burnup_err_arr=burnup_err_arr,
         lay0_arr=lay0_arr, lay2_arr=lay2_arr, lay4_arr=lay4_arr, lay6_arr=lay6_arr,
         lay60d_arr=lay60d_arr, lay275d_arr=lay275d_arr,
