@@ -110,6 +110,53 @@ Soil moisture precedence during soil-heating runs:
 3. `moisture_regime` soil value
 4. Clipped `duff_moist` fallback (`0..25%`)
 
+### Burnup status codes in `run_fofem_emissions`
+
+`run_fofem_emissions()` returns two burnup-status fields:
+
+- `BurnupError`: hard burnup failure code. `0` means burnup ran successfully.
+- `BurnupLimitAdj`: clipping/adjustment code for recoverable inputs. `0` means no clipping was applied.
+
+When `BurnupError != 0`, the burnup model does not run for that case and
+`pyfofem` falls back to simplified consumption-duration defaults for the
+emissions pipeline.
+
+`BurnupError` codes:
+
+- `0`: success
+- `10`: `fistart` below minimum
+- `11`: `ti` below minimum
+- `12`: `u` below minimum
+- `13`: `tamb_c` below minimum
+- `14`: `dfm` above maximum
+- `15`: fire cannot dry fuel
+- `16`: no fuel ignited
+- `20`: `wdry` out of range
+- `21`: `ash` out of range
+- `22`: `htval` out of range
+- `23`: `fmois` out of range
+- `24`: `dendry` out of range
+- `25`: `sigma` out of range
+- `26`: `cheat` out of range
+- `27`: `condry` out of range
+- `28`: `tpig` out of range
+- `29`: `tchar` out of range
+- `90`: no fuel particles
+- `91`: `ntimes <= 0`
+- `99`: unexpected burnup exception
+
+`BurnupLimitAdj` codes are concatenated digits when more than one adjustment is
+applied. For example, `13` means codes `1` and `3` both occurred, and `246`
+means codes `2`, `4`, and `6` occurred.
+
+- `0`: no clipping applied
+- `1`: `fistart` clipped to its maximum
+- `2`: `ti` clipped to its maximum
+- `3`: `u` clipped to its maximum
+- `4`: `d` clipped to its valid range
+- `5`: `tamb_c` clipped to its maximum
+- `6`: `dfm` clipped to its minimum
+
 ## Testing
 
 Run the full test suite:
