@@ -1,0 +1,63 @@
+#ColumnJun62016,Code,Name,Litter,Duff,Depth,1-hr,10-hr,100h,Logs,Herb,Shrub,folia,branc, Rotten,LogDist,Soil, Flame EF,Duff EF, Smolder 1K EF
+#___,------,..........................................................,_____,-----,_____,-----,_____,-----,_____,_____,-----,_____,-----,_____,----,_____,….,_____,…..
+IPNS,FLM011,Light FWD; Light to no duff,0.18,0,0,0.07,0.08,0.04,0,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM012,Moderate FWD; light litter,0.27,0,0,0.27,1.56,2.68,2.59,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM013,Moderate FWD; light to moderate litter; light duff,2.5,1.2,0.12,0.23,1.52,2.05,2.23,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM014,Shrub -  Sagebrush with low total load,0.42,0,0,0.12,0.06,0,0,0.6,4.8,0,0,0,Center,Coarse-Silt,3,8,7
+IPNS,FLM015,Shrub - Non-sagebrush with low total load,1.9,0.76,0.08,0.19,0.28,0.19,0,0.47,5.7,0,0,0,Center,Coarse-Silt,3,8,7
+IPNS,FLM021,Light logs; Light duff,1.16,3.3,0.33,0.2,0.64,0.67,0.94,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM031,Moderate litter; light duff; light logs,1.87,7.31,0.73,0.27,0.89,1.07,1.52,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM041,Moderate FWD; light to moderate litter,2.41,0,0,0.27,1.67,2.57,2.59,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM051,Moderate duff; light logs,1.52,15.83,1.58,0.16,1.1,1.42,1.43,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM053,Shrub-  Sagebrush with medium total load,1.37,0,0,0.39,0.19,0,0,1.97,15.76,0,0,0,Center,Coarse-Silt,3,8,7
+IPNS,FLM054,Shrub - Non-sagebrush with medium total load,6.3,2.52,0.25,0.63,0.94,0.63,0,1.57,18.9,0,0,0,Center,Coarse-Silt,3,8,7
+IPNS,FLM061,Moderate to very heavy logs; light duff,0.89,3.61,0.36,0.29,1.31,2.46,16.73,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM062,Moderate duff; light logs; light litter,1.34,20.56,2.06,0.14,0.93,1.25,1.61,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM063,Moderate duff; light to heavy logs; light litter,1.52,17.04,1.7,0.2,1.39,2.38,7.76,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM064,Moderate to heavy duff; light to heavy logs,2.9,25.87,2.59,0.31,1.11,1.66,3.35,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM065,Shrub - Sagebrush with high total load,2.98,0,0,0.85,0.42,0,0,4.27,34.16,0,0,0,Center,Coarse-Silt,3,8,7
+IPNS,FLM066,Shrub - Non-sagebrush with high total load,13.6,5.44,0.54,1.36,2.04,1.36,0,3.4,40.8,0,0,0,Center,Coarse-Silt,3,8,7
+IPNS,FLM071,Moderate to heavy logs; light duff,2.19,9.37,0.94,0.45,1.42,2.19,11.51,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM072,Moderate duff; light to moderate logs; moderate litter,3.79,16.77,1.68,0.38,1.01,1.33,2.85,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM081,Very heavy logs; light duff,0.89,3.97,0.4,0.33,1.16,2.65,36.35,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM082,Moderate duff; light to heavy logs; moderate litter,3.79,17.71,1.77,0.53,1.58,3.16,12.04,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM083,Heavy to very heavy logs; moderate duff,2.5,11.91,1.19,0.5,1.58,2.87,22.43,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM091,Heavy duff; light to heavy logs,1.16,45.94,4.59,0.31,1.42,1.66,2.9,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM092,Very heavy logs,3.03,14.85,1.49,0.55,1.6,3.32,46.12,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM093,Heavy duff; heavy to very heavy logs,6.2,32.83,3.28,0.57,1.4,2.4,21.5,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM101,Very heavy duff,9.99,99.99,10,0.39,0.94,1.08,1.61,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM102,Heavy litter; light duff; light logs,17.97,10.48,1.05,0.14,0.49,1.05,4.59,0.23,0.35,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM511,Herb - Grassland high total load,1.1,0.45,0.04,0,0,0,0,1.66,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM521,Herb - Grassland low total load,1.08,0.36,0.04,0,0,0,0,0.96,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM523,Herb - Grassland low total load; reduced,0.03,0,0,0,0,0,0,0.1536,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM701,High Duff and Litter; High Fine Wood; High Log; Low Herb; High Shrub Loading,1.5,45.75,4.57,1,2,2,19,0.16,3.29,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM702,High Duff and Litter; High Fine Wood; Mod to High Log;  Low Herb; Low - High Shrub Loading,2.25,53.0875,5.31,0.4,0.75,1.625,6.375,0.0725,1.3475,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM703,High Duff and Litter; Mod Fine Wood; Low Log; Low Herb ; Mod Shrub Loading,5.66,31.8,3.18,0.366667,0.5,3.333333,7.833333,0.04,0.823333,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM704,High Duff and Litter; No Fine wood; No Log; High Herb; No Shrub Loading,3.833333,61.5,6.15,0,0,0,0,4,0.04,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM705,High Duff and Litter; Mod Fine Wood; Low Log; Low Herb; High Shrub Loading,3.1,23.4,2.34,0.2,0.5,0.5,0.9,0.1,2.56,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM706,High Duff and Litter; Low Fine Wood; High Log; Low Herb; High Shrub  Loading,1.43,25.48,2.55,0.2,0.2,0.2,33.2,0.1,0.16,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM707,Mod Duff and Litter; No Fine Wood; No Log; Low Herb; High Shrub Loading,3.1,7.6,0.76,0,0,0,0,0.2,1.26,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM709,High Duff and Litter; Mod Fine Wood; Low Log; No Herb; Mod Shrub Loading,1.5,356,35.6,0.2,0.3,1,2,0.04,0.32,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM710,High Duff and Litter; Mod Fine Wood; Low Log; High Herb; Mod Shrub Loading,1.5,270,27,0.2,0.3,1,2,1.02,0.22,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM712,Low Duff and Litter; Mod-High Fine Wood; Mod Logs; Mod Herb; High Shrub Loading,6.296163,2.774337,0.28,2.5,0.10675,0.02325,7.75,0.63548,9.481978,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM713,High Duff and Litter; Mod-High Fine Wood; Mod-High Logs; Low-Mod Herb; High Shrub Loading,6.828031,12.055231,1.21,3.5,0.077,0.038,9.65,0.713398,19.24263,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM714,Low Duff and Litter; No Fine Wood; No Logs; Low Herb; High Shrub Loading,1.25,0,0,0,0,0,0,0.06,2.19,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM715,Low Duff and Litter; Low Fine Wood; Low Logs; Mod Herb; High Shrub Loading,2.35224,0,0,0.1,0.18,0.02,0.9,1.223155,2.378376,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM716,Low Duff and Litter; High Fine Wood; Low Logs; Low Herb; High Shrub Loading,2.069971,0,0,9,0,0,1.7,0.382675,3.104957,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM717,Low Duff and Litter; High Fine Wood; None-Low Logs; Low Herb; High Shrub Loading,0.086249,0,0,10,0.8,0.2,0.25,0.201495,0.086249,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM718,No Duff and Litter; High Fine Wood; No Logs; Mod Herb; High Shrub Loading,0,0,0,6,0.095,0.005,0,0.799885,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM719,Low Duff and Litter; Low Fine Wood; Low Logs; Low Herb; High Shrub Loading,0.95,0.67,0.07,0.03,0.06,0.09,0.68,0.36,0.41,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM720,No Duff and Litter; Low-Mod Fine Wood; Low Logs; Mod-High Herb; High Shrub Loading,0,0,0,0.95,0.06,0.015,1.2,2.290398,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM722,No Duff and Litter; None-Low Fine Wood; No Logs; Mod-High Herb; No Shrub Loading,0,0,0,0.166667,0.063333,0.003333,0,1.71024,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM726,None-Low Duff and Litter; Low-Mod Fine Wood; No Logs; Low-Mod Herb; None-Low Shrub Loading,0.1,0.1,0.01,0.65,0.654,0.166,0,0.3,0.1,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM731,Mod Duff and Litter; Mod Fine Wood; Mod Log; Low Herb; Mod Shrub Loading,1,15,1.5,0.3,0.5,1,5,0.1,1,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM732,Mod Duff and Litter; No Fine wood; No Log; Mod Herb; No Shrub  Loading,2,30,3,0,0,0,0,2,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM733,Mod Duff and Litter; Low Fine Wood; Low Log; No Herb; Low Shrub,1,15,1.5,0.1,0.2,0.5,1,0,0.5,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM734,Mod Duff and Litter; Low Fine Wood; Low Log; Mod Herb; Low Shrub,1,15,1.5,0.1,0.2,0.5,1,1,0.5,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM741,Low Duff and Litter; Low Fine Wood; Low Log; Low Herb; Low Shrub Loading,1,2,0.2,0.2,0.2,0.2,1,0.1,0.5,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM742,Low Duff and Litter; No Fine Wood; No Log; Low Herb; No Shrub Loading,0.2,0.5,0.05,0,0,0,0,0.1,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM743,Low Duff and Litter; No Fine Wood; No Log; Low Herb; Low Shrub Loading,0.2,0.5,0.05,0,0,0,0,0.1,0.5,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM744,Low Duff and Litter; Mod Fine Wood; Low Log; Low Herb; Mod Shrub Loading,0.2,0.2,0.02,0.2,0.3,1,1.5,0.1,1,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM751,No Duff and Litter; Mod Fine Wood; No Logs; Low Herb; Mod Shrub Loading,0,0,0,0.3,0.5,1,0,0.1,1,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM752,No Duff and Litter; Low Fine Wood; Low Logs; Low Herb; Mod Shrub Loading,0,0,0,0.1,0.2,0.5,1,0.1,1,2.8,0.28,53,Left,Coarse-Silt,3,8,7
+IPNS,FLM753,No Duff and Litter; Low Fine Wood; No Logs; Low Herb; No Shrub Loading,0,0,0,0.1,0.2,0.5,0,0.1,0,2.8,0.28,53,Left,Coarse-Silt,3,8,7

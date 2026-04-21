@@ -1,0 +1,1380 @@
+#Num,R1 IW,R2 PW,R3 NE,R4 SE,SAF #,Cover Type Name,Fuel Ref,Lit,1hr,10hr,100hr,1000h,QMD,Duf,Dep,Cd,Herb,Cd,Shr,Cd,Foli,Cd,Bran,Cd,Add. Ref,CvG, Flame EF,Duff EF, Smolder 1K EF
+#---,__,--,__,--,__________,....................................................................................................,---------------,______,------,______,------,______,------,______,------,__,------,__,------,__,------,__,------,__,---------------,___,--,__,---
+57,0,2,0,0,,Abies amabilis - Abies concolor Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,,0.35,,6,,4,,,,3,8,7
+26,0,2,0,0,,Abies amabilis Giant Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,,0.35,,6,,4,,,,3,8,7
+102,0,2,0,0,,Abies amabilis Seasonally Flooded Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,,0.35,,6,,4,,,,3,8,7
+58,0,2,0,0,,Abies bracteata Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+59,0,2,0,0,,Abies concolor - Abies x shastensis Forest,SMFDB 031,0.57,1.29,1.65,0.87,0.79,5,35.57,2.54,GC,0.15,,0.35,,,,,,,,3,8,7
+293,1,0,0,0,,Abies concolor - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+60,1,2,0,0,,Abies concolor Forest,SMFDB 031,0.57,1.29,1.65,0.87,0.79,5,35.57,2.54,GC,0.15,,0.35,,,,,,,,3,8,7
+27,0,2,0,0,,Abies concolor Giant Forest,SMFDB 031,0.57,1.29,1.65,0.87,0.79,5,35.57,2.54,GC,0.15,,0.35,,,,,,,,3,8,7
+426,1,2,0,0,,Abies concolor Woodland,SMFDB 031,0.57,1.29,1.65,0.87,0.79,5,35.57,2.54,GC,0.15,,0.35,,,,,,,,3,8,7
+61,0,0,3,0,,Abies fraseri - (Picea rubens) Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+294,0,2,0,0,,Abies grandis - Acer macrophyllum Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+295,1,0,0,0,,Abies grandis - Alnus rhombifolia Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+62,1,2,0,0,,Abies grandis Forest,SMFDB 079,0.6,0.28,0.79,1.13,9.2,5,51.11,2.32,GC,0.1,,0.19,,,,,,,,3,8,7
+28,0,2,0,0,,Abies grandis Giant Forest,SMFDB 079,0.6,0.28,0.79,1.13,9.2,5,51.11,2.32,GC,0.1,,0.19,,,,,,,,3,8,7
+103,1,2,0,0,,Abies grandis Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+89,1,0,0,0,,Abies grandis Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+427,1,2,0,0,,Abies grandis Woodland,SMFDB 079,0.6,0.28,0.79,1.13,9.2,5,51.11,2.32,GC,0.1,,0.19,,,,,,,,3,8,7
+841,1,0,0,0,,Abies lasiocarpa - Acer glabrum Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+296,1,0,0,0,,Abies lasiocarpa - Larix lyallii Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+441,1,2,0,0,,Abies lasiocarpa - Pinus albicaulis Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+297,1,0,0,0,,Abies lasiocarpa - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+88,1,2,0,0,,Abies lasiocarpa Forest,SMFDB 081,0.6,0.24,0.67,0.89,12.5,5,41.19,1.89,GC,1,,0.35,,,,,,,,3,8,7
+104,1,2,0,0,,Abies lasiocarpa Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+631,1,0,0,0,,Abies lasiocarpa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+90,1,0,0,0,,Abies lasiocarpa Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+442,1,2,0,0,,Abies lasiocarpa Woodland,SMFDB 081,0.6,0.24,0.67,0.89,12.5,5,41.19,1.89,GC,1,,0.35,,,,,,,,3,8,7
+63,1,2,0,0,,Abies magnifica Forest,SMFDB025,0.69,2.35,3.05,2.26,1.24,5,39.25,1.92,GC,0.2,,0.35,,,,,,,,3,8,7
+64,0,2,0,0,,Abies x shastensis Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,,0.35,,6,,4,,,,3,8,7
+822,1,0,0,0,,Acacia berlandieri Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+823,1,0,0,0,,Acacia greggii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+824,1,0,0,0,,Acacia neovernicosa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+825,1,0,0,0,,Acacia rigidula Shrubland,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,,1,,5,,,,,,,,5,8,7
+849,0,0,0,4,,Acacia smallii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+128,0,0,0,4,,Acer (nigrum; saccharum) - Carya cordiformis Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+199,0,0,3,4,,Acer (rubrum; saccharinum) - Ulmus americana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+129,0,0,0,4,,Acer barbatum - Fraxinus americana - Juglans nigra Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+699,1,0,0,0,,Acer glabrum Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+744,1,0,0,0,,Acer glabrum Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+130,1,0,0,0,,Acer grandidentatum Lowland Forest,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,3,8,7
+177,1,0,0,0,,Acer grandidentatum Montane Forest,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,3,8,7
+131,0,2,0,0,,Acer macrophyllum Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+237,0,2,0,0,,Acer macrophyllum Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+200,0,2,0,0,,Acer macrophyllum Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+238,1,0,0,0,,Acer negundo Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+201,1,0,0,4,,Acer negundo Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+505,1,0,0,0,,Acer negundo Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+239,0,0,3,4,,Acer rubrum - Fraxinus pennsylvanica Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+528,0,0,3,4,,Acer rubrum - Fraxinus pennsylvanica Tidal Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+270,0,0,3,4,,Acer rubrum - Nyssa sylvatica Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+527,0,0,3,4,,Acer rubrum Saturated Woodland,NA-FR-22,5.01,0.2,0.8,3.6,7.9,5,14.9,1.4,,0,,0,,,,,,,,1,8,7
+240,0,0,0,4,,Acer rubrum Seasonally Flooded Forest,NA-FR-22,5.01,0.2,0.8,3.6,7.9,5,14.9,1.4,,0,,0,,,,,,,,1,8,7
+519,0,0,3,0,,Acer rubrum Seasonally Flooded Woodland,NA-FR-22,5.01,0.2,0.8,3.6,7.9,5,14.9,1.4,,0,,0,,,,,,,,3,8,7
+202,0,0,3,4,,Acer saccharinum Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+132,0,0,3,4,,Acer saccharum - Betula alleghaniensis - (Fagus grandifolia) Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+203,0,0,3,4,,Acer saccharinum - Fraxinus americana - Tilia americana Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+134,0,0,3,4,,Acer saccharum charum - Carya cordiformis Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+133,0,0,3,4,,Acer - Liriodendron tulipifera - Fraxinus americana Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+135,0,0,3,4,,Acer saccharum - Quercus muhlenbergii Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+136,0,0,3,4,,Acer saccharum - Tilia americana - (Quercus rubra) Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+1282,0,0,0,4,,Acrostichum aureum Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+583,1,2,0,0,,Adenostoma fasciculatum Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,13.5,,,,,,,SG,5,8,7
+584,0,2,0,0,,Adenostoma sparsifolium Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,13.5,,,,,,,SG,5,8,7
+1362,1,0,0,4,,Adiantum capillus - Veneris Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1363,1,0,0,4,,Adiantum capillus-veneris Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1296,0,0,0,4,,Adiantum tenerum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+476,0,2,0,0,,Aesculus californica Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1283,1,0,0,0,,Agastache urticifolia Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1058,1,0,0,0,,Agrostis scabra Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1033,1,0,0,0,,Agrostis variabilis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1297,1,0,0,0,,Aletes anisatus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+679,1,2,0,0,,Allenrolfea occidentalis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+745,1,0,0,0,,Alnus (viridis ssp. sinuata; incana) Temporarily Flooded Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+814,0,0,3,0,,Alnus incana Saturated Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+787,1,2,3,0,,Alnus incana Seasonally Flooded Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+746,1,2,3,0,,Alnus incana Temporarily Flooded Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+747,0,0,0,4,,Alnus maritima Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+748,1,0,0,0,,Alnus oblongifolia Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+204,1,2,0,0,,Alnus rhombifolia Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+137,1,2,0,0,,Alnus rubra Forest,SMFDB009,0.5,0.6,1,1.4,24.8,5,5,1,,0.28,,1,,,,,,,,3,8,7
+241,0,2,0,0,,Alnus rubra Seasonally Flooded Forest,SMFDB009,0.5,0.6,1,1.4,24.8,5,5,1,,0.28,,1,,,,,,,,3,8,7
+205,1,0,0,0,,Alnus rubra Temporarily Flooded Forest,SMFDB009,0.5,0.6,1,1.4,24.8,5,5,1,,0.28,,1,,,,,,,,3,8,7
+815,0,0,0,4,,Alnus serrulata Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+788,0,0,3,0,,Alnus serrulata Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+749,0,0,3,4,,Alnus serrulata Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+732,0,0,0,4,,Alnus viridis Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+789,0,2,0,0,,Alnus viridis ssp. sinuata Seasonally Flooded Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+750,1,2,0,0,,Alnus viridis ssp. sinuata Temporarily Flooded Shrubland,SMFDB 271,0.5,0,0,0,0,0,5,1,,0.28,,3.25,,,,,,,,5,8,7
+826,1,0,0,0,,Aloysia wrightii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1298,0,2,0,0,,Ambrosia chamissonis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+664,1,0,0,0,,Ambrosia deltoidea Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+878,1,0,0,0,,Ambrosia dumosa Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+700,1,2,0,0,,Amelanchier alnifolia Shrubland,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,5,8,7
+701,1,0,0,0,,Amelanchier utahensis Shrubland,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,5,8,7
+937,0,0,3,4,,Amophila breviligulata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+925,1,0,3,4,,Andropogon gerardii - (Calamagrostis canadensis; Panicum virgatum) Herbland,SMFDB 497,0,0,0,0,0,0,0,0,,2.73,,0,,,,,,,,6,8,7
+926,1,0,3,4,,Andropogon gerardii - (Sorghastrum nutans) Herbland,SMFDB 497,0,0,0,0,0,0,0,0,,2.73,,0,,,,,,,,6,8,7
+1059,0,0,3,4,,Andropogon gerardii - (Sorghastrum nutans) Temporarily Flooded Herbland,SMFDB 497,0,0,0,0,0,0,0,0,,2.73,,0,,,,,,,,6,8,7
+1085,0,0,0,4,,Andropogon glaucopsis - Rhynchospora spp. Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1060,0,0,0,4,,Andropogon glomeratus Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+927,1,0,0,0,,Andropogon hallii Herbland,SMFDB456,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+363,0,0,0,4,,Annona glabra Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+17,0,0,0,4,,Annona glabra Semipermanently Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1299,1,2,0,0,,Antennaria lanata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1300,1,0,0,0,,Antennaria microphylla Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1301,0,0,0,4,,Aquilegia canadensis - Asplenium (heterochroum; heteroresiliens) Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1284,1,0,0,0,,Aquilegia coerulea Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1302,0,2,0,0,,Arabis lyallii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+283,1,0,0,0,,Arbutus xalapensis - Acer grandidentatum - Quercus spp. Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+585,0,2,0,0,,Arctostaphylos glandulosa Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+586,0,2,0,0,,Arctostaphylos glauca - Quercus (dumosa;dunnii;turbinella;wislizenii) Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+587,0,2,0,0,,Arctostaphylos glauca Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+588,0,2,0,0,,Arctostaphylos myrtifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+589,1,2,0,0,,Arctostaphylos patula Shrubland,SMFDB033,0.92,0,0,0,0,0,5,0.5,,0.19,,27.87,,,,,,,,5,8,7
+590,1,0,0,0,,Arctostaphylos pungens Shrubland,PMS-833,0,0,0,0,0,0,0,0,,,0,38.7,,,,,,,SG,5,8,7
+591,0,2,0,0,,Arctostaphylos tomentosa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+860,1,2,0,0,,Arctostaphylos uva-ursi Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+592,0,2,0,0,,Arctostaphylos viscida Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1303,1,0,0,0,,Arenaria hookeri Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1156,0,0,0,4,,Aristida beyrichiana Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1219,0,0,0,4,,Aristida Beyrichiana Upland Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1061,0,0,0,4,,Aristida palustris - Andropogon (capillipes; glaucopsis) Temp. Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1086,0,0,0,4,,Aristida palustris - Panicum virgatum Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1259,0,0,0,4,,Aristida stricta Saturated Shrub Herbland,SMFDB119,0,0,0,0,0,0,2.57,1.5,,3.01,,0.9,,,,,,,,5,8,7
+1265,1,2,0,0,,Artemisia arbuscula Dwarf-Shrub Herbland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+854,1,0,0,0,,Artemisia arbuscula Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+1304,1,0,0,0,,Artemisia arctica Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+879,1,0,0,0,,Artemisia bigelovii Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+635,0,2,0,0,,Artemisia californica - Eriogonum fasciculatum Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,SB,5,8,7
+636,0,2,0,0,,Artemisia californica - Salvia mellifera Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,SB,5,8,7
+637,0,2,0,0,,Artemisia californica Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+656,1,2,0,0,,Artemisia cana Intermittently Flooded Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+1221,1,0,0,0,,Artemisia cana Shrub Herbland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+1244,1,0,0,0,,Artemisia cana Shrub Short Herbland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,6,8,7
+638,1,0,0,0,,Artemisia cana Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+660,1,2,0,0,,Artemisia cana Temporarily Flooded Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+639,1,0,0,0,,Artemisia filifolia Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+1266,1,0,0,0,,Artemisia nova Dwarf-Shrub Herbland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+880,1,2,0,0,,Artemisia nova Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+1267,1,0,0,0,,Artemisia pedatifida Dwarf-Shrub Herbland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+902,1,0,0,0,,Artemisia pedatifida Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+881,1,0,0,0,,Artemisia pygmaea Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+1273,1,0,0,0,,Artemisia rigida Dwarf-Shrub Herbland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+882,0,2,0,0,,Artemisia rothrockii Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+903,1,0,0,0,,Artemisia spinescens Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,SB,5,8,7
+657,1,2,0,0,,Artemisia tridentata Intermittently Flooded Shrubland,SMFDB228,0,0,0,0,0,0,0,0,,0.31,,4.33,,,,,,,SB,5,8,7
+1222,1,0,0,0,,Artemisia tridentata Shrub Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,5,8,7
+1216,1,0,0,0,,Artemisia tridentata Shrub Tall Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,6,8,7
+640,1,2,0,0,,Artemisia tridentata Shrubland,SMFDB228,0,0,0,0,0,0,0,0,,0.31,,4.33,,,,,,,SB,5,8,7
+1223,1,0,0,0,,Artemisia tridentata ssp. tridentata Shrub Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,5,8,7
+641,1,2,0,0,,Artemisia tridentata ssp. tridentata Shrubland,SMFDB228,0,0,0,0,0,0,0,0,,0.31,,4.33,,,,,,,SB,5,8,7
+1224,1,0,0,0,,Artemisia tridentata ssp. vaseyana Shrub Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,5,8,7
+642,1,0,0,0,,Artemisia tridentata ssp. vaseyana Shrubland,SMFDB227,0,0,0,0,0,0,0,0,,0.28,,2.8,,,,,,,SB,5,8,7
+1225,1,2,0,0,,Artemisia tridentata ssp. wyomingensis Shrub Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,5,8,7
+1245,1,0,0,0,,Artemisia tridentata ssp. wyomingensis Shrub Short Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,5,8,7
+643,1,2,0,0,,Artemisia tridentata ssp. wyomingensis Shrubland,SMFDB228,0,0,0,0,0,0,0,0,,0.31,,4.33,,,,,,,SB,5,8,7
+1226,1,0,0,0,,Artemisia tripartita Shrub Herbland,SMFDB336,0,0,0,0,0,0,0,0,,1.49,,0.97,,,,,,,SB,5,8,7
+627,0,0,0,4,,Arundinaria gigantea Saturated Shrubland,SMFDB124,1.5,0,0,0,0,0,4.01,2.5,,4.36,,1.7,,,,,,,,5,8,7
+630,0,0,0,4,,Arundinaria gigantea Saturated Wooded Shrubland,SMFDB124,1.5,0,0,0,0,0,4.01,2.5,,4.36,,1.7,,,,,,,,5,8,7
+623,0,0,0,4,,Arundinaria gigantea Temporarily Flooded Woodland,SMFDB124,1.5,0,0,0,0,0,4.01,2.5,,4.36,,1.7,,,,,,,,1,8,7
+622,0,0,0,4,,Arundinaria gigantea Wooded Shrubland,SMFDB124,1.5,0,0,0,0,0,4.01,2.5,,4.36,,1.7,,,,,,,,5,8,7
+1305,0,0,0,4,,Aster oblongifolius Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1306,1,0,0,0,,Athyrium americanum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+680,1,2,0,0,,Atriplex (lentiformis; polycarpa) Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+681,1,2,0,0,,Atriplex canescens Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+682,1,2,0,0,,Atriplex confertifolia Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+886,1,0,0,0,,Atriplex corrugata Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,,5,8,7
+683,1,0,0,0,,Atriplex cuneata Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+887,1,0,0,0,,Atriplex gardneri Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,,5,8,7
+684,1,2,0,0,,Atriplex hymenelytra Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+888,1,0,0,0,,Atriplex obovata Dwarf-Shrubland,FOFEM 461,0.07,0,0,0,0,0,0,0,,0.45,,1.26,,,,,,,,5,8,7
+685,1,2,0,0,,Atriplex polycarpa Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+686,1,2,0,0,,Atriplex spinifera Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+21,0,0,0,4,,Avicennia germinans Tidal Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+566,0,0,0,4,,Avicennia germinans Tidal Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+365,0,0,0,4,,Avicennia germinans Tidal Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1264,0,0,0,4,,Baccharis angustifolia Saturated Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+816,0,0,0,4,,Baccharis halimifolia Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+735,1,0,0,0,,Baccharis pteronioides Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+736,1,0,0,0,,Baccharis salicifolia Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+790,1,0,0,0,,Baccharis salicina - Baccharis neglecta Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+658,1,0,0,0,,Baccharis sarothroides Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+644,0,2,0,0,,Baccheris pilularis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+178,0,0,0,4,,Betula alleghaniensis; Fagus grandifolia; Aesculus flava (Acer saccharum) Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+179,0,0,0,4,,Betula alleghaniensis Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+791,1,2,0,0,,Betula nana Seasonally Flooded Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+206,0,0,3,4,,Betula nigra - (Platanus occidentalis) Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+751,0,0,0,4,,Betula nigra Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+737,1,0,0,0,,Betula occidentalis Intermittently Flooded Shrubland,SMFDB276,0,0,0,0,0,0,0,0,,0.1,,4.73,,,,,,,,5,8,7
+792,1,0,0,0,,Betula occidentalis Seasonally Flooded Shrubland,SMFDB276,0,0,0,0,0,0,0,0,,0.1,,4.73,,,,,,,,5,8,7
+702,1,0,0,0,,Betula occidentalis Shrubland,SMFDB276,0,0,0,0,0,0,0,0,,0.1,,4.73,,,,,,,,5,8,7
+752,1,2,0,0,,Betula occidentalis Temporarily Flooded Shrubland,SMFDB276,0,0,0,0,0,0,0,0,,0.1,,4.73,,,,,,,,5,8,7
+180,1,0,3,0,,Betula papyrifera Forest,SMFDB 245,0.9,1.34,2.14,2.59,6.92,5,5,0.5,,0.3,,0.5,,,,,,,,3,8,7
+477,1,0,3,0,,Betula papyrifera Woodland,SMFDB 245,0.9,1.34,2.14,2.59,6.92,5,5,0.5,,0.3,,0.5,,,,,,,,3,8,7
+817,1,0,3,0,,Betula pumila - (Salix spp.) Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1307,0,0,0,4,,Bigelowia nuttallii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+938,1,0,0,0,,Bothriochloa barbinoides Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+968,1,0,0,0,,Bouteloua curtipendula Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1249,1,0,0,0,,Bouteloua curtipendula Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1268,1,0,0,0,,Bouteloua eriopoda Dwarf-Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+998,1,0,0,0,,Bouteloua eriopoda Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1246,1,0,0,0,,Bouteloua eriopoda Microphyllous Evergreen Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1250,1,0,0,0,,Bouteloua eriopoda Xeromorphic Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1269,1,0,0,0,,Bouteloua gracilis Dwarf-Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+999,1,0,0,0,,Bouteloua gracilis Herbland,SMFDB438,0,0,0,0,0,0,0,0,,1.04,,0,,,,,,,,6,8,7
+1251,1,0,0,0,,Bouteloua hirsuta - Bouteloua gracilis - Bouteloua eriopoda Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1000,1,0,0,4,,Bouteloua hirsuta Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1210,0,0,0,4,,Bouteloua hirsuta Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1001,1,0,0,4,,Bouteloua ramosa Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+738,1,0,0,0,,Brickellia laciniata Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+703,1,0,0,0,,Buddleja racemosa - Ungnadia speciosa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1275,0,2,0,0,,Calamagrostis breweri Dwarf-Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1014,0,2,0,0,,Calamagrostis breweri Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1260,0,0,0,4,,Calamagrostis canadensis Saturated Shrub Herbland,Shiflet 1994,0,0,0,0,0,0,0,0,,1.85,,0,,,,,,,,5,8,7
+1087,1,0,3,4,,Calamagrostis canadensis Seasonally Flooded Herbland,Shiflet 1994,0,0,0,0,0,0,0,0,,1.85,,0,,,,,,,,6,8,7
+928,0,2,0,0,,Calamagrostis nutkaensis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1015,1,2,0,0,,Calamagrostis purpurascens Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1088,0,0,3,0,,Calamovilfa brevipilis Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+929,1,0,0,0,,Calamovilfa longifolia Herbland,SMFDB433,0,0,0,0,0,0,0,0,,0.9,,0,,,,,,,,6,8,7
+65,0,2,0,0,,Calocedrus decurrens - Pseudotsuga menziesii Forest,SMFDB322,1.5,0.27,2.17,3.43,18.16,5,40,3,,0.2,,0.4,,,,,,,,3,8,7
+1364,1,0,0,0,,Caltha leptosepala Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1365,1,0,0,0,,Cardamine cordifolia Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1089,1,0,0,0,,Carex (bipartita; capillaris; illiota) Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1016,1,0,0,0,,Carex (ebenea; haydeniana) Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1261,0,0,3,0,,Carex (flava; hystricina; interior; sterilis) Saturated Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1090,1,0,3,0,,Carex (rostrata; utriculata) Seasonally Flooded Herbland,SMFDB202,0,0,0,0,0,0,0,0,,2.94,,0,,,,,,,,6,8,7
+1157,1,0,0,0,,Carex aperta Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1091,1,2,3,0,,Carex aquatilis Seasonally Flooded Herbland,SMFDB 293,0,0,0,0,0,0,0,0,,0.53,,0.25,,,,,,,,6,8,7
+1092,0,2,0,0,,Carex aquatilis var. dives Seasonally Flooded Herbland,SMFDB 293,0,0,0,0,0,0,0,0,,0.53,,0.25,,,,,,,,6,8,7
+1034,1,0,0,0,,Carex arapahoensis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1093,1,0,3,0,,Carex atherodes Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1158,0,0,0,4,,Carex atlantica - Solidago patula Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1017,0,0,3,0,,Carex bigelowii - Juncus trifidus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1002,0,0,0,4,,Carex biltmoreana Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1018,0,2,0,0,,Carex breweri Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1094,1,0,0,0,,Carex buxbaumii Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1019,0,2,0,0,,Carex capitata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1140,0,0,0,4,,Carex comosa - (Carex decomposita) Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1159,0,0,0,4,,Carex crinita - Osmunda spp./Sphagnum spp Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1003,1,2,0,0,,Carex douglasii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1004,1,0,0,0,,Carex duriuscula Herbland,SMFDB335,0,0,0,0,0,0,0,0,,1.56,,0,,,,,,,,6,8,7
+1020,1,0,0,0,,Carex elynoides Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1021,1,2,0,0,,Carex filifolia Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1022,1,0,0,0,,Carex foenea Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+969,1,0,0,0,,Carex hoodii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1160,1,0,0,4,,Carex interior - Carex lurida Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1095,1,2,0,0,,Carex interior Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1096,0,0,3,0,,Carex lacustris Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1161,1,0,0,0,,Carex lanuginosa - (Carex nebrascensis) - Scirpus spp. Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1097,1,0,0,0,,Carex lanuginosa Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1062,1,0,3,0,,Carex lanuginosa Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1162,1,0,3,0,,Carex lasiocarpa Saturated Herbland,SMFDB203,0,0,0,0,0,0,0,0,,1.87,,0,,,,,,,,6,8,7
+1098,1,0,0,0,,Carex lasiocarpa Seasonally Flooded Herbland,SMFDB203,0,0,0,0,0,0,0,0,,1.87,,0,,,,,,,,6,8,7
+1099,1,2,0,0,,Carex limosa Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1163,1,0,0,0,,Carex microglochin Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1100,1,0,0,0,,Carex microptera Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1023,1,0,0,0,,Carex nardina Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1101,1,2,0,0,,Carex nebrascensis Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1102,1,2,0,0,,Carex nigricans Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1177,0,2,0,0,,Carex obnupta Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1164,1,0,3,0,,Carex oligisperma - Carex lasiocarpa Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1005,1,0,0,0,,Carex pensylvanica Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1024,1,0,0,0,,Carex perglobosa Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1103,1,2,0,0,,Carex praegracilis Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1025,0,2,0,0,,Carex proposita Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1026,1,0,0,0,,Carex pseudoscirpoidea Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1035,1,0,0,0,,Carex pyrenaica Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1027,1,0,0,0,,Carex rupestris Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1063,1,0,0,0,,Carex saxatilis Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1028,1,0,0,0,,Carex scirpoidea Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1104,1,2,0,0,,Carex scopulorum Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1165,1,0,0,0,,Carex simulata Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1029,0,2,0,0,,Carex spectabilis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1166,1,0,0,4,,Carex spp. - Typha spp. Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1064,1,0,3,0,,Carex spp. Plantago eriopoda Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1167,1,0,3,0,,Carex spp. Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1036,1,0,0,0,,Carex straminiformis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1256,0,0,3,4,,Carex striata Saturated Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1105,0,0,3,4,,Carex striata Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1106,1,0,3,0,,Carex stricta Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1141,0,0,3,4,,Carex stricta Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1065,0,0,0,4,,Carex torta Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1066,0,2,0,0,,Carex unilateralis Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1030,1,0,0,0,,Carex vernacula Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+697,1,0,0,0,,Carnegia gigantea Wooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+207,0,0,0,4,,Carpinus caroliniana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+138,0,0,3,4,,Carya (glabra; ovata) - Fraxinus americana - Quercus (alba; rubra) Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+242,0,0,0,4,,Carya aquatica - Gleditsia aquatica Seasonally Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+208,0,0,0,4,,Carya illinoinensis - (Celtis laevigata) Temporarily Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+861,1,2,0,0,,Cassiope mertensiana Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+869,1,0,0,0,,Cassiope mertensiana Temporarily Flooded Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+139,0,0,0,4,,Castanea dentata - Quercus prinus Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+181,0,0,0,4,,Castanea dentata - Quercus rubra Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+140,0,0,0,4,,castanea dentata Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+593,0,2,0,0,,Castanopsis sempervirens Shrubland,SMFDB35,0.68,0,0,0,0,0,3,1,,0,,22.4,,,,,,,,5,8,7
+594,0,2,0,0,,Ceanothus cordulatus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+595,0,2,0,0,,Ceanothus crassifolius Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+596,0,2,0,0,,Ceanothus cuneatus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+597,0,2,0,0,,Ceanothus greggii - Fremontodendron californicum Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+704,1,2,0,0,,Ceanothus integerrimus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+598,0,2,0,0,,Ceanothus leucodermis Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+599,0,2,0,0,,Ceanothus megacarpus - Cercocarpus montanus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+600,0,2,0,0,,Ceanothus megacarpus - Rhamnus ilicifolia Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+601,0,2,0,0,,Ceanothus megacarpus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+602,0,2,0,0,,Ceanothus oliganthus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+570,0,2,0,0,,Ceanothus thyrsiflorus Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,38.7,,,,,,,SG,5,8,7
+603,1,0,0,0,,Ceanothus velutinus Shrubland,SMFDB034,2.22,0,0,0,0,0,12,2,,0.15,,33.9,,,,,,,,5,8,7
+209,0,0,0,4,,Celtis laevigata - Ulmus crassifolia Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+141,0,0,0,4,,Celtis laevigata Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+827,1,0,0,0,,Celtis laevigata var. reticulata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+478,1,0,0,0,,Celtis laevigata var. reticulata Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+793,0,0,3,4,,Cephalanthus occidentalis Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+811,0,0,3,4,,Cephalanthus occidentalis Semipermanently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+645,0,0,0,4,,Ceratiola ericoides Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+646,1,2,0,0,,Cercocarpus ledifolius Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+469,1,2,0,0,,Cercocarpus ledifolius Woodland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,3,8,7
+665,0,2,0,0,,Cercocarpus montanus - Eriogonum fasciculatum Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1233,1,0,0,0,,Cercocarpus montanus Shrub Herbland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+705,1,0,0,0,,Cercocarpus montanus Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+470,1,2,0,0,,Cercocarpus montanus Woodland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,3,8,7
+29,0,2,0,0,,Chamaecyparis lawsoniana Forest,FOFEM 171GC,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,,,,,,,3,8,7
+91,0,2,0,0,,Chamaecyparis lawsoniana Temporarily Flooded Forest,SMFDB010 GC,1,0.2,0.7,0.6,26.3,5,50,13.5,,0,,0,,,,,,,,3,8,7
+66,0,2,0,0,,Chamaecyparis nootkatensis Forest,SMFDB010 GC,1,0.2,0.7,0.6,26.3,5,50,13.5,,0,,0,,,,,,,,3,8,7
+92,0,2,0,0,,Chamaecyparis nootkatensis Temporarily Flooded Forest,SMFDB010 GC,1,0.2,0.7,0.6,26.3,5,50,13.5,,0,,0,,,,,,,,3,8,7
+428,0,2,0,0,,Chamaecyparis nootkatensis Woodland,SMFDB010 GC,1,0.2,0.7,0.6,26.3,5,50,13.5,,0,,0,,,,,,,,3,8,7
+351,0,0,3,4,,Chamaecyparis thyoides - Acer rubrum Saturated Forest,X        GC,,,,,,,,,,,,,,,,,,,GG,1,8,7
+116,0,0,3,4,,Chamaecyparis thyoides Saturated Forest,X        GC,,,,,,,,,,,,,,,,,,,GG,1,8,7
+455,0,0,3,4,,Chamaecyparis thyoides Saturated Woodland,X        GC,,,,,,,,,,,,,,,,,,,GG,1,8,7
+105,0,0,0,4,,Chamaecyparis thyoides Seasonally Flooded Forest,X        GC,,,,,,,,,,,,,,,,,,,GG,1,8,7
+451,0,0,3,4,,Chamaecyparis thyoides Seasonally Flooded Woodland,X        GC,,,,,,,,,,,,,,,,,,,GG,1,8,7
+872,0,0,3,0,,Chamaedaphne calyculata (Kalmia angustifolia) Seasonally Flooded Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+874,0,0,3,4,,Chamaedaphne calyculata Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1257,0,0,3,4,,Chamaedaphne calyculata/Carex lasiocarpa Saturated Shrub Herbland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+838,1,0,0,0,,Chilopsis linearis Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+855,0,0,0,4,,Chrysoma pauciflosculosa Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1366,0,0,3,4,,Chrysosplenium americanum Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+647,1,0,0,0,,Chrysothamnus albidus Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1247,1,0,0,0,,Chrysothamnus nauseosus Shrub Short Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+648,1,0,0,0,,Chrysothamnus nauseosus Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1227,1,0,0,0,,Chrysothamnus viscidiflorus Shrub Herbland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+649,1,2,0,0,,Chrysothamus parryi Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1285,1,0,0,0,,Cirsium scopulorum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1168,0,0,3,4,,Cladium mariscoides Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1107,0,0,3,4,,Cladium mariscoides Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+910,0,0,0,4,,Cladium mariscus ssp. jamaicense Seasonally Flooded Freshwater Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1178,0,0,0,4,,Cladium mariscus ssp. jamaicense Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1308,1,0,0,0,,Claytonia megarhiza Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+650,0,2,0,0,,Cleome isomeris - Ephedra californica - Ericameria linearifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+13,0,0,0,4,,Cliftonia monophylla Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+556,0,0,0,4,,Coccoloba unifera Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+687,1,2,0,0,,Coleogyne ramosissima Shrubland,FOFEM 341,0.11,0,0,0,0,0,0,0,,0.2,,2.28,,,,,,,,5,8,7
+18,0,0,0,4,,Conocarpus erectus - Metopium toxiferum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+19,0,0,0,4,,Conocarpus erectus - Sideroxylon celastrinum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+565,0,0,0,4,,Conocarpus erectus saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+563,0,0,0,4,,Conocarpus erectus Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+364,0,0,0,4,,Conocarpus erectus Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+243,0,0,0,4,,Cornus foemina Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+794,0,0,3,0,,Cornus sericea - Salix spp. Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+753,1,0,0,0,,Cornus sericea Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+818,0,0,3,4,,Cornus spp. - Salix spp. Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1338,0,2,0,0,,Corydalus scouleri Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+706,0,0,0,4,,Corylus americana - (Spireaea tomentosa; Malus ioensis) Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+707,0,0,3,0,,Corylus cornuta - Amelanchier spp. Shrubland Alliance,X,,,,,,,,,,,,,,,,,,,,5,8,7
+708,0,0,0,4,,Crataegus crus-gallii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+739,1,2,0,0,,Crataegus douglasii Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+709,1,2,0,0,,Crataegus douglasii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+754,1,0,0,0,,Crataegus douglasii Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+244,0,0,0,4,,Crataegus opaca Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+710,0,0,0,4,,Crataegus spathulata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+755,1,0,0,0,,Crataegus succulenta Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+67,1,0,0,0,,Cupressus arizonica Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+632,0,2,0,0,,Cupressus goveniana Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+37,0,2,0,0,,Cupressus macnabiana Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+381,0,2,0,0,,Cupressus sargentii Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+628,0,0,0,4,,Cyrilla racemiflora Saturated Shrubland,SMFDB120,4.45,0,0,0,0,0,3.8,1,,0,,4,,,,,,,,5,8,7
+1367,0,0,0,4,,Dalea foliosa - Mecardonia acuminata Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+970,1,2,0,0,,Danthonia californica Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1006,0,0,0,4,,Danthonia compressa Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1248,0,0,0,4,,Danthonia compressa Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1037,1,0,0,0,,Danthonia intermedia Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1038,1,0,0,0,,Danthonia parryi Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+939,0,0,3,0,,Danthonia spicata Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1368,0,2,0,0,,Darlingtonia californica Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+795,0,0,0,4,,Decodon verticillatus Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+812,0,0,3,0,,Decodon verticillatus Semipermanently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1169,1,0,3,0,,Deschampsia cespitosa Saturated Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+1108,1,0,0,0,,Deschampsia cespitosa Seasonally Flooded Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+1067,1,0,0,0,,Deschampsia cespitosa Temporarily Flooded Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+896,0,0,3,0,,Diapensia lapponica Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1068,0,0,0,4,,Dichanthelium wrightianum - Dichanthelium erectifolium Temp. Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1309,0,0,0,4,,Diodia teres - Croton willdenowii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1369,0,0,0,4,,Diphylleia cymosa - Saxifraga micranthidifolia Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1049,1,2,0,0,,Distichilis spicata Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1069,1,0,3,4,,Distichlis spicata - (Hordeum jubatum) Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1276,1,0,0,0,,Dryas integrifolia Dwarf-Shrub Herbland,SMFDB 288,0,0,0,0,0,0,0,0,,0.07,,0.07,,,,,,,,5,8,7
+1277,1,0,0,0,,Dryas octopetala Dwarf-Shrub Herbland,SMFDB 288,0,0,0,0,0,0,0,0,,0.07,,0.07,,,,,,,,5,8,7
+1109,1,2,3,4,,Dulichium arundinaceum Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+756,1,0,0,0,,Elaeagnus commutata Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+711,1,0,0,0,,Eleagnus commutata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1110,0,2,0,0,,Eleocharis (montevidensis; palustris; quinqueflora) Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1111,1,2,0,0,,Eleocharis acicularis Seasonally Flooded Herbland,SMFDB306,0,0,0,0,0,0,0,0,,2.09,,0,,,,,,,,6,8,7
+911,0,0,0,4,,Eleocharis cellulosa Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1170,0,0,0,4,,Eleocharis compressa - Nothoscordum bivalve Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1179,0,0,0,4,,Eleocharis fallax - Eleocharis rostellata Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+912,0,0,0,4,,Eleocharis interstincta Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1070,1,0,0,4,,Eleocharis macrostachya Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1112,1,2,0,0,,Eleocharis palustris Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1113,1,0,0,0,,Eleocharis quinqueflora Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1142,0,0,3,0,,Eleocharis spp. - Eriocaulon aquaticum Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1171,0,0,0,4,,Eleocharis spp. - Iva angustifolia Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+940,1,2,0,0,,Elymus glaucus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1114,0,2,0,0,,Elymus hirsutus Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+941,1,0,0,0,,Elymus lanceolatus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+862,0,2,0,0,,Empetrum nigrum Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+875,0,0,3,0,,Empetrum nigrum Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+604,0,2,0,0,,Encelia californica Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,,5,8,7
+688,1,2,0,0,,Encelia farinosa Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,,5,8,7
+666,1,2,0,0,,Encelia virginensis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+667,1,2,0,0,,Ephedra nevadensis - Artemisia tridentata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+668,1,0,0,0,,Ephedra nevadensis - Ephedra viridis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+669,1,2,0,0,,Ephedra nevadensis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+670,1,2,0,0,,Ephedra viridis - Artemisia tridentata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+671,1,2,0,0,,Ephedra viridis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1351,1,2,3,0,,Equisetum fluviatile Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1310,0,2,0,0,,Erigeron aureus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+904,1,0,0,0,,Eriogonum corymbosum Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+605,0,2,0,0,,Eriogonum fasciculatum - Salvia apiana Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,13.5,,,,,,,,5,8,7
+689,1,2,0,0,,Eriogonum fasciculatum Shrubland,PMS-833,0,0,0,0,0,0,0,0,,0,,13.5,,,,,,,,5,8,7
+883,1,2,0,0,,Eriogonum microthecum Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+863,1,0,0,0,,Eriogonum ovalifolium var. depressum Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1311,0,2,0,0,,Eriogonum pyrolifolium Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+142,0,0,3,4,,Fagus grandifolia - Acer saccharum - (Liriodendron tulipifera) Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+284,0,0,0,4,,Fagus grandifolia - Magnolia grandiflora,X,,,,,,,,,,,,,,,,,,,,3,8,7
+143,0,0,3,4,,Fagus grandifolia - Quercus alba Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+144,0,0,0,4,,Fagus grandifolia - Quercus nigra Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+145,0,0,0,4,,Fagus grandifolia - Quercus rubra - Quercus alba Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+146,0,0,3,4,,Fagus grandifolia - Quercus spp. - Acer spp. Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+147,0,0,0,4,,Fagus grandifolia Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+182,0,0,0,4,,Fagus grandifolia Montane Forest,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,,0,,0,,,,,,,,1,8,7
+210,0,0,3,4,,Fagus grandifolia Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+828,1,0,0,0,,Fallugia paradoxa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+971,1,0,0,0,,Festuca arizonica Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1039,1,0,0,0,,Festuca brachyphylla Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+972,1,0,0,0,,Festuca campestris Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+1040,1,0,0,0,,Festuca idahoensis - Festuca kingii Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1041,1,2,0,0,,Festuca idahoensis Alpine Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+973,1,2,0,0,,Festuca idahoensis Herbland,Shiflet 1994,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+1042,1,0,0,0,,Festuca kingii Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1043,1,2,0,0,,Festuca ovina Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1050,0,2,0,0,,Festuca rubra  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+942,1,2,0,0,,Festuca rubra Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+974,1,0,0,0,,Festuca scabrella Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+975,1,0,0,0,,Festuca thurberi Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+976,1,2,0,0,,Festuca viridula Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+280,0,0,0,4,,Ficus aurea - Taxodium distichum Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1115,0,0,0,4,,Fimbristylis castanea - Scirpus pungens Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+672,1,0,0,0,,Flourensia cernua Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+813,0,0,0,4,,Forestiera acuminata Semipermanently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+757,1,0,0,0,,Forestiera pubescens Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+673,1,0,0,0,,Fouquieria splendens Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+479,0,0,0,4,,Fraxinus americana - Carya glabra Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+265,0,0,0,4,,Fraxinus caroliniana Semipermanently Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+245,0,2,0,0,,Fraxinus latifolia Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+211,0,2,0,0,,Fraxinus latifolia Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+271,1,0,3,4,,Fraxinus nigra - Acer rubrum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+148,0,0,3,0,,Fraxinus pennsylvanica; Ulmus americana Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+212,1,0,0,0,,Fraxinus pennsylvanica; Ulmus americana Temp. Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+480,1,0,0,0,,Fraxinus pennsylvanica; Ulmus americana Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+213,1,0,3,4,,Fraxinus pennsylvanica; Ulmus americana - Celtis(occidentalis;laevigata) Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+278,0,0,0,4,,Fraxinus pennsylvanica; Ulmus americana Tidal Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+481,0,0,0,4,,Fraxinus quadrangulata - Quercus macrocarpa - Quercus muehlenbergii Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1116,0,0,0,4,,Fuirena scirpoidea - Rhynchospora tracyi Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+571,0,2,0,0,,Gaultheria shallon Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+898,0,0,3,0,,Gaylussacia (baccata; dumosa) Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1312,1,0,0,0,,Geum rossii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+829,1,0,0,0,,Glossopetalon spinescens Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1143,1,0,0,0,,Glyceria borealis Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+14,0,0,0,4,,Gordonia lasianthus Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+377,0,0,0,4,,Gordonia lasianthus Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+852,1,2,0,0,,Grayia spinosa - Ephedra viridis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+839,1,2,0,0,,Grayia spinosa Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+830,1,2,0,0,,Grayia spinosa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+758,0,0,0,4,,Hamamelis vernalis Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+897,0,0,3,0,,Harrimanella hypnoides - Loiseleuria procumbens Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1339,1,0,0,0,,Heracleum maximum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1313,1,0,0,0,,Heuchera bracteata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+943,1,0,0,0,,Hilaria belangeri - Bouteloua curtipendula Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1270,1,0,0,0,,Hilaria jamesii Dwarf-Shrub Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,5,8,7
+1007,1,0,0,0,,Hilaria jamesii Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1228,1,0,0,0,,Hilaria jamesii Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1051,1,0,0,0,,Hilaria mutica  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+977,1,0,0,0,,Hilaria mutica Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1252,1,0,0,0,,Hilaria mutica Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+978,1,2,0,0,,Hilaria rigida Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1239,1,2,0,0,,Hilaria rigida Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1229,1,0,0,0,,Hilaria rigida/Gutierrezia sarothrae Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+712,1,2,0,0,,Holodiscus discolor Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1071,1,0,0,0,,Hordeum jubatum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+856,0,0,3,0,,Hudsonia ericoides Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+857,0,0,0,4,,Hudsonia montana Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+858,0,0,3,4,,Hudsonia tomentosa Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+870,0,0,3,0,,Hudsonia tomentosa Temporarily Flooded Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1340,0,0,0,4,,Hymenocaulis caroliniana Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+831,1,0,0,0,,Hymenoclea monogyra Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+873,0,0,0,4,,Hypericum brachyphyllum Seasonally Flooded Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+661,0,0,0,4,,Hypericum chapmanii Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+662,0,0,0,4,,Hypericum fasciculatum Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+663,0,0,0,4,,Hypericum lissophloeus Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+871,0,0,0,4,,Hypericum reductum Temporarily Flooded Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+572,0,0,0,4,,Ilex vomitoria - Myrica cerifera Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1370,0,0,0,4,,Impatiens (capensis; pallida) - Monarda didyma Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1286,0,0,3,0,,Impatiens pallida - Cystopteris bulbifera - Adoxa moschatellina Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1279,0,0,0,4,,Ipomoea pes-caprae Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+651,0,2,0,0,,Isocoma menziesii - Lupinus chamissonis - Ericameria linearifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1314,1,0,0,0,,Ivesia gordonii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+482,0,2,0,0,,Juglans californica Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+759,1,0,0,0,,Juglans major Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+760,1,0,0,0,,Juglans microcarpa Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1211,1,0,0,0,,Juglans microcarpa Temporarily Flooded Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+483,0,0,0,4,,Juglans nigra - Aesculus glabra Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+149,0,0,0,4,,Juglans nigra - Quercus muehlenbergii Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1117,1,0,0,4,,Juncus balticus Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1118,0,0,3,4,,Juncus dichotomus Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1044,1,0,0,0,,Juncus drummondii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1072,0,0,0,4,,Juncus effusus Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1073,0,2,0,0,,Juncus falcatus Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1045,1,0,0,0,,Juncus parryi Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1180,0,0,0,4,,Juncus roemerianus Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+382,1,0,0,4,,Juniperus ashei Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+383,0,2,0,0,,Juniperus californica Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+633,0,0,3,4,,Juniperus communis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+384,1,0,0,0,,Juniperus deppeana Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+385,1,0,0,0,,Juniperus erythrocarpa Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+864,1,0,0,0,,Juniperus horizontalis Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+386,1,0,0,0,,Juniperus monosperma Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+1198,1,2,0,0,,Juniperus occidentalis Wooded Herbland,SMFDB 029,0.04,0.17,0.49,0.35,0,0,10.19,0.5,,0.08,,0.23,,,,,,,,6,8,7
+1191,1,0,0,0,,Juniperus occidentalis Wooded Tall Herbland,SMFDB 029,0.04,0.17,0.49,0.35,0,0,10.19,0.5,,0.08,,0.23,,,,,,,,6,8,7
+387,1,2,0,0,,Juniperus occidentalis Woodland,SMFDB 029,0.04,0.17,0.49,0.35,0,0,10.19,0.5,,0.08,,0.23,,,,,,,,3,8,7
+1199,1,0,0,0,,Juniperus osteosperma Wooded Herbland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,6,8,7
+388,1,2,0,0,,Juniperus osteosperma Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+389,1,0,0,0,,Juniperus pinchotii Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+443,1,0,0,0,,Juniperus scopulorum Temporarily Flooded Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+390,1,0,0,0,,Juniperus scopulorum Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+537,0,0,3,4,,Juniperus virginiana - (Fraxinus americana; ostrya virginiana) Woodland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+845,0,0,0,4,,Juniperus virginiana - Andrachne phyllanthoides Intermittently Flooded Shrubland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,5,8,7
+538,0,0,0,4,,Juniperus virginiana - Carya glabra Woodland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+298,0,0,0,4,,Juniperus virginiana - Fraxinus americana - Quercus shumardii Forest,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+299,0,0,0,4,,Juniperus virginiana - Quercus (muehlenbergii; stellata) Forest,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+300,0,0,0,4,,Juniperus virginiana - Quercus (stellata; velutina; marilandica) Forest,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+539,0,0,3,4,,Juniperus virginiana - Quercus muehlenbergii Woodland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+540,0,0,0,4,,Juniperus virginiana - Quercus stellata - Quercus marilandica Woodland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+842,0,0,0,4,,Juniperus virginiana - Rhus aromatica Shrubland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,5,8,7
+541,0,0,0,4,,Juniperus virginiana - Ulmus alata Woodland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+468,0,2,0,0,,Juniperus virginiana Tidal Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+429,1,0,3,4,,Juniperus virginiana Woodland,FOFEM 371,0.2,0,0,0,0,0,0,0,,1,,5,,,,,,,,1,8,7
+1341,0,0,3,4,,Justicia americana Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+868,0,0,3,0,,Kalmia angustifolia - Ledum groenlandicum Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+843,0,0,0,4,,Kalmia latifolia - Gaylussacia baccata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+876,1,0,0,0,,Kalmia microphylla Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1046,1,0,0,0,,Kobresia myosuroides Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1271,1,0,0,0,,Krascheninnikovia lanata Dwarf-Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+884,1,0,0,0,,Krascheninnikovia lanata Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+22,0,0,0,4,,Laguncularia racemosa Tidal Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+272,0,0,3,4,,Larix laricina Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+484,1,0,0,0,,Larix lyallii Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+183,1,0,0,0,,Larix occidentalis Forest,FOFEM 031,0.6,0.23,0.67,0.8,7,5,10,1,,0.2,,0.35,,6,,3,,,,3,8,7
+674,1,0,0,0,,Larrea tridentata Shrubland,FOFEM 341,0.11,0,0,0,0,0,0,0,,0.2,,2.28,,,,,,,SGC,5,8,7
+859,0,0,0,4,,Leiophyllum buxifolium Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+659,0,2,0,0,,Lepidospartum squamatum Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1119,0,0,0,4,,Leptochloa fascicularis var. maritima Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+652,1,0,0,0,,Leucophyllum frutescens Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+979,1,0,0,0,,Leymus ambiguus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1052,1,2,0,0,,Leymus cinereus  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+935,1,0,0,0,,Leymus cinereus Herbland,FOFEM 291,0,0,0,0,0,0,0,0,,1.25,,0,,,,,,,,6,8,7
+944,1,0,0,0,,Leymus flavescens Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+945,0,2,0,0,,Leymus mollis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1074,1,2,0,0,,Leymus triticoides Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1287,1,0,0,0,,Ligusticum filicinum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1288,1,0,0,0,,Ligusticum porteri Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1315,1,0,0,0,,Ligusticum tenuifolium Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+246,0,0,3,4,,Liquidambar styraciflua - (Acer rubrum) Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+214,0,0,0,4,,Liquidambar styraciflua (Liriodendron tulipifera; Acer rubrum) Tmp Flood Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+247,0,0,0,4,,Liquidambar styraciflua - Taxodium distichum Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+150,0,0,0,4,,Liquidambar styraciflua Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+273,0,0,0,4,,Liquidambar styraciflua Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+151,0,0,3,4,,Liriodendron tulipifera;Tilia americana var. heterophylla - Aesculus flava -  Acer Saccharum Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+152,0,0,0,4,,Liriodendron tulipifera Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1316,0,2,0,0,,Lomatium martindalei Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1317,0,2,0,0,,Luetkea pectinata - Saxifraga tolmiei Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+568,0,2,0,0,,Lupinus arboreus Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1289,0,2,0,0,,Lupinus arcticus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1318,0,2,0,0,,Lupinus littoralis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+853,1,0,0,0,,Lycium berlandieri - Larrea tridentata Shrubland,X,,,,,,,,,,,,,,,,,,,SGC,5,8,7
+282,0,0,0,4,,Lysiloma latisiliquum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+285,0,0,0,4,,Magnolia grandiflora; Tilia americana var. caroliniana;Carya glabra; Liquidambar styraciflua Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+4,0,0,0,4,,Magnolia virginiana - Chrysobalanus icaco Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+291,0,0,0,4,,Magnolia virginiana - Nyssa bifolia Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+15,0,0,0,4,,Magnolia virginiana - Persea palustris Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+378,0,0,0,4,,Magnolia virginiana Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+606,0,2,0,0,,Malosoma laurina - (Rhus integrifolia) Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1290,1,0,0,0,,Mertensia ciliata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1,0,0,0,4,,Metopium toxiferum - Eugenia foetida Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+362,0,0,0,4,,Metopium toxiferum Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1342,1,2,0,0,,Mimulus primuloides Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1319,1,0,0,0,,Minuartia obtusiloba Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+675,1,0,0,0,,Mortonia sempervirens Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1053,1,0,0,0,,Muhlenbergia asperifolia  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+946,0,0,0,4,,Muhlenbergia capillaris Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+980,1,0,0,0,,Muhlenbergia emersleyi Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1258,0,0,0,4,,Muhlenbergia expansa - Rhynchospora plumosa Saturated Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1172,0,0,0,4,,Muhlenbergia expansa Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1008,1,0,0,0,,Muhlenbergia filiculmis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1173,0,0,0,4,,Muhlenbergia filipes Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+913,0,0,0,4,,Muhlenbergia filipes Seasonally Flooded Tropical Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+981,1,0,0,0,,Muhlenbergia montana Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+947,0,0,0,4,,Muhlenbergia reverchonii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1240,1,0,0,0,,Muhlenbergia setifolia Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1230,1,0,0,0,,Muhlenbergia setifolia/Artemisia bigelovii Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+796,0,0,3,4,,Myrica (cerifera; pensylvanica) - Vaccinium formosum Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+569,0,0,0,4,,Myrica cerifera - Baccharis halimifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+557,0,0,0,4,,Myrica cerifera - Ilex cassine Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+624,0,0,0,4,,Myrica cerifera Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1262,0,0,3,0,,Myrica gale/Carex lasiocarpa Saturated Shrub Herbland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+713,0,0,3,4,,Myrica pensylvanica - (Prunus maritima) Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+982,0,2,0,0,,Nassella cernua Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+983,0,2,0,0,,Nassella lepida Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1010,0,2,0,0,,Nassella pulchra Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+984,1,0,0,0,,Nassella viridula Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1352,0,0,0,4,,Nelumbo lutea Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+690,1,2,0,0,,Nolina bigelovii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+266,0,0,0,4,,Nyssa aquatica - (Taxodium distichum) Semipermanently Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+279,0,0,0,4,,Nyssa biflora - (Taxodium distichum) Tidal Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+274,0,0,0,4,,Nyssa biflora - Acer rubrum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+525,0,0,0,4,,Nyssa biflora - Taxodium ascendens Semipermanently Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+248,0,0,0,4,,Nyssa biflora Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+520,0,0,0,4,,Nyssa biflora Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+267,0,0,0,4,,Nyssa biflora Semipermanently Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+249,0,0,0,4,,Nyssa ogeche Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+691,1,2,0,0,,Opuntia bigelovii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+692,0,2,0,0,,Opuntia littoralis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+693,0,0,0,4,,Opuntia stricta - Acanthocereus tetragonus Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+985,1,0,0,0,,Oryzopsis hymenoides Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1241,1,0,0,0,,Oryzopsis hymenoides Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1371,0,0,0,4,,Osmunda cinnamomea Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1372,0,0,0,4,,Osmunda regalis Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1075,0,0,0,4,,Panicum abscissum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1076,1,0,0,0,,Panicum bulbosum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1120,0,0,0,4,,Panicum hemitomon Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+914,0,0,0,4,,Panicum hemitomon Seasonally Flooded Tropical Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1214,0,0,0,4,,Panicum hemitomon Semipermanently Flooded Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+948,1,0,0,0,,Panicum obtusum Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1121,0,0,3,4,,Panicum virgatum Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1181,0,0,3,0,,Panicum virgatum Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+471,0,2,0,0,,Parkinsonia florida - Olneya tesota Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+694,1,0,0,0,,Parkinsonia florida Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+695,1,2,0,0,,Parkinsonia microphylla Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+867,1,0,0,0,,Paronychia pulvinata Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1054,1,0,0,0,,Pascopyrum smithii  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+949,1,0,0,0,,Pascopyrum smithii Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,6,8,7
+1077,1,0,0,0,,Pascopyrum smithii Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1078,0,0,0,4,,Paspalum distichum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1320,1,2,0,0,,Pedicularis contorta Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+819,0,0,3,0,,Pentaphylloides floribunda - Myrica gale - (Carex lasiocarpa) Saturated Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+1234,1,0,0,0,,Pentaphylloides floribunda Shrub Herbland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+761,1,0,0,0,,Pentaphylloides floribunda Temporarily Flooded Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+1263,0,0,3,0,,Pentaphylloides floribunda/Carex(flava;interior;sterilis;lasiocarpa) Saturated Shrub Herbland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+5,0,0,0,4,,Persea palustris - Ficus aurea Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1122,0,0,3,0,,Phalaris arundinacea Seasonally Flooded Herbland,FOFEM 311,0,0,0,0,0,0,0,0,,4.5,,0,,,,,,,,6,8,7
+740,1,0,0,0,,Philadelphus lewisii Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1031,1,2,0,0,,Phleum alpinum Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1079,1,0,0,0,,Phleum alpinum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1321,1,0,0,0,,Phlox diffusa Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1322,1,0,0,0,,Phlox pulvinata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1323,0,0,0,4,,Phlox subulata - Solidago simplex Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1144,1,2,0,0,,Phragmites australis  Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1080,0,0,0,4,,Phragmites australis Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+865,1,2,0,0,,Phyllodoce empetriformis Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+866,1,2,0,0,,Phyllodoce glanduliflora Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+714,1,0,0,0,,Physocarpus malvaceus Shrubland,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,5,8,7
+68,0,2,0,0,,Picea breweriana Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+69,1,2,0,0,,Picea engelmannii Forest,FOFEM 061,0.6,0.23,0.67,0.9,20,5,30,1.6,,0.3,,0.2,,6,,4,,,,3,8,7
+117,1,0,0,0,,Picea engelmannii Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+106,1,2,0,0,,Picea engelmannii Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+452,1,0,0,0,,Picea engelmannii Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+93,1,0,0,0,,Picea engelmannii Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+444,1,0,0,0,,Picea engelmannii Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+430,1,0,0,0,,Picea engelmannii Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+301,0,0,3,0,,Picea glauca - Abies balsamea - Populus spp. Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+70,0,0,3,0,,Picea glauca - Abies balsamea Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+71,1,0,0,0,,Picea glauca Forest,FOFEM 161,11.1,0,0,0,0,0,35,2.3,,0.15,,0.25,,6,,4,,,,3,8,7
+94,1,0,0,0,,Picea glauca Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+431,0,0,3,0,,Picea glauca Woodland,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+634,0,0,3,0,,Picea mariana - Abies balsamea Shrubland,X,,,,,,,,,,,,,,,,,,,BBS,5,8,7
+352,0,0,3,0,,Picea mariana - Larix laricina Saturated Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+302,0,0,3,0,,Picea mariana - Populus tremuloides Forest,PMS-831,0,0.2,0.4,0.8,0.3,5,70.47,6,,0.1,,0.8,,,,,,,,3,8,7
+72,0,2,3,0,,Picea mariana Forest,PMS-831,6.8,0.1,0.2,0.5,2.4,5,75.49,5.1,,0.31,,0.23,,,,,,,,3,8,7
+118,0,2,3,0,,Picea mariana Saturated Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+456,0,2,3,0,,Picea mariana Saturated Woodland,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+303,1,0,0,0,,Picea pungens - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+73,1,0,0,0,,Picea pungens Forest,FOFEM 051,1,0.23,0.67,1.3,20,5,20,1.1,,0.15,,0.25,,6,,4,,,,3,8,7
+107,1,0,0,0,,Picea pungens Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+95,1,0,0,0,,Picea pungens Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+445,1,0,0,0,,Picea pungens Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+432,1,0,0,0,,Picea pungens Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+74,0,0,3,0,,Picea rubens - Abies balsamea Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+119,0,0,3,0,,Picea rubens - Abies balsamea Saturated Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+353,0,0,3,0,,Picea rubens - Acer rubrum Saturated Forest,X,,,,,,,,,,,,,,,,,,,BBS,3,8,7
+304,0,0,3,4,,Picea rubens - Betula alleghaniensis Forest,X,,,,,,,,,,,,,,,,,,,BBS,1,8,7
+75,0,0,0,4,,Picea rubens Forest,X,,,,,,,,,,,,,,,,,,,BBS,1,8,7
+120,0,0,3,4,,Picea rubens Saturated Forest,X,,,,,,,,,,,,,,,,,,,BBS,1,8,7
+457,0,0,0,4,,Picea rubens Saturated Woodland,X,,,,,,,,,,,,,,,,,,,BBS,1,8,7
+433,0,0,3,4,,Picea rubens Woodland,X,,,,,,,,,,,,,,,,,,,BBS,1,8,7
+96,0,2,0,0,,Picea sichensis Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+553,0,2,0,0,,Picea sitchensis - Populus balsamifera ssp. trichocarpa Seasonally Flood Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+305,0,2,0,0,,Picea sitchensis - Populus trichocarpa Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+341,0,2,0,0,,Picea sitchensis - Populus trichocarpa Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+76,0,2,0,0,,Picea sitchensis Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,6,,4,,,,3,8,7
+121,0,2,0,0,,Picea sitchensis Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+458,0,2,0,0,,Picea sitchensis Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+108,0,2,0,0,,Picea sitchensis Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+446,0,2,0,0,,Picea sitchensis Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+434,0,2,0,0,,Picea sitchensis Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+391,0,0,3,0,,Pinus (banksiana; resinosa) Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+542,0,0,0,4,,Pinus (echinata; taeda) - Quercus (arkansana; incana; margarettiae) Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+306,0,0,0,4,,Pinus (echinata;taeda;virginiana) - Quercus (alba;rubra) - Liriodendron tulipifera Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+307,0,0,0,4,,Pinus (echinata;taeda;virginiana) - Quercus (incana;margarettiae;hemisphaerical) Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+308,0,0,0,4,,Pinus (echinata; virginiana) - Liriodendron tulipifera Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+309,0,0,0,4,,Pinus (glabra; taeda) - Fagus grandifolia - Quercus alba - Magnolia grandiflora Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+310,0,0,3,0,,Pinus (rigida; echinata) - Quercus coccinea Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+311,0,0,3,4,,Pinus (rigida; pungens) - Quercus (prinus; coccinea) Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+543,0,0,3,4,,Pinus (rigida; pungens; virginiana) - Quercus (prinus; coccinea) Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+38,1,2,0,0,,Pinus albicaulis Forest,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,,0.2,,0.4,,2,,1,,,,3,8,7
+392,1,2,0,0,,Pinus albicaulis Woodland,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,,0.2,,0.4,,2,,1,,,,3,8,7
+393,1,0,0,0,,Pinus aristata Woodland,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,,0.2,,0.4,,2,,1,,,,3,8,7
+394,0,2,0,0,,Picea sitchensis Woodland,SMFDB 020,2.61,0.31,0.33,0.41,0,0,21.57,1.1,,0.2,,0.4,,,,,,,,3,8,7
+395,0,2,0,0,,Pinus balfouriana Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1200,0,0,3,0,,Pinus banksiana - (Pinus resinosa) Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+312,0,0,3,0,,Pinus banksiana - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+313,0,0,3,0,,Pinus banksiana - Quercus (ellipsoidalis; velutina) Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+39,0,0,3,0,,Pinus banksiana Forest,FOFEM 121,0.7,0.17,0.93,0,3,5,34,2.5,,0,,0,,6,,5,,,RJP,3,8,7
+314,0,0,0,4,,Pinus cembroides - Quercus gravesii Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+396,1,0,0,0,,Pinus cembroides Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+40,0,0,0,4,,Pinus clausa Forest,FOFEM 191,0.7,0,0,0,0,0,3.8,1,,1.7,,2.6,,,,,,,,1,8,7
+397,0,0,0,4,,Pinus clausa Woodland,FOFEM 191,0.7,0,0,0,0,0,3.8,1,,1.7,,2.6,,,,,,,,1,8,7
+315,1,0,0,0,,Pinus contorta - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+350,0,2,0,0,,Pinus contorta - Populus tremuloides Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+41,1,2,0,0,,Pinus contorta Forest,SMFDB 362,0.27,0.22,0.5,1.28,1.61,5,32.02,1.5,,0.36,,0.49,,,,,,,,3,8,7
+459,0,2,0,0,,Pinus contorta Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+109,1,2,0,0,,Pinus contorta Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+97,0,2,0,0,,Pinus contorta Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+447,0,2,0,0,,Pinus contorta Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+398,1,2,0,0,,Pinus contorta Woodland,SMFDB 362,0.27,0.22,0.5,1.28,1.61,5,32.02,1.5,,0.36,,0.49,,,,,,,,3,8,7
+399,0,2,0,0,,Pinus coulteri - Quercus chrysolepis Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+400,0,2,0,0,,Pinus coulteri Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+401,1,0,0,0,,Pinus discolor Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+316,0,0,0,4,,Pinus echinata - Quercus (alba; falcata; stellata; velutina) Forest,Mc Daniel,1.51,0.17,0.72,2.4,2.46,,4.65,0.72,,0.03,,0.14,,0,,0,,,,1,8,7
+544,0,0,0,4,,Pinus echinata - Quercus (alba; falcata; stellata; velutina) Woodland,Mc Daniel,1.51,0.17,0.72,2.4,2.46,,4.65,0.72,,0.14,,0.03,,0,,0,,,,1,8,7
+317,0,0,0,4,,Pinus echinata - Quercus (coccinea; falcata; prinus) Forest,Mc Daniel,1.51,0.17,0.72,2.4,2.46,,4.65,0.72,,0.03,,0.14,,0,,0,,,,1,8,7
+545,0,0,0,4,,Pinus echinata - Quercus stellata - Quercus marilandica Woodland,Mc Daniel,1.51,0.17,0.72,2.4,2.46,,4.65,0.72,,0.14,,0.03,,0,,0,,,,1,8,7
+318,0,0,0,4,,Pinus echinata - Quercus stellata - Quercus marlandica Forest,Mc Daniel,1.51,0.17,0.72,2.4,2.46,,4.65,0.72,,0.03,,0.14,,0,,0,,,,1,8,7
+42,0,0,0,4,,Pinus echinata Forest,Mc Daniel,1.51,0.17,0.72,2.4,2.46,,4.65,0.72,,0.03,,0.14,,0,,0,,,,1,8,7
+402,0,0,0,4,,Pinus echinata Woodland,Mc Daniel,0.89,0.08,0.29,1.59,3.12,,1.77,0.36,,0.29,,0.07,,0,,0,,,,1,8,7
+43,1,0,0,0,,Pinus edulis Forest,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+403,1,2,0,0,,Pinus edulis Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+380,0,0,0,4,,Pinus elliottii Saturated Tropical Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+354,0,0,0,4,,Pinus elliottii - Magnolia virginiana - Taxodium ascendens - Nyssa biflora Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+554,0,0,0,4,,Pinus elliottii - Taxodium ascendens Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+122,0,0,0,4,,Pinus elliottii Saturated Temperate Forest,X,,,,,,,,,,,,,,,,,,,PFL,1,8,7
+460,0,0,0,4,,Pinus elliottii Saturated Temperate Woodland,X,,,,,,,,,,,,,,,,,,,PFL,1,8,7
+25,0,0,0,4,,Pinus elliottii Tropical Forest,FOFEM 401,1.58,0,0,0,0,0,9.72,1.4,,0,,5.45,,,,,,,,1,8,7
+379,0,0,0,4,,Pinus elliottii Tropical Woodland,FOFEM 401,1.58,0,0,0,0,0,9.72,1.4,,0,,5.45,,,,,,,,1,8,7
+404,1,0,0,0,,Pinus engelmannii Woodland,SMFDB 081,0.6,0.24,0.67,0.89,12.5,5,41.19,1.89,,1,,0.35,,,,,,,,3,8,7
+319,1,0,0,0,,Pinus flexilis - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+448,1,0,0,0,,Pinus flexilis Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+405,1,2,0,0,,Pinus flexilis Woodland,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,,0.2,,0.4,,,,,,,,3,8,7
+342,0,0,0,4,,Pinus glabra - Pinus taeda - Liquidambar styraciflua - Quercus phellos Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+355,0,0,0,4,,Pinus glabra - Quercus laurifolia Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+44,0,0,0,4,,Pinus glabra Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+110,0,0,0,4,,Pinus glabra Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1201,0,2,0,0,,Pinus jeffreyi Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+406,0,2,0,0,,Pinus jeffreyi Woodland,SMFDB 019,1.68,0.11,0.87,0.33,0,0,39.99,2.12,,0.2,,0.4,,,,,,,PN,3,8,7
+407,1,0,0,0,,Pinus leiophylla Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+408,1,2,0,0,,Pinus longaeva Woodland,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,,0.2,,0.4,,,,,,,,3,8,7
+1192,1,0,0,0,,Pinus monophylla Wooded Tall Herbland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,6,8,7
+409,1,2,0,0,,Pinus monophylla Woodland,FOFEM 381,1,0,0,0,0,0,9,0.4,,0.2,,1.3,,,,,,,,3,8,7
+45,1,2,0,0,,Pinus monticola Forest,FOFEM 041,0.8,0.15,0.85,0.8,40,5,30,2,,0.15,,0.25,,4,,3,,,,3,8,7
+410,0,2,0,0,,Pinus monticola Woodland,FOFEM 041,0.8,0.15,0.85,0.8,40,5,30,2,,0.15,,0.25,,4,,3,,,,3,8,7
+46,0,2,0,0,,Pinus muricata Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+320,0,0,0,4,,Pinus palustris;Pinus(echinata;taeda);Quercus(incana;margarettiae;falcata;laevis,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,3,8,7
+47,0,0,0,4,,Pinus palustris - Pinus (echinata; taeda) Forest,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,1,8,7
+411,0,0,0,4,,Pinus palustris - Pinus (echinata; taeda) Woodland,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,1,8,7
+412,0,0,0,4,,Pinus palustris - Pinus clausa Woodland,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,1,8,7
+321,0,0,0,4,,Pinus palustris - Pinus echinata;(Pinus taeda); Quercus(stellata;falcata) Forest,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,1,8,7
+461,0,0,0,4,,Pinus palustris - Pinus elliottii Saturated Woodland,FOFEM 401,1.58,0,0,0,0,0,9.72,1.4,,0,,5.45,,,,,,,PFL,1,8,7
+462,0,0,0,4,,Pinus palustris - Pinus serotina Saturated Woodland,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,1,8,7
+463,0,0,0,4,,Pinus palustris Saturated Woodland,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,PFL,1,8,7
+414,0,0,0,4,,Pinus palustris Woodland,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,PFL,1,8,7
+413,0,0,0,4,,Pinus palustris/Quercus spp. Woodland,FOFEM 391,1.58,0,0,0,0,0,9.72,1.4,,0.19,,0.15,,,,,,,,1,8,7
+322,1,0,0,0,,Pinus ponderosa - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,PN,3,8,7
+48,1,2,0,0,,Pinus ponderosa - Pseudotsuga menziesii Forest,FOFEM 081,1.5,0.25,0.75,1.5,20,5,40,3,,0.2,,0.4,,6,,3,,,PN,3,8,7
+415,0,2,0,0,,Pinus ponderosa - Pseudotsuga menziesii Woodland,X,,,,,,,,,,,,,,,,,,,PN,3,8,7
+546,0,2,0,0,,Pinus ponderosa - Quercus garryana Woodland,X,,,,,,,,,,,,,,,,,,,PN,3,8,7
+49,1,2,0,0,,Pinus ponderosa Forest,FOFEM 011,1.4,0.07,0.63,0.8,5,5,5,0.6,,0.2,,0.4,,6,,0.7,,,PN,3,8,7
+449,1,2,0,0,,Pinus ponderosa Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,PN,3,8,7
+1202,1,0,0,0,,Pinus ponderosa Wooded Medium-Tall Herbland,X,,,,,,,,,,,,,,,,,,,PN,6,8,7
+1193,1,0,0,0,,Pinus ponderosa Wooded Tall Herbland,X,,,,,,,,,,,,,,,,,,,PN,6,8,7
+416,1,2,0,0,,Pinus ponderosa Woodland,FOFEM 011,1.4,0.07,0.63,0.8,5,5,5,0.6,,0.2,,0.4,,6,,0.7,,,PN,3,8,7
+417,0,0,3,4,,Pinus pungens - (Pinus rigida) Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+418,0,2,0,0,,Pinus quadrifolia Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+50,0,2,0,0,,Pinus radiata Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+419,1,0,0,0,,Pinus remota Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+547,0,0,0,4,,Pinus resinosa - Quercus rubra Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+51,0,0,3,4,,Pinus resinosa Forest,FOFEM 131,1.1,0.25,1.35,0,3,5,12,1.5,,0,,0,,6,,5,,,RJP,1,8,7
+548,0,0,3,4,,Pinus rigida - Quercus (coccinea; velutina) Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+323,0,0,3,0,,Pinus rigida - Quercus (velutina; prinus) Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+549,0,0,0,4,,Pinus rigida - Quercus alba Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+464,0,0,3,0,,Pinus rigida Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+420,0,0,3,4,,Pinus rigida Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+421,0,2,0,0,,Pinus sabiniana Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+465,0,0,0,4,,Pinus serotina Saturated Woodland,SMFDB 123,4.59,0,0,0,0,0,88,6,,0.48,,4.3,,,,,,,PC,1,8,7
+356,0,0,3,0,,Pinus strobus - (Acer rubrum) Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+324,0,0,3,0,,Pinus strobus - (Pinus resinosa) - Populus tremuloides Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+550,0,0,3,0,,Pinus strobus - Quercus (alba; ellipsoidalis; rubra; velutina) Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1203,0,0,3,0,,Pinus strobus - Quercus (alba; rubra) Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+325,0,0,3,4,,Pinus strobus - Quercus (alba; rubra; velutina) Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+326,0,0,0,4,,Pinus strobus - Quercus (coccinea; prinus) Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+52,0,0,3,4,,Pinus strobus - Tsuga canadensis Forest,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,,0,,0,,4,,3,,,WPH,1,8,7
+53,0,0,3,4,,Pinus strobus Forest,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,,0,,0,,4,,3,,,WPH,1,8,7
+555,0,0,0,4,,Pinus strobus Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+327,0,0,0,4,,Pinus taeda - (Liquidambar styraciflua - Liriodendron tulipifera) Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+357,0,0,0,4,,Pinus taeda - Chamaecyparis thyoides - Acer rubrum - Nyssa biflora Saturated Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+358,0,0,0,4,,Pinus taeda - Liquidambar styraciflua - Acer rubrum Saturated Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+348,0,0,0,4,,Pinus taeda - Liquidambar styraciflua - Nyssa biflora Temporarily Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+343,0,0,0,4,,Pinus taeda - Liriodendron tulipifera Temporarily Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+54,0,0,0,4,,Pinus taeda - Pinus echinata - (Juniperus virginiana) Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+344,0,0,0,4,,Pinus taeda - Platanus occidentalis - Acer negundo Temporarily Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+328,0,0,0,4,,Pinus taeda - Quercus (alba; falcata; stellata) Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+329,0,0,0,4,,Pinus taeda - Quercus (marilandica; falcata; stellata) Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+345,0,0,0,4,,Pinus taeda - Quercus (pagoda; michauxii; shumardii) Temporarily Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+346,0,0,0,4,,Pinus taeda - Quercus (phellos; nigra; laurifolia) Temporarily Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+347,0,0,0,4,,Pinus taeda - Quercus laurifolia - Chamaecyparis thyoides Tmp Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+330,0,0,0,4,,Pinus taeda - Quercus nigra Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+55,0,0,0,4,,Pinus taeda Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+111,0,0,0,4,,Pinus taeda Seasonally Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+98,0,0,0,4,,Pinus taeda Temporarily Flooded Forest,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+422,0,0,0,4,,Pinus taeda Woodland,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,,0,,3.15,,,,,,,,1,8,7
+331,0,0,0,4,,Pinus virginiana - Liquidambar styraciflua - Liriodendron tulipifera Forest,FOFEM 211,1.1,0,0,0,0,0,6,0.6,,0.1,,0.25,,,,,,,,1,8,7
+423,0,0,0,4,,Pinus virginiana - Pinus rigida Woodland,FOFEM 211,1.1,0,0,0,0,0,6,0.6,,0.1,,0.25,,,,,,,,1,8,7
+332,0,0,0,4,,Pinus virginiana - Quercus (alba; stellata; falcata; velutina) Forest,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,,0,,3.9,,,,,,,,1,8,7
+333,0,0,3,4,,Pinus virginiana - Quercus (coccinea; prinus) Forest,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,,0,,3.9,,,,,,,,1,8,7
+56,0,0,3,4,,Pinus virginiana Forest,FOFEM 211,1.1,0,0,0,0,0,6,0.6,,0.1,,0.25,,,,,,,,1,8,7
+424,0,0,0,4,,Pinus virginiana Woodland,FOFEM 211,1.1,0,0,0,0,0,6,0.6,,0.1,,0.25,,,,,,,,1,8,7
+425,1,2,0,0,,Pinus washoensis Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+558,0,0,0,4,,Pithecellobium ebano - Phaulothamnus spinescens Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+250,0,0,0,4,,Planera aquatica Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+215,0,0,3,4,,Platanus occidentalis - (Fraxinus pennsylvanica;Celtis laevigata;Acer saccharinm Tmp.Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+216,0,0,0,4,,Platanus occidentalis - (Liquidambar styraciflua; Liriodendron tulipifera) Tempo,X,,,,,,,,,,,,,,,,,,,,3,8,7
+506,0,0,0,4,,Platanus occidentalis - Betula nigra - Salix spp. Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+507,0,2,0,0,,Platanus racemosa Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+217,1,0,0,0,,Platanus wrightii Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+508,1,0,0,0,,Platanus wrightii Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+625,0,2,0,0,,Pluchea sericea Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1032,1,0,0,0,,Poa arctica Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1055,1,0,0,0,,Poa fendleriana  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+986,1,0,0,0,,Poa fendleriana Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1081,1,0,0,0,,Poa glauca Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1047,1,0,0,0,,Poa lettermanii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+987,1,0,0,0,,Poa nervosa Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1123,1,0,0,0,,Poa palustris Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1272,1,0,0,0,,Poa secunda Dwarf-Shrub Herbland,FOFEM 271,0,0,0,0,0,0,0,0,,0.63,,0,,,,,,,,5,8,7
+1011,1,2,0,0,,Poa secunda Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1124,1,2,0,0,,Poa secunda Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+950,1,0,0,0,,Poa spp. - Sporobolus spp. Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1324,1,0,0,0,,Polemonium viscosum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+676,1,0,0,0,,Poliomintha incana Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1353,0,0,0,4,,Polygonum pensylvanicum Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1354,0,0,0,4,,Polygonum punctatum Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1082,1,0,0,4,,Polygonum spp. - Echinochloa spp. Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1343,0,0,3,4,,Polygonum spp. - Mixed Forb Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1355,0,0,3,4,,Pontederia cordata - Peltandra virginica Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1280,0,0,0,4,,Pontederia cordata Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+218,1,0,0,0,,Populus angustifolia Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+509,1,0,0,0,,Populus angustifolia Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+219,1,2,0,0,,Populus balsamifera spp. trichocarpa Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+510,0,2,0,0,,Populus balsamifera ssp. trichocarpa Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+220,1,0,0,0,,Populus deltoides spp. wislizeni Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+221,1,0,3,4,,Populus deltoides Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1212,1,0,0,0,,Populus deltoides Temporarily Flooded Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+511,1,0,0,4,,Populus deltoides Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1194,0,0,3,0,,Populus deltoides Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+521,1,0,0,0,,Populus fremontii Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+222,1,0,0,0,,Populus fremontii Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+512,1,2,0,0,,Populus fremontii Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+251,0,0,3,4,,Populus heterophylla Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+334,1,0,0,0,,Populus tremuloides - Pseudotsuga menziesii Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+715,0,0,3,0,,Populus tremuloides - Quercus spp. - Salix spp. Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+185,1,2,3,0,,Populus tremuloides Forest,SMFDB 152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,,0.41,,1.1,,,,,,,,3,8,7
+252,1,0,0,0,,Populus tremuloides Seasonally Flooded Forest,SMFDB 152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,,0.41,,1.1,,,,,,,,3,8,7
+223,1,2,3,0,,Populus tremuloides Temporarily Flooded Forest,SMFDB 152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,,0.41,,1.1,,,,,,,,3,8,7
+1206,1,0,0,0,,Populus tremuloides Wooded Medium-Tall Herbland,SMFDB 152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,,0.41,,1.1,,,,,,,,6,8,7
+485,1,0,3,0,,Populus tremuloides Woodland,SMFDB 152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,,0.41,,1.1,,,,,,,,3,8,7
+186,1,0,0,0,,Populus tremuloides-Artemisia tridentata Forest,SMFDB149,0.77,0.11,1.11,2.71,6.72,5,5,0.6,,0.5,,0.93,,,,,,,,3,8,7
+193,1,0,0,0,,Populus tremuloides-Calamagrostis rubescens Forest,SMFDB158,1.12,0.14,0.09,0.53,0,5,5,0.6,,0.52,,0.22,,,,,,,,3,8,7
+192,1,0,0,0,,Populus tremuloides-Ligusticum filicinum Forest,SMFDB157,0.57,0.09,1.2,7.82,29.76,5,5,0.6,,0.53,,0.02,,,,,,,,3,8,7
+194,1,0,0,0,,Populus tremuloides-Mahonia repens Forest,SMFDB160,1,0.19,0.91,1.37,1.19,5,5,0.6,,0.14,,0.17,,,,,,,,3,8,7
+187,1,0,0,0,,Populus tremuloides-Prunus virginiana Forest,SMFDB150,1.18,0.22,0.46,1.12,3.16,5,5,0.6,,0.2,,2,,,,,,,,3,8,7
+189,1,0,0,0,,Populus tremuloides-Rudbeckia occidentalis Forest,SMFDB153,0.88,0.02,0.53,3.02,30.15,5,5,0.6,,1.01,,0,,,,,,,,3,8,7
+188,1,0,0,0,,Populus tremuloides-Shepherdia canadensis Forest,SMFDB152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,,0.41,,1.1,,,,,,,,3,8,7
+191,1,0,0,0,,Populus tremuloides-Spiraea betulifolia Forest,SMFDB156,1.3,0.27,0.35,2,3.98,5,5,0.6,,0.12,,0.49,,,,,,,,3,8,7
+190,1,0,0,0,,Populus tremuloides-Wyethia amplexicaulis Forest,SMFDB155,1.03,0.06,0.35,1.95,3.6,5,5,0.6,,0.73,,0.02,,,,,,,,3,8,7
+184,0,0,3,0,,Populus trmuloides - Betula papyrifera Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1291,0,2,0,0,,Potentilla flabellifolia Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1325,1,0,0,0,,Potentilla sierra-blancae Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1344,1,0,0,0,,Primula parryi Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+850,1,0,0,0,,Prosopis glandulosa - Artemisia filifolia Shrubland,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,,1,,5,,,,,,,,5,8,7
+851,1,0,0,0,,Prosopis glandulosa - Atriplex spp. Shrubland,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,,1,,5,,,,,,,,5,8,7
+530,1,0,0,0,,Prosopis glandulosa - Prosopis velutina Woodland,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,,1,,5,,,,,,,,3,8,7
+1253,1,0,0,0,,Prosopis glandulosa Shrub Herbland,FOFEM 341,0.11,0,0,0,0,0,0,0,,0.2,,2.28,,,,,,,,5,8,7
+832,1,0,0,0,,Prosopis glandulosa Shrubland,FOFEM 341,0.11,0,0,0,0,0,0,0,,0.2,,2.28,,,,,,,,5,8,7
+486,1,0,0,0,,Prosopis glandulosa Woodland,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,,1,,5,,,,,,,,3,8,7
+833,1,0,0,0,,Prosopis pubescens Shrubland,FOFEM 341,0.11,0,0,0,0,0,0,0,,0.2,,2.28,,,,,,,,5,8,7
+834,1,0,0,0,,Prosopis velutina Shrubland,FOFEM 341,0.11,0,0,0,0,0,0,0,,0.2,,2.28,,,,,,,,5,8,7
+573,0,0,0,4,,Prunus caroliniana Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+195,0,0,3,4,,Prunus pensylvanica Forest,SMFDB 244,0.9,0.97,1.98,1.5,8.66,5,5,0.5,,0.3,,0.5,,,,,,,,1,8,7
+716,0,0,3,0,,Prunus pumila Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+153,0,0,3,4,,Prunus serotina - Amelanchier canadensis - Quercus spp. Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+717,1,0,0,0,,Prunus virginiana Shrubland,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,5,8,7
+951,1,0,0,0,,Pseudoroegneria spicata - Bouteloua gracilis Herbland,Shiflet 1994,0,0,0,0,0,0,0,0,,0.59,,0,,,,,,,,6,8,7
+988,1,0,0,0,,Pseudoroegneria spicata Herbland,Shiflet 1994,0,0,0,0,0,0,0,0,,0.59,,0,,,,,,,,6,8,7
+77,0,2,0,0,,Pseudotsuga macrocarpa - Quercus chrysolepis Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+78,0,2,0,0,,Pseudotsuga macrocarpa Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+335,0,2,0,0,,Pseudotsuga menziesii - Acer macrophyllum Forest,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+79,0,2,0,0,,Pseudotsuga menziesii - Arbutus menziesii Forest,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+367,0,2,0,0,,Pseudotsuga menziesii - Arbutus menziesii Woodland,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+336,1,2,0,0,,Pseudotsuga menziesii - Betula papyrifera Forest,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+551,0,2,0,0,,Pseudotsuga menziesii - Quercus garryana Woodland,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+80,1,2,0,0,,Pseudotsuga menziesii Forest,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+30,0,2,0,0,,Pseudotsuga menziesii Giant Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,,,,,,,3,8,7
+99,1,0,0,0,,Pseudotsuga menziesii Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+450,1,0,0,0,,Pseudotsuga menziesii Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+435,1,2,0,0,,Pseudotsuga menziesii Woodland,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,,0.18,,0.13,,,,,,,,3,8,7
+835,1,0,0,0,,Psorothamnus polydenius Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+653,1,0,0,0,,Psorothamnus scoparius Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1292,0,0,3,0,,Pteridium aquilinum - Bromus kalmii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1278,0,0,0,4,,Pteridium caudatum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1056,1,0,0,0,,Puccinellia nuttalliana  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+654,1,0,0,0,,Purshia mexicana Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1231,1,2,0,0,,Purshia tridentata Shrub Herbland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1217,1,0,0,0,,Purshia tridentata Shrub Tall Herbland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,6,8,7
+655,1,2,0,0,,Purshia tridentata Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+286,0,2,0,0,,Quercus (agrifolia; douglasii; kelloggii; lobata; wislizenii) Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+607,0,2,0,0,,Quercus (dumosa; dunnii; turbinella; wislizenii) Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+224,0,0,0,4,,Quercus (michauxii; pagoda; shumardii) - Liquidambar styraciflua Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+225,0,0,0,4,,Quercus (phellos; nigra; laurifolia) Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+472,0,2,0,0,,Quercus agrifolia Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+154,0,0,0,4,,Quercus alba - (Quercus nigra) Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+155,0,0,0,4,,Quercus alba - (Quercus rubra - Carya spp.) Forest,Mc Daniel,1.57,0.14,0.58,1.65,4.79,,1.49,0.31,,0.02,,0.08,,0,,0,,,,1,8,7
+487,0,0,3,4,,Quercus alba - (Quercus velutina) Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+156,0,0,0,4,,Quercus alba - Quercus (coccinea; rubra; velutina) Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+157,0,0,0,4,,Quercus alba - Quercus (falcata; stellata) Forest,Mc Daniel,1.57,0.14,0.58,1.65,4.79,,1.49,0.31,,0.02,,0.08,,0,,0,,,,1,8,7
+158,1,0,3,4,,Quercus alba - Quercus rubra Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+196,0,0,0,4,,Quercus alba Montane Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+368,1,0,0,0,,Quercus arizonica Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+253,0,0,0,4,,Quercus bicolor - Fraxinus pennsylvanica Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+488,0,0,0,4,,Quercus buckleyi Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+24,0,2,0,0,,Quercus chrysolepis Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+608,0,2,0,0,,Quercus chrysolepis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+159,0,0,0,4,,Quercus coccinea - Quercus falcata Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+489,0,2,0,0,,Quercus douglasii Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+609,0,2,0,0,,Quercus dumosa Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+610,0,2,0,0,,Quercus durata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+369,1,0,0,0,,Quercus emoryi Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+473,0,2,0,0,,Quercus engelmannii Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+337,0,0,0,4,,Quercus falcata - Fagus grandifolia - Pinus taeda Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+531,0,0,0,4,,Quercus fusiformis - Celtis laevigata var. reticulata Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+370,0,0,0,4,,Quercus fusiformis Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+718,1,0,0,0,,Quercus gambelii Shrubland,PMS-832,2.84,0.25,0.24,0.91,0.08,3,0,0,,0.11,,2.69,,,,,,,,5,8,7
+160,0,2,0,0,,Quercus garryana Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+719,0,2,0,0,,Quercus garryana Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1207,0,2,0,0,,Quercus garryana Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+490,0,2,0,0,,Quercus garryana Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+611,0,0,0,4,,Quercus geminata - Quercus myrtifolia - Quercus chapmanii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+6,0,0,0,4,,Quercus geminata Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+371,1,0,0,0,,Quercus grisea Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+612,0,0,0,4,,Quercus havardii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+287,0,0,0,4,,Quercus hemisphaerica - Carya glabra Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+288,0,0,0,4,,Quercus hemisphaerica - Quercus margarettiae - Quecrus incana Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+532,0,0,0,4,,Quercus hemisphaerica - Quercus margarettiae - Quercus incana Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+7,0,0,0,4,,Quercus hemisphaerica Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+720,0,0,3,4,,Quercus ilicifolia Shrubland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,5,8,7
+491,0,0,0,4,,Quercus incana - (Quercus arkansana) Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+613,0,0,0,4,,Quercus intricata Shrubland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,5,8,7
+513,0,2,0,0,,Quercus kelloggii Temporarily Flooded Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,3,8,7
+492,0,0,0,4,,Quercus laceyi Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+161,0,0,0,4,,Quercus laevis Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+493,0,0,0,4,,Quercus laevis Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+275,0,0,0,4,,Quercus laurifolia - Nyssa biflora Saturated Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+20,0,0,0,4,,Quercus laurifolia Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+254,0,0,0,4,,Quercus laurifolia Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+494,0,2,0,0,,Quercus lobata Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,3,8,7
+255,0,0,0,4,,Quercus lyrata - (Carya aquatica) Seasonally Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+1195,1,0,3,4,,Quercus macrocarpa - (Quercus alba) Wooded Herbland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,6,8,7
+495,0,0,3,4,,Quercus macrocarpa - Quercus (alba; velutina) Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+226,0,0,0,4,,Quercus macrocarpa - Quercus bicolor - (Carya laciniosa) Temporarily Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+162,1,0,3,0,,Quercus macrocarpa Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,3,8,7
+1208,1,0,0,0,,Quercus macrocarpa Wooded Medium-Tall Herbland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,6,8,7
+496,1,0,3,4,,Quercus macrocarpa Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+276,0,0,0,4,,Quercus michauxii - Quercus pagoda Saturated Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+614,0,0,0,4,,Quercus mohriana Shrubland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,5,8,7
+163,0,0,0,4,,Quercus muehlenbergii Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+497,0,0,3,4,,Quercus muehlenbergii Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+227,0,0,0,4,,Quercus nigra - Quercus pagoda Temporarily Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+164,0,0,0,4,,Quercus nigra Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+615,1,0,0,0,,Quercus oblongifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+228,0,0,0,4,,Quercus pagoda - Quercus similis Temporarily Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+256,0,0,3,4,,Quercus palustris - (Quercus bicolor) Seasonally Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+229,0,0,3,0,,Quercus palustris - Acer rubrum Temporarily Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,3,8,7
+230,0,0,0,4,,Quercus phellos - Ulmus crassifolia Temporarily Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+257,0,0,0,4,,Quercus phellos Seasonally Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+165,0,0,3,4,,Quercus prinus - (Quercus coccinea; Quercus velutina) Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+166,0,0,3,4,,Quercus prinus - Quercus (alba; falcata; rubra; velutina) Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+498,0,0,0,4,,Quercus prinus - Quercus coccinnea Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+499,0,0,0,4,,Quercus prinus - Quercus marilandica Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+167,0,0,0,4,,Quercus prinus - Quercus rubra Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+616,0,0,0,4,,Quercus pungens Shrubland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,5,8,7
+168,0,0,0,4,,Quercus rubra - (Quercus alba; Quercus prinus) - Acer saccharum Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+169,0,0,3,4,,Quercus rubra - Acer saccharum - (Quercus alba) Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+170,0,0,3,0,,Quercus rubra - Betula alleghaniensis Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,3,8,7
+500,0,0,3,4,,Quercus rubra - Quercus prinus Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+197,0,0,0,4,,Quercus rubra Montane Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+574,0,2,0,0,,Quercus sadleriana Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+171,0,0,0,4,,Quercus shumadii - Quercus pagoda Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+721,0,0,0,4,,Quercus sinuata var. breviloba Shrubland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,5,8,7
+172,0,0,0,4,,Quercus stellata - Quercus marilandica Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+501,0,0,0,4,,Quercus stellata - Quercus marilandica Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+502,0,0,0,4,,Quercus stellata - Quercus velutina - Quercus alba - Quercus falcata Woodland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+173,0,0,0,4,,Quercus stellata Flatwoods Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+198,0,0,0,4,,Quercus stellata Montane Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+231,0,0,0,4,,Quercus texana;Celtis laevigata;Ulmus(americana;crassifolia);Gleditsia tricanthos) Tmp Flooded Fores,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,3,8,7
+258,0,0,0,4,,Quercus texana - Quercus lyrata Seasonally Flooded Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+617,1,0,0,0,,Quercus toumeyi Shrubland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,5,8,7
+618,1,0,0,0,,Quercus turbinella Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+619,0,2,0,0,,Quercus vaccinifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1196,0,0,3,4,,Quercus velutina - (Quercus ellipsoidalis) Wooded Herbland,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,6,8,7
+174,0,0,0,4,,Quercus velutina - Quercus alba Forest,Mc Daniel,1.57,0.14,0.58,1.65,4.79,,1.49,0.31,,0.02,,0.08,,0,,0,,,,1,8,7
+175,0,0,3,4,,Quercus velutina - Quercus ellipsoidalis Forest,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,,0.05,,0.1,,,,,,,,1,8,7
+620,0,0,0,4,,Quercus virginiana - (Ilex vomitoria) Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+533,0,0,0,4,,Quercus virginiana - Carya illinoinensis Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+289,0,0,0,4,,Quercus virginiana - Celtis laevigata Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+534,0,0,0,4,,Quercus virginiana - Celtis laevigata Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+372,0,0,0,4,,Quercus virginiana - Juniperus virginiana - (Sabal palmetto) Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+535,0,0,0,4,,Quercus virginiana - Quercus incana Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+292,0,0,0,4,,Quercus virginiana - Quercus nigra Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+290,0,0,0,4,,Quercus virginiana - Quercus pagoda Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+536,0,0,0,4,,Quercus virginiana - Quercus stellata Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+8,0,0,0,4,,Quercus virginiana - Sabal palmetto Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+9,0,0,0,4,,Quercus virginiana Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+11,0,0,0,4,,Quercus virginiana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+373,0,0,0,4,,Quercus virginiana Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+621,0,2,0,0,,Quercus wislizenii Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+474,0,2,0,0,,Quercus wislizenii Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+722,1,0,0,0,,Quercus x pauciloba Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1356,1,0,0,0,,Ranunculus aquatilis Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+762,1,0,0,0,,Rhamnus alnifolia Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+16,0,0,0,4,,Rhizophora mangle - Conocarpus erectus Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+564,0,0,0,4,,Rhizophora mangle semipermanently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+23,0,0,0,4,,Rhizophora mangle Tidal Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+567,0,0,0,4,,Rhizophora mangle Tidal Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+366,0,0,0,4,,Rhizophora mangle Tidal Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+575,0,0,0,4,,Rhododendron (catawbiense; carolinianum) - Kalmia latifolia Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+629,0,0,0,4,,Rhododendron maximum Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+576,0,0,0,4,,Rhododendron maximum Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1235,1,0,0,0,,Rhus glabra Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+836,1,0,0,0,,Rhus microphylla Shrubland,FOFEM 331,0.5,0,0,0,0,0,2,0.2,,0.1,,10,,,,,,,,5,8,7
+741,1,0,0,0,,Rhus trilobata Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1236,1,0,0,0,,Rhus trilobata Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+723,1,0,0,0,,Rhus virens var. choriophylla Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1174,0,0,0,4,,Rhynchospora (gracilenta; oligantha) Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1175,0,0,0,4,,Rhynchospora alba Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1125,0,0,0,4,,Rhynchospora filifolia - Juncus abortivus Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1126,0,0,0,4,,Rhynchospora inundata Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+922,0,0,0,4,,Rhynchospora microcarpa - Cladium mariscus ssp. jamaicense Seasonally Flooded Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+915,0,0,0,4,,Rhynchospora microcarpa Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1127,0,0,3,0,,Rhynchospora spp. - Rhexia virginica Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1176,0,0,0,4,,Rhynchospora stenophylla - Rhynchospora macra Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+916,0,0,0,4,,Rhynchospora tracyi Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+724,1,0,0,0,,Ribes cereum Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+763,1,0,0,0,,Ribes lacustre Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+725,1,0,0,0,,Ribes montigenum Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+726,1,0,0,0,,Robinia neomexicana Shrubland,SMFDB248,0.5,0,0,0,0,0,1,0.5,,0,,5.75,,,,,,,,5,8,7
+1373,1,0,0,0,,Rorippa alpina Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+764,1,0,0,0,,Rosa woodsii Temporarily Flooded Shrubland,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,,0.4,,23.4,,,,,,,,5,8,7
+281,0,0,0,4,,Roystonea elata - Taxodium distichum Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+733,0,0,0,4,,Rubus allegheniensis - Rubus canadensis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+727,1,0,0,0,,Rubus idaeus var. strigosus Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+734,1,2,0,0,,Rubus parviflorus Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+3,0,0,0,4,,Sabal mexicana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+626,0,0,0,4,,Sabal minor - Quercus virginiana Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+2,0,0,0,4,,Sabal Palmetto - Coccoloba unifera Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+12,0,0,0,4,,Sabal palmetto - Quercus virginiana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+375,0,0,0,4,,Sabal palmetto Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+10,0,0,0,4,,Sabal palmetto Temperate Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1197,0,0,0,4,,Sabal palmetto Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+374,0,0,0,4,,Sabal palmetto Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1213,0,0,0,4,,Sacciolepis striata Seasonally Flooded Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1357,0,0,0,4,,Sagittaria latifolia Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+514,1,0,0,0,,Salix amygdaloides Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+892,1,0,0,0,,Salix artica Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+899,1,0,0,0,,Salix artica Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+765,1,0,0,0,,Salix bebbiana Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+232,1,0,0,0,,Salix bonplandiana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+797,1,2,0,0,,Salix boothii Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+766,1,0,0,0,,Salix boothii Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+798,1,0,0,0,,Salix brachycarpa Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+767,1,0,0,0,,Salix brachycarpa Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+799,1,0,0,0,,Salix candida Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+259,0,0,0,4,,Salix caroliniana Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+233,0,0,0,4,,Salix caroliniana Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+768,0,0,0,4,,Salix caroliniana Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+893,1,2,0,0,,Salix cascadensis Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+800,1,2,0,0,,Salix commutata Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+801,1,0,0,0,,Salix drummondiana Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+769,1,0,0,0,,Salix drummondiana Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+802,1,0,0,0,,Salix eastwoodiae Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+770,1,2,0,0,,Salix eriocephala Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+522,1,0,0,4,,Salix exigua Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+771,1,2,0,4,,Salix exigua Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+515,1,0,0,4,,Salix exigua Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+803,1,0,0,0,,Salix geyeriana Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+772,1,0,0,0,,Salix geyeriana Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+773,1,0,0,0,,Salix glauca Temporarily Flooded Shrubland,SMFDB 277,0.5,0,0,0,0,0,5,1,,0.14,,1.88,,,,,,,,5,8,7
+516,1,0,0,0,,Salix gooddingii Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+804,0,2,0,0,,Salix hookeriana Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+774,1,0,0,0,,Salix irrorata Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+517,1,0,0,0,,Salix laevigata Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+775,1,0,0,0,,Salix lasiolepis Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+776,1,0,0,0,,Salix ligulifolia Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+260,0,2,0,0,,Salix lucida Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+777,1,2,0,0,,Salix lucida Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+518,1,2,0,0,,Salix lucida Temporarily Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+805,1,2,0,0,,Salix lutea Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+778,1,2,0,0,,Salix lutea Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+779,1,0,0,0,,Salix monticola Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+261,0,0,0,4,,Salix nigra Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+268,0,0,0,4,,Salix nigra Semipermanently Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+234,0,0,3,4,,Salix nigra Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+780,0,0,3,4,,salix nigra Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+781,0,0,3,0,,Salix petiolaris - Salix spp. Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+806,1,0,0,0,,Salix planifolia Seasonally Flooded Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+782,1,0,0,0,,Salix planifolia Temporarily Flooded Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+783,1,0,0,0,,Salix pseudomonticola Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+894,1,0,0,0,,Salix reticulata Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+900,1,0,0,0,,Salix reticulata Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+807,0,2,0,0,,Salix sessilifolia Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+808,1,0,0,0,,Salix wolfii Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+784,1,0,0,0,,Salix wolfii Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+577,0,2,0,0,,Salvia (apiana; leucophylla; mellifera) Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,,5,8,7
+578,0,2,0,0,,Salvia apiana Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,,5,8,7
+905,1,2,0,0,,Salvia dorrii Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+579,0,2,0,0,,Salvia leucophylla Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,,5,8,7
+580,0,2,0,0,,Salvia mellifera Shrubland,PMS-833,7.4,0,0,0,0,0,0,0,,0,,9.6,,,,,,,,5,8,7
+742,1,2,0,0,,Sambucus mexicana Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+235,1,0,0,0,,Sapindus saponaria Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+503,0,0,3,4,,Sapindus saponaria Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1255,1,0,0,0,,Sarcobatus vermiculatus Intermittently Flooded Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+840,1,0,0,0,,Sarcobatus vermiculatus Intermittently Flooded Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1237,1,0,0,0,,Sarcobatus vermiculatus Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1218,1,0,0,0,,Sarcobatus vermiculatus Shrub Tall Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+837,1,0,0,0,,Sarcobatus vermiculatus Shrubland,FOFEM 321,0.11,0,0,0,0,0,0,0,,0.4,,2.28,,,,,,,,5,8,7
+1358,1,2,0,0,,Sarcocornia (utahensis) - Arthrocnemum (subterminale) Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1345,0,2,0,0,,Saussurea americana Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+559,0,0,0,4,,Savia bahamensis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1326,1,0,0,0,,Saxifraga chrysantha Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1327,0,0,0,4,,Saxifraga michauxii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1346,1,0,0,0,,Saxifraga odontoloma Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1328,1,0,0,0,,Saxifraga rivularis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1329,0,2,0,0,,Saxifraga tolmiei Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+952,1,0,0,0,,Schizachyrium cirratum Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+953,0,0,0,4,,Schizachyrium maritimum Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+907,0,0,0,4,,Schizachyrium rhizomatum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+908,0,0,0,4,,Schizachyrium sanguineum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+954,0,0,0,4,,Schizachyrium scoparium - (Aristida spp.) Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+955,0,0,3,4,,Schizachyrium scoparium - (Sporobolus cryptandrus) Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+1204,0,0,3,4,,Schizachyrium scoparium - Bouteloua curtipendula Evergreen or Mixed Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+956,1,0,3,4,,Schizachyrium scoparium - Bouteloua curtipendula Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+1209,0,0,0,4,,Schizachyrium scoparium - Danthonia spp. Deciduous Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1205,0,0,3,4,,Schizachyrium scoparium - Danthonia spp. Evergreen or Mixed Wooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+957,1,0,0,0,,Schizachyrium scoparium - Lesqerella gordonii Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+930,0,0,0,4,,Schizachyrium scoparium - Paspalum monostachyum Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+931,0,0,0,4,,Schizachyrium scoparium - Paspalum plicatulum Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+958,0,0,0,4,,Schizachyrium scoparium - Saxifraga michauxii Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+959,0,0,0,4,,Schizachyrium scoparium - Schizachyrium tenerum Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+932,0,0,3,4,,Schizachyrium scoparium - Sorghastrum nutans Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+960,0,0,0,4,,Schizachyrium scoparium - Sporobolus (compositus; heterolepis) Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+961,0,0,0,4,,Schizachyrium scoparium - Sporobolus junceus Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+989,1,0,0,0,,Schizachyrium scoparium Bunch Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+962,1,0,0,0,,Schizachyrium scoparium Herbland,SMFDB496,0,0,0,0,0,0,0,0,,1.93,,0,,,,,,,,6,8,7
+1220,0,0,0,4,,Schizachyrium scoparium Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1238,0,0,3,4,,Schizachyrium scoparium ssp. litorale Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1083,0,0,0,4,,Schizachyrium scoparium Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+963,0,0,0,4,,Schoenus nigricans Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+917,0,0,0,4,,Schoenus nigricans Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1145,1,0,3,0,,Scirpus acutus - (Scirpus taebernaemontani) Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1146,1,2,0,0,,Scirpus americanus Semipermanently Flooded Herbland,SMFDB219,0,0,0,0,0,0,0,0,,1.41,,0,,,,,,,,6,8,7
+918,0,0,0,4,,Scirpus californicus Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1048,0,0,3,0,,Scirpus cespitosus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1147,1,0,0,0,,Scirpus cespitosus Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1128,0,0,0,4,,Scirpus cyperinus - Dulichium arundinaceum Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1129,0,0,3,4,,Scirpus fluviatilis Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1148,1,2,3,0,,Scirpus maritimus Semipermanently Flooded Herbland,SMFDB221,0,0,0,0,0,0,0,0,,1.87,,0,,,,,,,,6,8,7
+1149,1,0,0,0,,Scirpus pungens Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1182,0,0,3,4,,Scirpus pungens Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1150,0,0,0,4,,Scirpus robustus Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+919,0,0,0,4,,Scirpus tabernaemontani Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1151,1,0,3,4,,Scirpus tabernaemontani Semipermanently Flooded Herblands,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1130,1,0,3,0,,Scolochloa festucacea Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1347,1,0,0,0,,Sedum rhodanthum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1330,0,0,0,4,,Selaginella tortipila Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1331,1,0,0,0,,Senecio taraxacoides Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1374,0,0,0,4,,Senecio tomentosus - Croton willdenowii Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1359,1,0,0,0,,Senecio triangularis Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1348,1,2,0,0,,Senecio triangularis Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+31,0,2,0,0,,Sequoia sempervirens - Tsuga heterophylla Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,,,,,,,3,8,7
+32,0,2,0,0,,Sequoia sempervirens Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,,,,,,,3,8,7
+33,0,2,0,0,,Sequoiadendron giganteum Forest,SMFDB186,2.02,0.26,1.87,3.04,50.72,5,62.86,3.41,,0.1,,0.2,,,,,,,,3,8,7
+581,0,0,0,4,,Serenoa repens Temperate Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+562,0,0,0,4,,Serenoa repens Wooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+785,1,0,0,0,,Shepherdia argentea Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1332,1,0,0,0,,Sibbaldia procumbens Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1333,1,0,0,0,,Silene acaulis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+677,1,0,0,0,,Simmondsia chinensis Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+728,0,0,3,4,,Smilax spp. - Toxicodendron radicans Vine-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+560,0,0,0,4,,Sophora tomentosa - Forestiera segregata Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+338,0,0,0,4,,Sorbus americana - (Abies fraseri; Picea rubens) Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1131,0,0,0,4,,Sparganium americanum Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1183,0,0,3,4,,Spartina alterniflora Tidal Herbland,SMFDB472,0,0,0,0,0,0,0,0,,0,,0,,,,,,,GG,6,8,7
+1184,0,0,0,4,,Spartina bakeri - Spartina patens Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1132,0,0,0,4,,Spartina bakeri Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1185,0,0,3,4,,Spartina cynosuroides Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1133,1,0,0,0,,Spartina gracilis Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1186,0,0,3,4,,Spartina patens - (Distichlis spicata) Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1009,0,0,3,4,,Spartina patens - (Scirpus pungens) Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1187,0,0,0,4,,Spartina patens - Juncus roemerianus Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1084,1,0,3,4,,Spartina pectinata Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+964,0,0,0,4,,Spartina spartinae Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1134,0,0,0,4,,Spartina spartinae Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1188,0,0,0,4,,Spartina spartinae Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1334,1,0,0,0,,Sphaeromeria argentea Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+809,1,0,0,0,,Spiraea douglasii Seasonally Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1057,1,0,0,0,,Sporobolus airoides  Intermittently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+990,1,0,0,0,,Sporobolus airoides Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+965,1,0,0,0,,Sporobolus airoides Sod Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+991,1,0,0,0,,Sporobolus cryptandrus Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1232,1,0,0,0,,Sporobolus cryptandrus Shrub Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,5,8,7
+992,1,0,0,0,,Sporobolus flexuosus Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1135,0,0,3,0,,Sporobolus heterolepis - Eleocharis compressa Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+993,1,0,0,0,,Sporobolus nealleyi Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1242,1,0,0,0,,Sporobolus nealleyi Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+966,1,0,0,0,,Sporobolus silveanus Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+923,0,0,0,4,,Sporobolus spp. - Panicum spp. Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+936,1,0,0,0,,Sporobolus wrightii Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1152,1,0,0,0,,Sporobolus wrightii Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+967,1,0,0,0,,Stipa comata - Bouteloua gracilis Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+994,1,0,0,0,,Stipa comata Bunch Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1012,0,2,0,0,,Stipa lemmonii Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+995,1,0,0,0,,Stipa nelsonii Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+996,1,0,0,0,,Stipa neomexicana Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+997,1,0,0,0,,Stipa richardsonii Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1013,0,2,0,0,,Stipa speciosa Herbland,FOFEM 281,0,0,0,0,0,0,0,0,,0.95,,0,,,,,,,,6,8,7
+1254,0,2,0,0,,Stipa speciosa Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+561,0,0,0,4,,Strumpfia maritima Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+743,1,2,0,0,,Suaeda moquinii Intermittently Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+786,1,0,0,0,,Symphoricarpos occidentalis Temporarily Flooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+729,1,0,0,0,,Symphoricarpus albus Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1375,0,0,3,4,,Symplocarpus foetidus - Caltha palustris Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1376,0,0,0,4,,Talinum teretifolium - Portulaca smallii Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1335,0,2,0,0,,Taushia stricklandii Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+262,0,0,0,4,,Taxodium ascendens Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+523,0,0,0,4,,Taxodium ascendens Seasonally Flooded Temperate Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+475,0,0,0,4,,Taxodium ascendens Seasonally Flooded Tropical Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+263,0,0,0,4,,Taxodium distichum - Nyssa aquatica Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+277,0,0,0,4,,Taxodium distichum - Nyssa biflora - (Nyssa aquatica) Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+236,0,0,0,4,,Taxodium distichum - Platanus occidentalis Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+264,0,0,0,4,,Taxodium distichum Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+524,0,0,0,4,,Taxodium distichum Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+269,0,0,0,4,,Taxodium distichum Semipermanently Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+526,0,0,0,4,,Taxodium distichum Semipermanently Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+529,0,0,0,4,,Taxodium distichum Tidal Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+1360,1,0,0,4,,Thalia dealbata Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1281,0,0,0,4,,Thalia geniculata Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+359,0,0,3,0,,Thuja occidentalis - Acer rubrum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+339,0,0,3,0,,Thuja occidentalis - Betula alleghaniensis Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+81,0,0,3,4,,Thuja occidentalis Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+123,0,0,3,4,,Thuja occidentalis Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+360,0,0,3,0,,Thuja occidentalis Saturated Forest land,X,,,,,,,,,,,,,,,,,,,,3,8,7
+466,0,0,0,4,,Thuja occidentalis Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+436,0,0,3,4,,Thuja occidentalis Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+82,1,2,0,0,,Thuja plicata Forest,SMFDB 080,1,0.35,1.04,1.58,24.41,5,55.96,2.56,,0.09,,0.03,,10,,6,,,,3,8,7
+34,1,2,0,0,,Thuja plicata Giant Forest,SMFDB 080,1,0.35,1.04,1.58,24.41,5,55.96,2.56,,0.09,,0.03,,10,,6,,,,3,8,7
+124,0,2,0,0,,Thuja plicata Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+112,1,2,0,0,,Thuja plicata Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+504,0,0,3,4,,Tilia americana - Fraxinus americana Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+176,0,0,0,4,,Tilia americana var. carolina - Celtis (laevigata; occidentalis) Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+885,1,0,0,0,,Tiquilia hispidissima Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+906,1,0,0,4,,Tiquilia hispidissima Dwarf-Shrublands,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1377,0,0,3,4,,Tofieldia glutinosa - Parnassia glauca Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+730,0,0,3,0,,Toxicodendron radicans Vine-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+846,0,0,0,4,,Toxicodendron vernix - Cliftonia monophylla Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1336,1,0,0,0,,Trifolium dasyphyllum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1337,1,0,0,0,,Trifolium parryi Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1361,1,0,0,0,,Triglochin maritimum Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+933,0,0,0,4,,Tripsacum dactyloides - Panicum virgatum Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+100,0,0,0,4,,Tsuga canadensis - (Pinus strobus) Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+361,0,0,0,4,,Tsuga canadensis - Acer rubrum Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+340,0,0,3,4,,Tsuga canadensis - Betula alleghaniensis Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+349,0,0,0,4,,Tsuga canadensis - Magnolia tripetala Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+83,0,0,3,4,,Tsuga canadensis Forest,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,,0,,0,,4,,3,,,WPH,1,8,7
+125,0,0,3,4,,Tsuga canadensis Saturated Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+552,0,0,0,4,,Tsuga caroliniana - Quercus prinus Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+437,0,0,0,4,,Tsuga caroliniana Woodland,X,,,,,,,,,,,,,,,,,,,,1,8,7
+84,0,0,0,4,,Tsuga caroloniana Forest,X,,,,,,,,,,,,,,,,,,,,1,8,7
+85,1,2,0,0,,Tsuga heterophylla Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,6,,4,,,,3,8,7
+35,1,2,0,0,,Tsuga heterophylla Giant Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,6,,4,,,,3,8,7
+126,0,2,0,0,,Tsuga heterophylla Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+113,0,2,0,0,,Tsuga heterophylla Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+453,0,2,0,0,,Tsuga heterophylla Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+101,1,0,0,0,,Tsuga heterophylla Temporarily Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+438,0,2,0,0,,Tsuga heterophylla Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+86,0,2,0,0,,Tsuga mertensiana - Abies amabilis Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,6,,4,,,,3,8,7
+36,0,2,0,0,,Tsuga mertensiana - Abies amabilis Giant Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,6,,4,,,,3,8,7
+127,0,2,0,0,,Tsuga mertensiana - Abies amabilis Saturated Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+114,0,2,0,0,,Tsuga mertensiana - Abies amabilis Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+439,0,2,0,0,,Tsuga mertensiana - Abies amabilis Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+87,1,2,0,0,,Tsuga mertensiana Forest,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,,0.2,,0.35,,6,,4,,,,3,8,7
+467,0,2,0,0,,Tsuga mertensiana Saturated Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+115,1,2,0,0,,Tsuga mertensiana Seasonally Flooded Forest,X,,,,,,,,,,,,,,,,,,,,3,8,7
+454,0,2,0,0,,Tsuga mertensiana Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+440,0,2,0,0,,Tsuga mertensiana Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1189,0,0,3,4,,Typha (angustifolia; domingensis) Tidal Herbland,SMFDB230,0,0,0,0,0,0,0,0,,3.76,,0,,,,,,,,6,8,7
+1153,1,0,3,4,,Typha (angustifolia; latifolia) (Scirpus spp.) Semipermanently Flooded Herbland,SMFDB230,0,0,0,0,0,0,0,0,,3.76,,0,,,,,,,,6,8,7
+1136,1,2,0,4,,Typha domingensis Seasonally Flooded Herbland,SMFDB230,0,0,0,0,0,0,0,0,,3.76,,0,,,,,,,,6,8,7
+920,0,0,0,4,,Typha domingensis Semipermanently Flooded Herbland,SMFDB230,0,0,0,0,0,0,0,0,,3.76,,0,,,,,,,,6,8,7
+1137,0,0,0,4,,Typha latifolia Seasonally Flooded Herbland,SMFDB230,0,0,0,0,0,0,0,0,,3.76,,0,,,,,,,,6,8,7
+1138,1,0,3,4,,Typha spp. - (Scirpus spp. - Juncus spp.) Seasonally Flooded Herbland,SMFDB230,0,0,0,0,0,0,0,0,,3.76,,0,,,,,,,,6,8,7
+934,0,0,0,4,,Uniola paniculata Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+924,0,0,0,4,,Uniola paniculata Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1215,0,0,0,4,,Uniola paniculata Shrub Herblands,X,,,,,,,,,,,,,,,,,,,,3,8,7
+909,0,0,0,4,,Uniola paniculata Subtropical Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+889,0,0,3,4,,Vaccinium (angustifolium; myrtilloides; pallidum) Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+890,1,0,0,0,,Vaccinium (cespitosum; scoparium) Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+844,0,0,0,4,,Vaccinium corymbosum - Rhododendron catawbiense Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+820,0,0,3,0,,Vaccinium corymbosum Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+891,0,2,0,0,,Vaccinium deliciosum Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+810,0,0,0,4,,Vaccinium formosum - Vaccinium fuscatum,X,,,,,,,,,,,,,,,,,,,,3,8,7
+877,0,0,3,4,,Vaccinium macrocarpon Saturated Dwarf-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1274,0,0,3,0,,Vaccinium uliginosum Dwarf-Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+895,0,0,3,0,,Vaccinium uliginosum Dwarf-Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+901,1,2,0,0,,Vaccinium uliginosum Saturated Dwarf-Shrubland,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,,0.1,,2.57,,,,,,,,5,8,7
+1293,0,2,0,0,,Valeriana sitchensis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1349,1,2,0,0,,Valeriana sitchensis Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1350,1,2,0,0,,Veratrum californicum Temporarily Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+678,1,0,0,0,,Viguiera stenoloba Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+731,0,0,3,0,,Vitis aestivalis Vine-Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1378,0,0,0,4,,Vittaria appalachiana - Heuchera parviflora Saturated Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+376,1,0,0,0,,Washingtonia filifera Seasonally Flooded Woodland,X,,,,,,,,,,,,,,,,,,,,3,8,7
+1294,1,0,0,0,,Wyethia amplexicaulis Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1295,1,2,0,0,,Xerophyllum tenax Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+698,1,2,0,0,,Yucca brevifolia Wooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1243,1,0,0,0,,Yucca glauca Shrub Herbland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+696,1,0,0,0,,Yucca schidigera Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+582,0,0,0,4,,Zanthoxylum fagara Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+821,0,0,0,4,,Zenobia pulverulenta - Chamaedaphne calyculata Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+848,0,0,0,4,,Zenobia pulverulenta - Cyrilla racemiflora Saturated Wooded Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+847,0,0,0,4,,Zenobia pulverulenta - Lyonia lucida - Ilex (coriacea; glabra) Saturated Shrubland,X,,,,,,,,,,,,,,,,,,,,5,8,7
+1154,0,0,3,0,,Zizania (aquatica; palustris) Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1190,0,0,3,4,,Zizania aquatica Tidal Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1155,1,0,0,4,,Zizania texana Semipermanently Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+1139,0,0,0,4,,Zizaniopsis miliacea Seasonally Flooded Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7
+921,0,0,0,4,,Zizaniopsis millacea Semipermanently Flooded Subtropical Herbland,X,,,,,,,,,,,,,,,,,,,,6,8,7

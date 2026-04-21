@@ -1,0 +1,442 @@
+# FOFEM SAF Cover File; DCL Updated May 9 2016,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+# Contains Emission Group Numbers,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+# Fuel Ref,West,Pacif,NthEst,SthEst, Code, Cover, Ref., Lit,1hr,10hr,100hr,1000hr,QMD,Duff,DuffDepth, Cd, Herb, Cd,  Shr, Cd, Foli, Cd, Bran, Cd, Add. Ref, Cover Group, Flame EF,Duff EF, Smolder 1K EF
+51,0,2,3,0,SAF 001,Jack Pine,FOFEM 121,0.7,0.17,0.93,0,3,5,34,2.5,GB,0.15,H1,,S1,6,F1,4.8,B1,,RJP,2,8,7
+84,0,0,3,0,SAF 005,Balsam Fir,CFM-Boreal,,,,,,,,,GC,,H1,,S1,,F1,,B1,,BBS,2,8,7
+87,0,2,3,0,SAF 012,Black Spruce,FOFEM 151,13.9,0,0,0,0,5,50,3.8,GC,0.15,H1,0,S1,6,F1,3.9,B1,,BBS,2,8,7
+113,0,2,3,0,SAF 012,Black Spruce - example loads from photoseries PMS-831,PMS-831,6.8,0.1,0.2,0.5,2.4,5,75.49,5.1,GC,0.31,H1,0.23,S1,,F1,,B1,,BBS,2,8,7
+87,0,2,3,0,SAF 204,Black Spruce,FOFEM 151,13.9,0,0,0,0,5,50,3.8,GC,0.15,H1,0,S1,6,F1,3.9,B1,,BBS,2,8,7
+113,0,2,3,0,SAF 204,Black Spruce - example loads from photoseries PMS-831,PMS-831,6.8,0.1,0.2,0.5,2.4,5,75.49,5.1,GC,0.31,H1,0.23,S1,,F1,,B1,,BBS,2,8,7
+114,0,2,3,0,SAF 013,Black Spruce - Tamarack,FOFEM 151,13.9,0,0,0,0,5,50,3.8,GC,0.15,H1,0,S1,6,F1,3.9,B1,,BBS,2,8,7
+133,0,2,3,0,SAF 013,Black Spruce - Tamarack - example loads from photoseries PMS-831,PMS-831,6.8,0.1,0.2,0.5,2.4,5,75.49,5.1,GC,0.31,H1,0.23,S1,,F1,,B1,,BBS,2,8,7
+158,0,0,3,0,SAF 014,Northern Pin Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+161,0,0,3,0,SAF 015,Red Pine,FOFEM 131,1.1,0.25,1.35,0,3,5,12,1.5,GB,0.15,H1,0,S1,6,F1,4.8,B1,,RJP,2,8,7
+289,1,2,3,0,SAF 016,Aspen,FOFEM 561,0.9,0.2,0.8,1,3,5,5,0.5,GD,0.3,H1,0.5,S1,,F1,,B1,,,3,8,7
+293,0,0,3,0,SAF 017,Pin Cherry,SMFDB 244,0.9,0.97,1.98,1.5,8.66,5,5,0.5,GD,0.3,H1,0.5,S1,,F1,,B1,FOFEM 561,,2,8,7
+85,0,0,3,0,SAF 018,Paper Birch,FOFEM 561,0.9,0.2,0.8,1,3,5,5,0.5,GD,0.3,H1,0.5,S1,,F1,,B1,,,2,8,7
+287,0,0,3,0,SAF 018,Paper Birch - example loads from N.H. Gore and Patterson '86,SMFDB 245,0.9,1.34,2.14,2.59,6.92,5,5,0.5,GD,0.3,H1,0.5,S1,,F1,,B1,FOFEM 561,,2,8,7
+288,0,0,3,0,SAF 019,Gray Birch - Red Maple,CFM-ONT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+290,0,0,3,4,SAF 020,White Pine - Northern Red Oak - Red Maple,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,GA,0,H1,3.9,S1,,F1,,B1,,WPH,2,8,7
+291,0,0,3,4,SAF 021,Eastern White Pine,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,GA,0.15,H1,0,S1,4,F1,2.8,B1,,WPH,2,8,7
+292,0,0,3,4,SAF 022,White Pine - Hemlock,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,GA,0.15,H1,0,S1,4,F1,2.8,B1,,WPH,2,8,7
+296,0,0,3,4,SAF 023,Eastern Hemlock,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,GC,0.15,H1,0,S1,4,F1,2.8,B1,,WPH,2,8,7
+67,0,0,3,0,SAF 024,Hemlock - Yellow Birch,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,GC,0.15,H1,0,S1,4,F1,2.8,B1,,,2,8,7
+74,0,0,3,4,SAF 025,Sugar Maple - Beech - Yellow Birch,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,GD,0,H1,0,S1,,F1,,B1,SMFDB 300,,2,8,7
+115,0,0,3,0,SAF 026,Sugar Maple - Basswood,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,GD,0,H1,0,S1,,F1,,B1,SMFDB 300,,2,8,7
+128,0,0,3,4,SAF 027,Sugar Maple,SMFDB 246,2.01,0.45,2.47,0.89,18.21,5,10.35,2.5,GD,0.07,H1,0.5,S1,,F1,,B1,SMFDB 483,,2,8,7
+157,0,0,3,4,SAF 028,Black Cherry - Maple,SMFDB 246,0.66,0.45,2.47,0.89,18.21,5,3.35,1,GD,0,H1,0,S1,,F1,,B1,SMFDB 300,,2,8,7
+155,0,0,0,4,SAF 040,Post Oak - Blackjack Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,1,8,7
+156,1,0,3,4,SAF 042,Bur Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+156,1,0,3,4,SAF 236,Bur Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+2,0,0,3,4,SAF 043,Bear Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+6,0,0,3,4,SAF 044,Chestnut Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+86,0,0,3,4,SAF 045,Pitch Pine,FOFEM 211,1.1,0,0,0,0,0,6,0.6,GB,0.1,H1,0.25,S1,,F1,,B1,,,2,8,7
+68,1,0,3,4,SAF 046,Eastern Redcedar,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+69,0,0,3,4,SAF 050,Black Locust,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+70,0,0,0,4,SAF 051,White Pine - Chestnut Oak,FOFEM 141,0.7,0.17,0.93,0,3,5,11,1.7,GA,0.15,H1,0,S1,4,F1,2.8,B1,,,1,8,7
+71,0,0,0,4,SAF 052,White Oak - Black Oak - Northern Red Oak,McDaniel,1.57,0.14,0.58,1.65,5.19,5,1.48,0.31,GD,0.02,H1,0.08,S1,0,F1,0,B1,,,1,8,7
+72,0,0,3,4,SAF 052,White Oak - Black Oak - Northern Red Oak - ex. From N.J.; Lang and Foreman '78,SMFDB 445,1.02,0.57,1,0.96,9.5,5,3.97,1.8,GD,0.05,H1,0.1,S1,,F1,,B1,FOFEM 231,,2,8,7
+73,0,0,3,4,SAF 053,White Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+75,0,0,3,4,SAF 055,Northern Red Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+88,0,0,3,4,SAF 057,Yellow-Poplar,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+76,0,0,3,4,SAF 058,Yellow-Poplar - Eastern Hemlock,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+77,0,0,3,4,SAF 059,Yellow Poplar - White Oak - Northern Red Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+78,0,0,3,0,SAF 060,Beech - Sugar Maple,NA-FR-22,0.66,0.2,1,2.5,5.9,5,3.35,1,GD,0,H1,0,S1,,F1,,B1,SMFDB 300,,2,8,7
+13,0,0,3,4,SAF 061,River Birch - Sycamore,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+14,0,0,3,4,SAF 062,Silver Maple - American Elm,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+10,1,0,3,4,SAF 063,Cottonwood,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+11,0,0,0,4,SAF 064,Sassafras - Persimmon,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+12,0,0,0,4,SAF 065,Pin Oak - Sweetgum,CFM-OCT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+15,1,0,0,4,SAF 066,Ashe Juniper - Redberry (Pinchot) Juniper,FOFEM 371,0.2,0,0,0,0,0,0,0,GD,1,H1,5,S1,,F1,,B1,,,1,8,7
+16,1,0,0,0,SAF 067,Mohrs (Shin) Oak (moderate cover),FOFEM 351,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,,3,8,7
+42,1,0,0,0,SAF 067,Mohrs (Shin) Oak (low cover),FOFEM 521,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,,3,8,7
+43,1,0,0,0,SAF 067,Mohrs (Shin) Oak (high cover),FOFEM 531,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,,3,8,7
+44,1,0,0,4,SAF 068,Mesquite (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,,1,8,7
+46,1,0,0,4,SAF 068,Mesquite (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,,1,8,7
+47,1,0,0,4,SAF 068,Mesquite (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,,1,8,7
+48,0,0,0,4,SAF 069,Sand Pine,FOFEM 191,0.7,0,0,0,0,0,3.8,1,GD,1.7,H1,2.6,S1,,F1,,B1,,,1,8,7
+49,0,0,0,4,SAF 070,Longleaf Pine - rough age  1,Reid.et al. 2012,5.75,0,0,0,0,0,0,0,GE,0.75,H1,0.15,S1,,F1,,B1,,PFL,1,8,7
+31,0,0,0,4,SAF 070,Longleaf Pine - rough age  2,Reid.et al. 2012,6.45,0,0,0,0,0,1.58,0.2,GF,0.8,H1,0.15,S1,,F1,,B1,,PFL,1,8,7
+32,0,0,0,4,SAF 070,Longleaf Pine - rough age  3,Reid.et al. 2012,6.6,0,0,0,0,0,3.26,0.4,GG,0.9,H1,0.15,S1,,F1,,B1,,PFL,1,8,7
+33,0,0,0,4,SAF 070,Longleaf Pine - rough age  4,Reid.et al. 2012,9,0,0,0,0,0,5.58,0.7,GH,0.7,H1,0.15,S1,,F1,,B1,,PFL,1,8,7
+154,0,0,0,4,SAF 071,Longleaf Pine - Scrub Oak,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,GE,0,H1,3.9,S1,,F1,,B1,,,1,8,7
+138,0,0,0,4,SAF 072,Southern Scrub Oak - example 1 from Schmalzer & Hinkle 1996,SMFDB 478,1.96,0,0,0,0,0,1.58,0.2,GD,0.01,H1,8.18,S1,,F1,,B1,FOFEM 391,,1,8,7
+140,0,0,0,4,SAF 072,Southern Scrub Oak - example 2 from Schmalzer & Hinkle 1996,SMFDB 479,2.15,0,0,0,0,0,3.26,0.4,GD,0.02,H1,8.25,S1,,F1,,B1,FOFEM 391,,1,8,7
+,0,0,0,4,SAF 072,Southern Scrub Oak - example 3 from Schmalzer & Hinkle 1996,SMFDB 481,5.22,0,0,0,0,0,5.58,0.7,GD,0.24,H1,9.41,S1,,F1,,B1,FOFEM 391,,1,8,7
+,0,0,0,4,SAF 072,Southern Scrub Oak - example 4 from Schmalzer & Hinkle 1996,SMFDB 482,4.87,0,0,0,0,0,8.51,1.2,GD,0,H1,12.77,S1,,F1,,B1,FOFEM 391,,1,8,7
+109,0,0,0,4,SAF 073,Southern Redcedar,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+110,0,0,0,4,SAF 074,Cabbage Palmetto,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+100,0,0,3,4,SAF 075,Shortleaf Pine,McDaniel,0.89,0.08,0.3,1.59,3.47,5,1.77,0.28,GD,0.29,H1,0.07,S1,,F1,,B1,,,2,8,7
+,0,0,0,4,SAF 076,Shortleaf Pine - Oak,McDaniel,1.51,0.17,0.72,2.4,3.01,5,4.65,0.72,GD,0.03,H1,0.14,S1,0,F1,0,B1,,,1,8,7
+,0,0,3,4,SAF 078,Virginia Pine - Oak,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,GD,0,H1,3.9,S1,,F1,,B1,,,2,8,7
+,0,0,3,4,SAF 079,Virginia Pine,FOFEM 211,1.1,0,0,0,0,0,6,0.6,GD,0.1,H1,0.25,S1,,F1,,B1,,,2,8,7
+,0,0,0,4,SAF 080,Loblolly Pine - Shortleaf Pine - rough age  1,Reid.et al. 2012,5.1,0,0,0,0,0,0,0,GE,0.3,H1,0.68,S1,,F1,,B1,,,1,8,7
+137,0,0,0,4,SAF 080,Loblolly Pine - Shortleaf Pine - rough age  2,Reid.et al. 2012,6.45,0,0,0,0,0,1.35,0.2,GF,0.4,H1,0.9,S1,,F1,,B1,,,1,8,7
+,0,0,0,4,SAF 080,Loblolly Pine - Shortleaf Pine - rough age  3,Reid.et al. 2012,9.85,0,0,0,0,0,2.79,0.4,GG,0.35,H1,1.05,S1,,F1,,B1,,,1,8,7
+102,0,0,0,4,SAF 080,Loblolly Pine - Shortleaf Pine - rough age  4,Reid.et al. 2012,8.55,0,0,0,0,0,4.43,0.7,GH,0.45,H1,1.35,S1,,F1,,B1,,,1,8,7
+,0,0,0,4,SAF 081,Loblolly Pine (Coastal) - rough age  1,FOFEM 421,1.9,0,0,0,0,0,0,0,GE,0,H1,0.75,S1,,F1,,B1,,,1,8,7
+304,0,0,0,4,SAF 081,Loblolly Pine (Coastal) - rough age  2,FOFEM 421,1.65,0,0,0,0,0,1.35,0.2,GF,0,H1,1.45,S1,,F1,,B1,,,1,8,7
+1,0,0,0,4,SAF 081,Loblolly Pine (Coastal) - rough age  3,FOFEM 421,1.31,0,0,0,0,0,2.79,0.4,GG,0,H1,1.75,S1,,F1,,B1,,,1,8,7
+17,0,0,0,4,SAF 081,Loblolly Pine (Coastal) - rough age  5,FOFEM 421,0.97,0,0,0,0,0,4.43,0.7,GH,0,H1,2.3,S1,,F1,,B1,,,1,8,7
+18,0,0,0,4,SAF 081,Loblolly Pine (Coastal) - rough age 10,FOFEM 421,0.92,0,0,0,0,0,5.68,1.2,GD,0,H1,3.9,S1,,F1,,B1,,,1,8,7
+19,0,0,0,4,SAF 081,Loblolly Pine (Coastal) - rough age 15,FOFEM 421,0.92,0,0,0,0,0,5.68,1.4,GD,0,H1,5.45,S1,,F1,,B1,,,1,8,7
+20,0,0,0,4,SAF 081,Loblolly Pine (Piedmont) - rough age  1,FOFEM 441,1.9,0,0,0,0,0,0,0,GE,0,H1,0.68,S1,,F1,,B1,,,1,8,7
+23,0,0,0,4,SAF 081,Loblolly Pine (Piedmont) - rough age  2,FOFEM 441,1.65,0,0,0,0,0,1.35,0.2,GF,0,H1,0.9,S1,,F1,,B1,,,1,8,7
+22,0,0,0,4,SAF 081,Loblolly Pine (Piedmont) - rough age  3,FOFEM 441,1.31,0,0,0,0,0,2.79,0.4,GG,0,H1,1.05,S1,,F1,,B1,,,1,8,7
+,0,0,0,4,SAF 081,Loblolly Pine (Piedmont) - rough age  5,FOFEM 441,0.97,0,0,0,0,0,4.43,0.7,GH,0,H1,1.35,S1,,F1,,B1,,,1,8,7
+4,0,0,0,4,SAF 081,Loblolly Pine (Piedmont) - rough age 10,FOFEM 441,0.92,0,0,0,0,0,5.68,1.2,GD,0,H1,2.25,S1,,F1,,B1,,,1,8,7
+5,0,0,0,4,SAF 081,Loblolly Pine (Piedmont) - rough age 15,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,GD,0,H1,3.15,S1,,F1,,B1,,,1,8,7
+,0,0,0,4,SAF 082,Loblolly Pine - Hardwood - rough age  1,FOFEM 441,1.9,0,0,0,0,0,0,0,GE,0,H1,0.68,S1,,F1,,B1,,,1,8,7
+,0,0,0,4,SAF 082,Loblolly Pine - Hardwood - rough age  2,FOFEM 441,1.65,0,0,0,0,0,1.35,0.2,GF,0,H1,0.9,S1,,F1,,B1,,,1,8,7
+116,0,0,0,4,SAF 082,Loblolly Pine - Hardwood - rough age  3,FOFEM 441,1.31,0,0,0,0,0,2.79,0.4,GG,0,H1,1.05,S1,,F1,,B1,,,1,8,7
+117,0,0,0,4,SAF 082,Loblolly Pine - Hardwood - rough age  5,FOFEM 441,0.97,0,0,0,0,0,4.43,0.7,GH,0,H1,1.35,S1,,F1,,B1,,,1,8,7
+118,0,0,0,4,SAF 082,Loblolly Pine - Hardwood - rough age 10,FOFEM 441,0.92,0,0,0,0,0,5.68,1.2,GD,0,H1,2.25,S1,,F1,,B1,,,1,8,7
+119,0,0,0,4,SAF 082,Loblolly Pine - Hardwood - rough age 15,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,GD,0,H1,3.15,S1,,F1,,B1,,,1,8,7
+120,0,0,0,4,SAF 083,Longleaf Pine - Slash Pine - rough age  1,FOFEM 401,2.1,0,0,0,0,0,0,0,GE,0,H1,1.05,S1,,F1,,B1,,PFL,1,8,7
+121,0,0,0,4,SAF 083,Longleaf Pine - Slash Pine - rough age  2,FOFEM 401,1.92,0,0,0,0,0,1.58,0.2,GF,0,H1,1.45,S1,,F1,,B1,,PFL,1,8,7
+122,0,0,0,4,SAF 083,Longleaf Pine - Slash Pine - rough age  3,FOFEM 401,1.54,0,0,0,0,0,3.26,0.4,GG,0,H1,1.75,S1,,F1,,B1,,PFL,1,8,7
+123,0,0,0,4,SAF 083,Longleaf Pine - Slash Pine - rough age  5,FOFEM 401,1.22,0,0,0,0,0,5.58,0.7,GH,0,H1,2.3,S1,,F1,,B1,,PFL,1,8,7
+124,0,0,0,4,SAF 083,Longleaf Pine - Slash Pine - rough age 10,FOFEM 401,1.39,0,0,0,0,0,8.51,1.2,GD,0,H1,3.9,S1,,F1,,B1,,PFL,1,8,7
+125,0,0,0,4,SAF 083,Longleaf Pine - Slash Pine - rough age 15,FOFEM 401,1.58,0,0,0,0,0,9.72,1.4,GD,0,H1,5.45,S1,,F1,,B1,,PFL,1,8,7
+52,0,0,0,4,SAF 084,Slash Pine - rough age  1,FOFEM 401,2.1,0,0,0,0,0,0,0,GI,0,H1,1.05,S1,,F1,,B1,,PFL,1,8,7
+61,0,0,0,4,SAF 084,Slash Pine - rough age  2,FOFEM 401,1.92,0,0,0,0,0,1.58,0.2,GJ,0,H1,1.45,S1,,F1,,B1,,PFL,1,8,7
+55,0,0,0,4,SAF 084,Slash Pine - rough age  3,FOFEM 401,1.54,0,0,0,0,0,3.26,0.4,GK,0,H1,1.75,S1,,F1,,B1,,PFL,1,8,7
+50,0,0,0,4,SAF 084,Slash Pine - rough age  5,FOFEM 401,1.22,0,0,0,0,0,5.58,0.7,GL,0,H1,2.3,S1,,F1,,B1,,PFL,1,8,7
+56,0,0,0,4,SAF 084,Slash Pine - rough age 10,FOFEM 401,1.39,0,0,0,0,0,8.51,1.2,GD,0,H1,3.9,S1,,F1,,B1,,PFL,1,8,7
+21,0,0,0,4,SAF 084,Slash Pine - rough age 15,FOFEM 401,1.58,0,0,0,0,0,9.72,1.4,GD,0,H1,5.45,S1,,F1,,B1,,PFL,1,8,7
+62,0,0,0,4,SAF 085,Slash Pine - Hardwood,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,GD,0,H1,3.9,S1,,F1,,B1,,,1,8,7
+63,0,0,0,4,SAF 087,Sweetgum - Yellow-Poplar,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+64,0,0,0,4,SAF 088,Willow Oak - Water Oak - Diamondleaf (Laurel) Oak,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+66,0,0,0,4,SAF 089,Live Oak,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+286,0,0,0,4,SAF 091,Swamp Chestnut Oak - Cherrybark Oak,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+30,0,0,0,4,SAF 092,Sweetgum - Willow Oak,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+34,0,0,0,4,SAF 093,Sugarberry - American Elm - Green Ash,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+35,0,0,0,4,SAF 094,Sycamore - Sweetgum - American Elm,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+36,0,0,3,4,SAF 095,Black Willow,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+37,0,0,0,4,SAF 096,Overcup Oak - Water Hickory,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+,0,0,3,4,SAF 097,Atlantic White-Cedar,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+39,0,0,0,4,SAF 098,Pond Pine,FOFEM 191,0.7,0,0,0,0,0,3.8,1,GD,1.7,H1,2.6,S1,,F1,,B1,,PC,1,8,7
+41,0,0,0,4,SAF 098,Pond Pine (Pocosin),FOFEM 571,3,0,0,0,0,0,88,6,GD,1.7,H1,2.6,S1,,F1,,B1,,PC,1,8,7
+45,0,0,0,4,SAF 098,Pond Pine (Pocosin) - example 1 From N.C.; Wendel and others '62,SMFDB 118,3.62,0,0,0,0,0,88,6,GD,0,H1,2.06,S1,,F1,,B1,FOFEM 571,PC,1,8,7
+40,0,0,0,4,SAF 098,Pond Pine (Pocosin) - example 2 From N.C.; Wendel and others '62,SMFDB 120,4.45,0,0,0,0,0,88,6,GD,0,H1,4,S1,,F1,,B1,FOFEM 571,PC,1,8,7
+272,0,0,0,4,SAF 098,Pond Pine (Pocosin) - example 3 From N.C.; Wendel and others '62,SMFDB 123,4.59,0,0,0,0,0,88,6,GD,0.48,H1,4.3,S1,,F1,,B1,FOFEM 571,PC,1,8,7
+273,0,0,0,4,SAF 098,Pond Pine (Pocosin) - example 4 From N.C.; Wendel and others '62,SMFDB 126,9.05,0,0,0,0,0,88,6,GD,0,H1,5.95,S1,,F1,,B1,FOFEM 571,PC,1,8,7
+127,0,0,0,4,SAF 098,Pond Pine (Pocosin) - example 5 From N.C.; Wendel and others '62,SMFDB 127,5.36,0,0,0,0,0,88,6,GD,0,H1,11.98,S1,,F1,,B1,FOFEM 571,PC,1,8,7
+219,0,0,0,4,SAF 098,Pond Pine (Pocosin) - example 6 From N.C.; Wendel and others '62,SMFDB 128,5.36,0,0,0,0,0,88,6,GD,0,H1,15.64,S1,,F1,,B1,FOFEM 571,PC,1,8,7
+150,0,0,0,4,SAF 100,Pondcypress,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+181,0,0,0,4,SAF 101,Baldcypress,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+231,0,0,0,4,SAF 102,Baldcypress - Tupelo,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+233,0,0,0,4,SAF 103,Water Tupelo - Swamp Tupelo,CFM-BT,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+234,0,0,0,4,SAF 104,Sweetbay - Swamp Tupelo - Redbay,FOFEM 571,3,0,0,0,0,0,88,6,GD,1.7,H1,2.6,S1,,F1,,B1,,,1,8,7
+235,0,0,0,4,SAF 105,Tropical Hardwoods,CFM Tropical,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+236,0,0,0,4,SAF 106,Mangrove,CFM Tropical,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+237,0,0,3,0,SAF 107,White Spruce,FOFEM 161,11.1,0,0,0,0,0,35,2.3,GC,0.15,H1,0.25,S1,,F1,,B1,,,2,8,7
+240,0,0,3,0,SAF 107,White Spruce ex. From photoseries PMS-831,PMS-831,3.08,0.4,0.7,2,0.3,5,30.9,3.4,GC,0,H1,1.31,S1,,F1,,B1,,,2,8,7
+241,0,0,3,0,SAF 108,Red Maple - example 1 from photoseries NA-FR-22,NAFR-22,4,0.1,0.4,0.7,6.2,5,3,0.5,GD,0.1,H1,0.1,S1,,F1,,B1,,,2,8,7
+242,0,0,3,0,SAF 108,Red Maple - example 2 from photoseries NA-FR-22,NA-FR-22,5.01,0.2,0.8,3.6,7.9,5,14.9,1.4,GD,0,H1,0,S1,,F1,,B1,SMFDB 250,,2,8,7
+243,0,0,3,4,SAF 109,Hawthorn,CFM-ONT,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+244,0,0,3,4,SAF 110,Black Oak,FOFEM 231,2,0.05,0.45,0,0,5,4,0.8,GD,0.05,H1,0.1,S1,,F1,,B1,,,2,8,7
+245,0,0,0,4,SAF 111,South Florida Slash Pine - rough age  1,FOFEM 401,2.1,0,0,0,0,0,0,0,GI,0,H1,1.05,S1,0,F1,0,B1,,,1,8,7
+246,0,0,0,4,SAF 111,South Florida Slash Pine - rough age  2,FOFEM 401,1.92,0,0,0,0,0,1.58,0.2,GJ,0,H1,1.45,S1,0,F1,0,B1,,,1,8,7
+247,0,0,0,4,SAF 111,South Florida Slash Pine - rough age  3,FOFEM 401,1.54,0,0,0,0,0,3.26,0.4,GK,0,H1,1.75,S1,0,F1,0,B1,,,1,8,7
+248,0,0,0,4,SAF 111,South Florida Slash Pine - rough age  5,FOFEM 401,1.22,0,0,0,0,0,5.58,0.7,GL,0,H1,2.3,S1,0,F1,0,B1,,,1,8,7
+249,0,0,0,4,SAF 111,South Florida Slash Pine - rough age 10,FOFEM 401,1.39,0,0,0,0,0,8.51,1.2,GD,0,H1,3.9,S1,0,F1,0,B1,,,1,8,7
+254,0,0,0,4,SAF 111,South Florida Slash Pine - rough age 15,FOFEM 401,1.58,0,0,0,0,0,9.72,1.4,GD,0,H1,5.45,S1,0,F1,0,B1,,,1,8,7
+255,0,0,0,4,SAF 168,Gallberry -- fetterbush   shrubland,SE 168,3.695,0,0,0,0,0,356,45.5,GD,0.1,H1,6.15,S1,0.06,F1,0.02,B1,,PC,1,8,7
+256,0,0,0,4,SAF 170,PPond pine / gallberry   -- fetterbush shrubland,SE 170,3.22,0,0,0,0,0,223.2,10.5,GD,0.1,H1,7.53,,0.68,F1,0.17,B1,,PC,1,8,7
+257,1,2,0,0,SAF 201,White Spruce,FOFEM 161,11.1,0,0,0,0,0,35,2.3,GC,0.15,H1,0.25,S1,,F1,,B1,,BBS,2,8,7
+264,1,2,0,0,SAF 201,White Spruce - ex from photoseries PMS-831,PMS-831,3.08,0.4,0.7,2,0.3,5,30.9,3.4,GC,0,H1,1.31,S1,,F1,,B1,,BBS,2,8,7
+265,0,2,0,0,SAF 202,White Spruce - Paper Birch,FOFEM 161,11.1,0,0,0,0,0,35,2.3,GC,0.15,H1,0.25,S1,,F1,,B1,,BBS,2,8,7
+266,0,2,0,0,SAF 202,White Spruce - Paper Birch - ex from photoseries PMS-831,PMS-831,3.6,0.6,0.9,1.2,11.9,5,44.05,4.6,GC,0.3,H1,1.13,S1,,F1,,B1,,BBS,2,8,7
+265,0,2,0,0,SRM 920,White Spruce - Paper Birch,FOFEM 161,11.1,0,0,0,0,0,35,2.3,GC,0.15,H1,0.25,S1,,F1,,B1,,,2,8,7
+266,0,2,0,0,SRM 920,White Spruce - Paper Birch - ex from photoseries PMS-831,PMS-831,3.6,0.6,0.9,1.2,11.9,5,44.05,4.6,GC,0.3,H1,1.13,S1,,F1,,B1,,,2,8,7
+152,0,2,0,0,SAF 203,Balsam Poplar,FOFEM 561,0.9,0.2,0.8,1,3,5,5,0.5,GD,0.3,H1,0.5,S1,,F1,,B1,,,3,8,7
+167,1,2,0,0,SAF 205,Mountain Hemlock,SMFDB 023,1.92,0.97,1.11,0.82,0.81,5,48.55,2.38,GD,0.3,H1,0.2,S1,,F1,,B1,FOFEM 61,,3,8,7
+172,1,2,0,0,SAF 206,Engelmann Spruce - Subalpine Fir,FOFEM 061,0.6,0.23,0.67,1.1,20,5,30,1.6,GC,0.15,H1,0.2,S1,6,F1,3.9,B1,,,3,8,7
+173,1,2,0,0,SAF 206,Engelmann Spruce - Subalpine Fir - ex from Habeck; '76,SMFDB 081,0.6,0.24,0.67,0.89,12.5,5,41.19,1.89,GC,0.1,H1,0.35,S1,,F1,,B1,FOFEM 61,,3,8,7
+174,0,2,0,0,SAF 207,Red Fir,FOFEM 061,0.6,0.23,0.67,1.1,20,5,30,1.6,GC,0.15,H1,0.2,S1,6,F1,3.9,B1,,,3,8,7
+175,0,2,0,0,SAF 207,Red Fir - ex from CA.; van Wagtendonk & Sydoriak 1998,SMFDB 025,0.69,2.35,3.05,2.26,1.24,5,39.25,1.92,GC,0.3,H1,0.2,S1,,F1,,B1,FOFEM 61,,3,8,7
+176,1,2,0,0,SAF 208,Whitebark Pine,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,GB,0.2,H1,0.4,S1,,F1,,B1,,,3,8,7
+177,1,0,0,0,SAF 209,Bristlecone Pine,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,GD,0.2,H1,0.4,S1,,F1,,B1,,,3,8,7
+178,1,2,0,0,SAF 210,Interior Douglas-fir,FOFEM 031,0.6,0.23,0.67,0.8,7,5,10,1,GC,0.2,H1,0.35,S1,6,F1,3,B1,,,3,8,7
+180,1,2,0,0,SAF 210,Interior Douglas-fir - ex. From Habeck; '76,SMFDB 078,0.6,0.33,0.92,1.44,6.58,5,29.69,1.38,GC,0.18,H1,0.13,S1,,F1,,B1,FOFEM 31,,3,8,7
+182,1,2,0,0,SAF 211,White Fir,FOFEM 061,0.6,0.23,0.67,0.9,20,5,30,1.6,GC,0.15,H1,0.35,S1,6,F1,3.9,B1,,,3,8,7
+205,1,2,0,0,SAF 211,White Fir - ex. From CA.; van Wagtendonk and Sydoriak; '98,SMFDB 031,0.57,1.29,1.65,0.87,0.79,5,35.57,2.54,GC,0.15,H1,0.35,S1,,F1,,B1,FOFEM 61,,3,8,7
+300,1,2,0,0,SAF 212,Western Larch,FOFEM 031,0.6,0.23,0.67,0.8,7,5,10,1,GC,0.2,H1,0.35,S1,6,F1,3,B1,,,3,8,7
+306,1,2,0,0,SAF 213,Grand Fir,FOFEM 071,0.6,0.2,0.5,1.5,14,5,25,1.4,GC,0.15,H1,0.25,S1,8,F1,3.2,B1,,,3,8,7
+147,1,2,0,0,SAF 213,Grand Fir - example 1 From Habeck; '76,SMFDB 079,0.6,0.28,0.79,1.13,9.2,5,51.11,2.32,GC,0.1,H1,0.19,S1,,F1,,B1,FOFEM 71,,3,8,7
+179,1,2,0,0,SAF 213,Grand Fir - example 2 From Habeck; '76,SMFDB 356,0.36,0.36,0.4,0.72,15.21,5,28.05,1.65,GC,0.12,H1,0.13,S1,,F1,,B1,,,3,8,7
+183,1,0,0,0,SAF 215,Western White Pine,FOFEM 041,0.8,0.15,0.85,0.8,40,5,30,2,GA,0.15,H1,0.25,S1,4,F1,2.8,B1,,,3,8,7
+184,1,0,0,0,SAF 215,Western White Pine - ex. from van Wagtendonk and Sydoriak; '98,SMFDB 030,0.57,0.4,0.72,0.39,0,0,11.42,0.71,GA,0.15,H1,0.25,S1,,F1,,B1,FOFEM 41,,3,8,7
+204,1,0,0,0,SAF 216,Blue Spruce,FOFEM 051,1,0.23,0.67,1.3,20,5,20,1.1,GC,0.15,H1,0.25,S1,6,F1,3.8,B1,,,3,8,7
+307,1,2,0,0,SAF 217,Aspen,FOFEM 111,0.9,0.2,0.8,1.5,7,5,5,0.6,GD,0.35,H1,0.4,S1,,F1,,B1,,,3,8,7
+308,1,2,0,0,SAF 217,Aspen - ex. from Brown and Simmerman; '86,SMFDB 152,1.41,0.13,0.76,1.86,2.76,5,5,0.6,GD,0.41,H1,1.1,S1,,F1,,B1,FOFEM 111,,3,8,7
+312,1,2,0,0,SAF 218,Lodgepole Pine,FOFEM 091,0.6,0.18,0.72,0.6,15,5,15,1.1,GB,0.2,H1,0.25,S1,6,F1,4.8,B1,,,3,8,7
+313,1,2,0,0,SAF 218,Lodgepole Pine - ex. From Habeck; '76,SMFDB 362,0.27,0.22,0.5,1.28,1.61,5,32.02,1.5,GB,0.36,H1,0.49,S1,,F1,,B1,,,3,8,7
+255,1,0,0,0,SAF 219,Limber Pine,FOFEM 101,0.3,0.1,0.6,0.5,7,5,10,0.8,GD,0.2,H1,0.4,S1,,F1,,B1,,,3,8,7
+261,1,2,0,0,SAF 220,Rocky Mountain Juniper,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+262,0,2,0,0,SAF 221,Red Alder,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+267,0,2,0,0,SAF 222,Black Cottonwood - Willow,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+278,0,2,0,0,SAF 223,Sitka Spruce,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+279,1,2,0,0,SAF 224,Western Hemlock,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+280,0,2,0,0,SAF 225,Western Hemlock - Sitka Spruce,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+171,0,2,0,0,SAF 226,Coastal True Fir - Hemlock,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+282,1,2,0,0,SAF 227,Western Redcedar - Western Hemlock,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+283,1,2,0,0,SAF 228,Western Redcedar,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+294,1,2,0,0,SAF 228,Western Redcedar - ex. from Habeck; '76,SMFDB 080,1,0.35,1.04,1.58,24.41,5,55.96,2.56,GC,0.09,H1,0.03,S1,,F1,,B1,FOFEM 171,,3,8,7
+295,0,2,0,0,SAF 229,Pacific Douglas-fir,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+297,0,2,0,0,SAF 230,Douglas-fir - Western Hemlock,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 231,Port Orford-Cedar,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 232,Redwood,FOFEM 171,1,0.9,2.1,2.8,50,5,35,2,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 233,Oregon White Oak,CFM West. Oak,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 234,Douglas-fir - Tanoak - Pacific Madrone,FOFEM 241,1,0.7,2.1,1.5,6,5,25,1.5,GC,0.2,H1,0.35,S1,,F1,,B1,,,3,8,7
+,1,0,0,0,SAF 235,Cottonwood - Willow,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,,2,8,7
+,1,2,0,0,SAF 237,Interior Ponderosa Pine,FOFEM 011,1.4,0.07,0.63,0.8,5,5,5,0.6,GA,0.2,H1,0.4,S1,6,F1,0.7,B1,,PN,3,8,7
+,1,2,0,0,SAF 237,Interior Ponderosa Pine - ex. From Habeck; '76,SMFDB 077,1.4,0.03,0.49,0.57,3.83,5,20.49,0.91,GA,0.17,H1,0.09,S1,,F1,,B1,FOFEM 11,PN,3,8,7
+,1,2,0,0,SAF 238,Western Juniper - ex. from photoseries PMS-831,PMS-830,0.13,0.04,0.05,0,0,0,0,0,GD,0.08,H1,0.23,S1,,F1,,B1,,,3,8,7
+193,1,2,0,0,SAF 238,Western Juniper - ex. from van Wagtendonk and Sydoriak; '98,SMFDB 029,0.04,0.17,0.49,0.35,0,0,10.19,0.5,GD,0.08,H1,0.23,S1,,F1,,B1,PMS-830,,3,8,7
+,1,0,0,0,SAF 240,Arizona Cypress,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+,1,0,0,0,SAF 241,Western Live Oak,CFM West. Oak,,,,,,,,,,,H1,,S1,,F1,,B1,,,4,8,7
+,1,2,0,0,SAF 242,Mesquite (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,,4,8,7
+210,1,2,0,0,SAF 242,Mesquite (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,,4,8,7
+211,1,2,0,0,SAF 242,Mesquite (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,,4,8,7
+212,0,2,0,0,SAF 243,Sierra Nevada Mixed Conifer - FOFEM 081,FOFEM 081,1.5,0.25,0.75,1.5,20,5,40,3,GC,0.2,H1,0.4,S1,6,F1,3,B1,,,3,8,7
+163,0,2,0,0,SAF 243,Sierra Nevada Mixed Conifer - SMFDB 027,SMFDB 027,3.31,0.64,0.79,1.74,0.42,5,38.89,2.35,GC,0.2,H1,0.4,S1,,F1,,B1,FOFEM 81,,3,8,7
+,0,2,0,0,SAF 244,Pacific Ponderosa Pine - Douglas-fir,FOFEM 081,1.5,0.25,0.75,1.5,20,5,40,3,GA,0.2,H1,0.4,S1,6,F1,3,B1,,PN,3,8,7
+226,0,2,0,0,SAF 245,Pacific Ponderosa Pine,FOFEM 021,1.5,0.1,0.9,1,10,5,25,2,GA,0.2,H1,0.4,S1,6,F1,0.7,B1,,PN,3,8,7
+,0,2,0,0,SAF 245,Pacific Ponderosa Pine - ex. from van Wagtendonk and Sydoriak; '98,SMFDB 024,2.51,0.06,0.96,1.16,2.26,5,50.45,3.1,GA,0.2,H1,0.4,S1,,F1,,B1,FOFEM 21,PN,3,8,7
+,0,2,0,0,SAF 246,California Black Oak,CFM West. Oak,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+,1,2,0,0,SAF 247,Jeffrey Pine,FOFEM 021,1.5,0.1,0.9,1,10,5,25,2,GA,0.2,H1,0.4,S1,6,F1,0.7,B1,,PN,3,8,7
+,1,2,0,0,SAF 247,Jeffrey Pine - ex. from van Wagtendonk and Sydoriak; '98,SMFDB 019,1.68,0.11,0.87,0.33,0,0,39.99,2.12,GA,0.2,H1,0.4,S1,,F1,,B1,FOFEM 21,PN,3,8,7
+,0,2,0,0,SAF 248,Knobcone Pine,SMFDB 020,2.61,0.31,0.33,0.41,0,0,21.57,1.1,GD,0.2,H1,0.4,S1,,F1,,B1,FOFEM 11,,3,8,7
+,0,2,0,0,SAF 249,Canyon Live Oak,CFM West. Oak,,,,,,,,,NA,,H1,,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 250,Blue Oak - Gray Pine,SMFDB 015,1.51,0.29,0.41,0.3,0,0,12.22,1.27,GD,0.2,H1,0.4,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 251,White Spruce - Aspen,PMS-831,2.61,0.5,0.8,2.1,4.1,5,20.81,2.7,GC,0.04,H1,0.5,S1,,F1,,B1,,BBS,3,8,7
+,1,2,0,0,SAF 252,Paper Birch,FOFEM 561,0.9,0.2,0.8,1,3,5,5,0.5,GD,0.3,H1,0.5,S1,,F1,,B1,,,3,8,7
+,0,2,0,0,SAF 253,Black Spruce - White Spruce,PMS-831,6.09,0.1,0.2,0.1,1.2,5,125.84,9.1,GC,0.33,H1,1.57,S1,,F1,,B1,,BBS,3,8,7
+,0,2,0,0,SAF 254,Black Spruce - Paper Birch,PMS-831,3.37,0.2,0.4,2,5.9,5,49.51,3.5,GC,0.52,H1,1.68,S1,,F1,,B1,,BBS,3,8,7
+276,0,2,0,0,SAF 255,California Coast Live Oak,CFM West. Oak,,,,,,,,,,,H1,,S1,,F1,,B1,,,3,8,7
+80,0,2,0,0,SAF 256,California Mixed Subalpine,SMFDB 016,0.79,0.83,0.62,0,0,0,16.28,0.63,GC,0.2,H1,0.25,S1,,F1,,B1,FOFEM 91,,3,8,7
+259,1,2,0,0,SRM 101,Bluebunch Wheatgrass,Shiflet 1994,0,0,0,0,0,0,0,0,GD,0.59,H1,0,S1,,F1,,B1,,GG,5,8,7
+260,1,2,0,0,SRM 102,Idaho Fescue,Shiflet 1994,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+263,1,2,0,0,SRM 103,Green Fescue,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+268,1,2,0,0,SRM 104,Antelope Bitterbrush-Bluebunch Wheatgrass,PMS-830,0.11,0.1,0.06,0,0,0,0,0,GD,0.44,H1,2.49,S1,,F1,,B1,,GG,4,8,7
+269,1,2,0,0,SRM 105,Antelope Bitterbrush-Idaho Fescue,PMS-830,0.11,0.1,0.06,0,0,0,0,0,GD,0.44,H1,2.49,S1,,F1,,B1,,GG,4,8,7
+274,1,2,0,0,SRM 106,Bluegrass Scabland,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+275,1,2,0,0,SRM 107,Western Juniper-Big Sagebrush-Bluebunch Wheatgrass,PMS-830,0.13,0.05,0.16,0.4,2.3,5,0,0,GD,0.14,H1,0.39,S1,,F1,,B1,,SB,4,8,7
+277,1,2,0,0,SRM 108,Alpine Idaho Fescue,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+207,1,2,0,0,SRM 109,Ponderosa Pine Shrublands,FOFEM 011,1.4,0.07,0.63,0.8,5,5,5,0.6,GD,0.1,H1,0.5,S1,6,F1,0.7,B1,,,4,8,7
+53,1,2,0,0,SRM 110,Ponderosa Pine Grasslands,FOFEM 011,1.4,0.07,0.63,0.8,5,5,5,0.6,GD,0.5,H1,0.1,S1,6,F1,0.7,B1,,GG,5,8,7
+,1,2,0,0,SRM 201,Blue Oak Woodland,CFM West. Oak,,,,,,,,,,,H1,,S1,,F1,,B1,,,5,8,7
+,1,2,0,0,SRM 202,Coast Live Oak Woodland,CFM West. Oak,,,,,,,,,,,H1,,S1,,F1,,B1,,,5,8,7
+,0,2,0,0,SRM 203,Riparian Woodland,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,,4,8,7
+,0,2,0,0,SRM 204,North Coastal Shrub,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 205,Coastal Sage Shrub,PMS-833,7.4,0,0,0,0,0,0,0,GD,0,H1,9.6,S1,,F1,,B1,,SB,4,8,7
+54,1,2,0,0,SRM 206,Chamise Chaparral,PMS-833,0,0,0,0,0,0,0,0,GD,0,H1,13.5,S1,,F1,,B1,,SGC,4,8,7
+,1,2,0,0,SRM 207,Scrub Oak Mixed Chaparral,CFM,,,,,,,10,1,,,H1,10,S1,,F1,,B1,,SGC,4,8,7
+,1,2,0,0,SRM 208,Ceanothus Mixed Chaparral,PMS-833,0,0,0,0,0,0,0,0,GD,0,H1,38.7,S1,,F1,,B1,,SGC,4,8,7
+,1,2,0,0,SRM 209,Montane Shrubland,FOFEM 331,0.5,0,0,0,0,0,2,0.2,GD,0.1,H1,10,S1,,F1,,B1,,,4,8,7
+,0,2,0,0,SRM 210,Bitterbrush,PMS-830,0.11,0.1,0.06,0,0,0,0,0,GD,0.44,H1,2.5,S1,,F1,,B1,,SG,4,8,7
+,1,0,0,0,SRM 211,Creasote Bush Scrub (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,4,8,7
+59,1,0,0,0,SRM 211,Creasote Bush Scrub (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,4,8,7
+,1,0,0,0,SRM 211,Creasote Bush Scrub (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,4,8,7
+,1,2,0,0,SRM 212,Blackbush (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,4,8,7
+,1,2,0,0,SRM 212,Blackbush (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,4,8,7
+,1,2,0,0,SRM 212,Blackbush (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,4,8,7
+,0,2,0,0,SRM 213,Alpine Grassland,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,,5,8,7
+60,0,2,0,0,SRM 214,Coastal Prairie,Shiflet 1994,0,0,0,0,0,0,0,0,GD,1.35,H1,0,S1,,F1,,B1,,GG,5,8,7
+,0,2,0,0,SRM 215,Valley Grassland (Annual Grassland),Shiflet 1994,0,0,0,0,0,0,0,0,GD,1.8,H1,0,S1,,F1,,B1,,GG,5,8,7
+,0,2,0,0,SRM 216,Montane Meadow,Shiflet 1994,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+,0,2,0,0,SRM 217,Wetlands,FOFEM 311,0,0,0,0,0,0,0,0,GD,4.5,H1,0,S1,,F1,,B1,,,5,8,7
+,1,0,0,0,SRM 301,Bluebunch Wheatgrass - Blue Grama,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 302,Bluebunch Wheatgrass - Sandberg Bluegrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+57,1,0,0,0,SRM 303,Bluebunch Wheatgrass - Western Wheatgrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 304,Idaho Fescue - Bluebunch Wheatgrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 305,Idaho Fescue - Richardson Needlegrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 306,Idaho Fescue - Slender Wheatgrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 307,Idaho Fescue - Threadleaf Sedge,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 308,Idaho Fescue - Tufted Hairgrass,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+58,1,0,0,0,SRM 309,Idaho Fescue - Western Wheatgrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 310,Needle-and-Thread - Blue Grama,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 311,Rough Fescue - Bluebunch Wheatgrass,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 312,Rough Fescue - Idaho Fescue,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 313,Tufted Hairgrass - Sedge,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 314,Big Sagebrush - Bluebunch Wheatgrass (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 314,Big Sagebrush - Bluebunch Wheatgrass (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 314,Big Sagebrush - Bluebunch Wheatgrass (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 315,Big Sagebrush - Idaho Fescue (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 315,Big Sagebrush - Idaho Fescue (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 315,Big Sagebrush - Idaho Fescue (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 315,Big Sagebrush - Idaho Fescue - ex from Gruell and others; '86,SMFDB 336,0,0,0,0,0,0,0,0,GD,1.49,H1,0.97,S1,,F1,,B1,,SB,4,8,7
+65,1,0,0,0,SRM 316,Big Sagebrush - Rough Fescue (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 316,Big Sagebrush - Rough Fescue (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 316,Big Sagebrush - Rough Fescue (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 317,Bitterbrush - Bluebunch Wheatgrass (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 317,Bitterbrush - Bluebunch Wheatgrass (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 317,Bitterbrush - Bluebunch Wheatgrass (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,,4,8,7
+285,1,0,0,0,SRM 318,Bitterbrush - Idaho Fescue (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 318,Bitterbrush - Idaho Fescue (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 318,Bitterbrush - Idaho Fescue (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 318,Bitterbrush - Idaho Fescue - ex. From photoseries PMS-830,PMS-830,0.11,0.1,0.06,0,0,0,0,0,GD,0.44,H1,2.5,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 319,Bitterbrush - Rough Fescue (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 319,Bitterbrush - Rough Fescue (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,,4,8,7
+185,1,0,0,0,SRM 319,Bitterbrush - Rough Fescue (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 320,Black Sagebrush - Bluebunch Wheatgrass (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+187,1,0,0,0,SRM 320,Black Sagebrush - Bluebunch Wheatgrass (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+188,1,0,0,0,SRM 320,Black Sagebrush - Bluebunch Wheatgrass (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 321,Black Sagebrush - Idaho Fescue (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+190,1,0,0,0,SRM 321,Black Sagebrush - Idaho Fescue (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+191,1,0,0,0,SRM 321,Black Sagebrush - Idaho Fescue (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+192,1,0,0,0,SRM 322,Curlleaf Mountain-Mahogany - Bluebunch Wheatgrass,FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,,4,8,7
+194,1,0,0,0,SRM 323,Shrubby Cinquefoil - Rough Fescue,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,,4,8,7
+195,1,0,0,0,SRM 324,Threetip Sage - Idaho Fescue,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,2,0,0,SRM 401,Basin Big Sagebrush (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+197,1,2,0,0,SRM 401,Basin Big Sagebrush (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+198,1,2,0,0,SRM 401,Basin Big Sagebrush (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+199,1,2,0,0,SRM 401,Basin Big Sagebrush - ex. from Clary and Medin; '90,SMFDB 228,0.07,0,0,0,0,0,0,0,GD,0.31,H1,4.33,S1,,F1,,B1,,SB,4,8,7
+200,1,2,0,0,SRM 402,Mountain Big Sagebrush,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+201,1,2,0,0,SRM 403,Wyoming Big Sagebrush (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SB,4,8,7
+202,1,2,0,0,SRM 403,Wyoming Big Sagebrush (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+203,1,2,0,0,SRM 403,Wyoming Big Sagebrush (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SB,4,8,7
+209,1,2,0,0,SRM 403,Wyoming Big Sagebrush (low shrub cover) - ex from photoseries PMS-833,PMS-833,0.58,0.34,0.28,0,0,0,0,0,GD,0.1,H1,2.98,S1,,F1,,B1,,SB,4,8,7
+238,1,0,0,0,SRM 404,Threetip Sagebrush,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,2,0,0,SRM 405,Black Sagebrush,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,2,0,0,SRM 406,Low Sagebrush,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,2,0,0,SRM 407,Stiff Sagebrush,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,0,0,0,SRM 408,Other Sagebrush Types,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,4,8,7
+,1,2,0,0,SRM 409,Tall Forb,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,,5,8,7
+,1,0,0,0,SRM 410,Alpine Rangeland,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,,5,8,7
+,1,0,0,0,SRM 411,Aspen Woodland,PMS-832,0.84,0.1,0.4,5,4.5,5,5.6,0.5,GD,0.18,H1,1.32,S1,,F1,,B1,,,5,8,7
+,1,0,0,0,SRM 412,Juniper - Pinyon Woodland (also SRM 504; SAF 239),FOFEM 381,1,0,0,0,0,0,9,0.4,GD,0.2,H1,1.3,S1,,F1,,B1,,,5,8,7
+,1,0,0,0,SRM 413,Gambel Oak ex from photoseries PMS-832,PMS-832,2.84,0.25,0.24,0.91,0.08,3,0,0,GD,0.11,H1,2.69,S1,,F1,,B1,,,4,8,7
+,1,0,0,0,SRM 413,Gambel Oak - ex from Clary and Tiedemann '86,SMFDB 229,2.3,0,0,0,0,0,0,0,GD,0.45,H1,6.92,S1,,F1,,B1,PMS-832,,4,8,7
+,1,2,0,0,SRM 414,Salt Desert Shrub (moderate shrub cover),FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,4,8,7
+220,1,2,0,0,SRM 414,Salt Desert Shrub (low shrub cover),FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,4,8,7
+,1,2,0,0,SRM 414,Salt Desert Shrub (high shrub cover),FOFEM 471,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,4,8,7
+82,1,0,0,0,SRM 415,Curlleaf Mountain-Mahogany,FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,,4,8,7
+135,1,0,0,0,SRM 416,True Mountain-Mahogany,FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,,4,8,7
+165,1,0,0,0,SRM 417,Littleleaf Mountain-Mahogany,FOFEM 321,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,,4,8,7
+166,1,0,0,0,SRM 418,Bigtooth Maple,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,GD,0.2,H1,23.4,S1,,F1,,B1,,,4,8,7
+218,1,0,0,0,SRM 419,Bittercherry,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,GD,0.4,H1,23.4,S1,,F1,,B1,,,4,8,7
+223,1,2,0,0,SRM 420,Snowbrush,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,GD,0.4,H1,23.4,S1,,F1,,B1,,,4,8,7
+224,1,0,0,0,SRM 421,Chokecherry - Serviceberry - Rose,INT-GTR-363,0.5,0.2,0.9,1,0,0,9.8,0.5,GD,0.4,H1,23.4,S1,,F1,,B1,,,4,8,7
+225,1,2,0,0,SRM 422,Riparian,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,,4,8,7
+270,1,2,0,0,SRM 501,Saltbush - Greasewood (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,4,8,7
+,1,2,0,0,SRM 501,Saltbush - Greasewood (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,4,8,7
+,1,2,0,0,SRM 501,Saltbush - Greasewood (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,4,8,7
+,1,0,0,0,SRM 502,Grama - Galleta,FOFEM 261,0,0,0,0,0,0,0,0,GD,0.3,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 503,Arizona Chaparral (moderate shrub cover),FOFEM 331,0.5,0,0,0,0,0,2,0.2,GD,0.1,H1,10,S1,,F1,,B1,,SGC,4,8,7
+,1,0,0,0,SRM 503,Arizona Chaparral (low shrub cover),FOFEM 481,0.2,0,0,0,0,0,0.5,0.1,GD,0.5,H1,5,S1,,F1,,B1,,SGC,4,8,7
+,1,0,0,0,SRM 503,Arizona Chaparral (high shrub cover),FOFEM 491,0.5,0,0,0,0,0,3,0.4,GD,0,H1,15,S1,,F1,,B1,,SGC,4,8,7
+,1,0,0,0,SRM 505,Grama - Tobosa Shrub (moderate shrub cover),FOFEM 361,0.11,0,0,0,0,0,0,0,GD,0.13,H1,2.28,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 505,Grama - Tobosa Shrub (low shrub cover),FOFEM 541,0.07,0,0,0,0,0,0,0,GD,0.15,H1,1.26,S1,,F1,,B1,,GG,5,8,7
+81,1,0,0,0,SRM 506,Creasotebush - Bursage (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,4,8,7
+271,1,0,0,0,SRM 506,Creasotebush - Bursage (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,4,8,7
+,1,0,0,0,SRM 506,Creasotebush - Bursage (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,4,8,7
+,1,0,0,0,SRM 507,Palo Verde - Cactus,FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,,5,8,7
+222,1,0,0,0,SRM 508,Creasotebush - Tarbush (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,4,8,7
+7,1,0,0,0,SRM 508,Creasotebush - Tarbush (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,4,8,7
+,1,0,0,0,SRM 508,Creasotebush - Tarbush (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,4,8,7
+95,1,0,0,0,SRM 509,Oak - Juniper and Mahogany - Oak Woodland,FOFEM 331,0.5,0,0,0,0,0,2,0.2,GD,0.1,H1,10,S1,,F1,,B1,,,3,8,7
+94,1,0,3,4,SRM 601,Bluestem Prairie,SMFDB 497,0,0,0,0,0,0,0,0,GD,2.73,H1,0,S1,,F1,,B1,,GG,5,8,7
+94,1,0,3,4,SRM 710,Bluestem Prairie,SMFDB 497,0,0,0,0,0,0,0,0,GD,2.73,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 602,Bluestem - Prairie Sandreed,SMFDB 472,0,0,0,0,0,0,0,0,GD,1.53,H1,0,S1,,F1,,B1,,GG,5,8,7
+79,1,0,0,0,SRM 603,Prairie Sandreed - Needlegrass,SMFDB 473,0,0,0,0,0,0,0,0,GD,0.94,H1,0,S1,,F1,,B1,,GG,5,8,7
+213,1,0,0,0,SRM 604,Bluestem - Grama Prairie,SMFDB 438,0,0,0,0,0,0,0,0,GD,1.04,H1,0,S1,,F1,,B1,,GG,5,8,7
+214,1,0,0,0,SRM 605,Sandsage Prairie,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,,5,8,7
+215,1,0,0,0,SRM 606,Wheatgrass - Bluestem - Needlegrass,SMFDB 494,0,0,0,0,0,0,0,0,GD,1.51,H1,0,S1,,F1,,B1,,GG,5,8,7
+216,1,0,0,0,SRM 607,Wheatgrass - Needlegrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+29,1,0,0,0,SRM 608,Wheatgrass - Grama - Needlegrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+28,1,0,0,0,SRM 609,Wheatgrass - Grama,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+29,1,0,0,0,SRM 610,Wheatgrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+131,1,0,0,0,SRM 611,Blue Grama - Buffalograss,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+148,1,0,0,0,SRM 612,Sagebrush - Grass,FOFEM 461,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SB,5,8,7
+149,1,0,0,0,SRM 613,Fescue Grassland,SMFDB 335,0,0,0,0,0,0,0,0,GD,1.56,H1,0,S1,,F1,,B1,,GG,5,8,7
+151,1,0,0,0,SRM 614,Crested Wheatgrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+164,1,0,0,0,SRM 615,Wheatgrass - Saltgrass - Grama,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+189,1,0,0,0,SRM 701,Alkali Sacaton - Tobosagrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+3,1,0,0,0,SRM 702,Black Grama - Alkali Sacaton,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 703,Black Grama - Sideoats Grama,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 704,Blue Grama - Western Wheatgrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 705,Blue Grama - Galleta,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+93,1,0,0,0,SRM 706,Blue Grama - Sideoats Grama,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+92,1,0,0,0,SRM 707,Blue Grama - SIdeoats Grama - Black Grama,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+97,1,0,0,0,SRM 708,Bluestem - Dropseed,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+98,1,0,0,0,SRM 709,Bluestem - Grama,Shiflet 1994,0,0,0,0,0,0,0,0,GD,1.85,H1,0,S1,,F1,,B1,,GG,5,8,7
+302,0,0,0,4,SRM 711,Bluestem - Sacahuista Prairie,SMFDB 497,0,0,0,0,0,0,0,0,GD,2.73,H1,0,S1,,F1,,B1,,GG,5,8,7
+206,1,0,0,0,SRM 712,Galleta - Alkali Sacaton,SMFDB 209,0,0,0,0,0,0,0,0,GD,1.85,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 713,Grama - Muhly - Threeawn,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+159,1,0,0,0,SRM 714,Grama - Bluestem,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+160,1,0,0,0,SRM 715,Grama - Buffalograss,SMFDB 129,0,0,0,0,0,0,0,0,GD,0.62,H1,0,S1,,F1,,B1,,GG,5,8,7
+162,1,0,0,0,SRM 716,Grama - Feathergrass,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+,1,0,0,0,SRM 717,Little Bluestem - Indiangrass - Texas Wintergrass,Shiflet 1994,0,0,0,0,0,0,0,0,GD,3.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+145,1,0,0,0,SRM 718,Mesquite - Grama,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,GD,1,H1,5,S1,,F1,,B1,,SG,4,8,7
+146,1,0,0,4,SRM 719,Mesquite - Liveoak - Seacoast Bluestem,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,GD,1,H1,5,S1,,F1,,B1,,SG,1,8,7
+168,1,0,0,0,SRM 720,Sand Bluestem - Little Bluestem Dunes,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+169,1,0,0,0,SRM 721,Sand Bluestem - Little Bluestem Plains,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+170,1,0,0,0,SRM 722,Sand Sagebrush - Mixed Prairie,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,GD,1,H1,5,S1,,F1,,B1,,SB,5,8,7
+250,0,0,0,4,SRM 723,Sea Oats,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+258,1,0,0,0,SRM 724,Sideoats Grama - New Mexico Feathergrass - Winterfat,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+301,1,0,0,0,SRM 725,Vine Mesquite - Alkali Sacaton,FOFEM 271,0,0,0,0,0,0,0,0,GD,0.63,H1,0,S1,,F1,,B1,,GG,5,8,7
+303,0,0,0,4,SRM 726,Cordgrass,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,1,8,7
+143,1,0,0,0,SRM 727,Mesquite - Buffalograss,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,GD,1,H1,5,S1,,F1,,B1,,SG,5,8,7
+104,1,0,0,0,SRM 728,Mesquite - Granjero - Acacia,FOFEM 371,0.2,0,0,0,0,0,0.5,0.1,GD,1,H1,5,S1,,F1,,B1,,SG,5,8,7
+,1,0,0,0,SRM 729,Mesquite (moderate shrub cover),FOFEM 341,0.11,0,0,0,0,0,0,0,GD,0.2,H1,2.28,S1,,F1,,B1,,SG,5,8,7
+141,1,0,0,0,SRM 729,Mesquite (low shrub cover),FOFEM 501,0.07,0,0,0,0,0,0,0,GD,0.23,H1,1.26,S1,,F1,,B1,,SG,5,8,7
+99,1,0,0,0,SRM 729,Mesquite (high shrub cover),FOFEM 511,0.14,0,0,0,0,0,0,0,GD,0.17,H1,3.66,S1,,F1,,B1,,SG,5,8,7
+,1,0,0,0,SRM 730,Sand Shinnery Oak (moderate shrub cover),FOFEM 351,0.11,0,0,0,0,0,0,0,GD,0.4,H1,2.28,S1,,F1,,B1,,SG,5,8,7
+101,1,0,0,0,SRM 730,Sand Shinnery Oak (low shrub cover),FOFEM 521,0.07,0,0,0,0,0,0,0,GD,0.45,H1,1.26,S1,,F1,,B1,,SG,5,8,7
+136,1,0,0,0,SRM 730,Sand Shinnery Oak (high shrub cover),FOFEM 531,0.14,0,0,0,0,0,0,0,GD,0.35,H1,3.66,S1,,F1,,B1,,SG,5,8,7
+,1,0,0,4,SRM 731,Cross Timbers - Oklahoma,FOFEM 231,2,0.05,0.45,0,0,0,4,0.8,GD,0.05,H1,0.15,S1,,F1,,B1,,,1,8,7
+,1,0,0,4,SRM 732,Cross Timbers - Texas (Little Bluestem - Post Oak),FOFEM 231,2,0.05,0.45,0,0,0,4,0.8,GD,0.05,H1,0.15,S1,,F1,,B1,,,1,8,7
+106,1,0,0,0,SRM 733,Juniper - Oak,FOFEM 371,0.2,0,0,0,0,0,0,0,GD,1,H1,5,S1,,F1,,B1,,,3,8,7
+130,1,0,0,0,SRM 734,Mesquite - Oak,FOFEM 371,0.2,0,0,0,0,0,0,0,GD,1,H1,5,S1,,F1,,B1,,,3,8,7
+105,1,0,0,0,SRM 735,Sideoats Grama - Sumac - Juniper,FOFEM 361,0.11,0,0,0,0,0,0,0,GD,0.13,H1,2.28,S1,,F1,,B1,,,3,8,7
+,0,0,0,4,SRM 801,Savanna,FOFEM 371,0.2,0,0,0,0,0,0,0,GD,1,H1,5,S1,,F1,,B1,,SG,1,8,7
+,0,0,0,4,SRM 802,Missouri Prairie,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,1,8,7
+,0,0,0,4,SRM 803,Missouri Glades,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,1,8,7
+,0,0,0,4,SRM 804,Tall Fescue,FOFEM 301,0,0,0,0,0,0,0,0,GD,2.25,H1,0,S1,,F1,,B1,,GG,1,8,7
+,0,0,0,4,SRM 805,Riparian,CFM Riparian,,,,,,,,,,,H1,,S1,,F1,,B1,,GG,1,8,7
+,0,0,0,4,SRM 806,Gulf Coast Salt Marsh,FOFEM 311,0,0,0,0,0,0,0,0,GD,4.5,H1,0,S1,,F1,,B1,,GG,1,8,7
+,0,0,0,4,SRM 807,Gulf Coast Fresh Marsh,FOFEM 311,0,0,0,0,0,0,0,0,GD,4.5,H1,0,S1,,F1,,B1,,GG,1,8,7
+,0,0,0,4,SRM 808,Sand Pine Scrub - example 1 from Schmalzer & Hinkle '96,SMFDB 478,1.96,0,0,0,0,0,3.8,1,GD,0.01,H1,8.18,S1,,F1,,B1,FOFEM 191,,1,8,7
+,0,0,0,4,SRM 808,Sand Pine Scrub - example 2 from Schmalzer & Hinkle '96,SMFDB 479,2.15,0,0,0,0,0,3.8,1,GD,0.02,H1,8.25,S1,,F1,,B1,FOFEM 191,,1,8,7
+256,0,0,0,4,SRM 808,Sand Pine Scrub - example 3 from Schmalzer & Hinkle '96,SMFDB 481,5.22,0,0,0,0,0,3.8,1,GD,0.24,H1,9.41,S1,,F1,,B1,FOFEM 191,,1,8,7
+,0,0,0,4,SRM 808,Sand Pine Scrub - example 4 from Schmalzer & Hinkle '96,SMFDB 482,4.87,0,0,0,0,0,3.8,1,GD,0,H1,12.77,S1,,F1,,B1,FOFEM 191,,1,8,7
+253,0,0,0,4,SRM 809,Mixed Hardwood and Pine - rough age  1,FOFEM 441,1.9,0,0,0,0,0,0,0,GD,0,H1,0.68,S1,,F1,,B1,,,1,8,7
+196,0,0,0,4,SRM 809,Mixed Hardwood and Pine - rough age  2,FOFEM 441,1.65,0,0,0,0,0,1.35,0.2,GD,0,H1,0.9,S1,,F1,,B1,,,1,8,7
+208,0,0,0,4,SRM 809,Mixed Hardwood and Pine - rough age  3,FOFEM 441,1.31,0,0,0,0,0,2.79,0.4,GD,0,H1,1.05,S1,,F1,,B1,,,1,8,7
+8,0,0,0,4,SRM 809,Mixed Hardwood and Pine - rough age  5,FOFEM 441,0.97,0,0,0,0,0,4.43,0.7,GD,0,H1,1.35,S1,,F1,,B1,,,1,8,7
+9,0,0,0,4,SRM 809,Mixed Hardwood and Pine - rough age 10,FOFEM 441,0.92,0,0,0,0,0,5.68,1.2,GD,0,H1,2.25,S1,,F1,,B1,,,1,8,7
+25,0,0,0,4,SRM 809,Mixed Hardwood and Pine - rough age 15,FOFEM 441,0.92,0,0,0,0,0,5.68,1.4,GD,0,H1,3.15,S1,,F1,,B1,,,1,8,7
+26,0,0,0,4,SRM 810,Longleaf Pine - Turkey Oak Hills,FOFEM 221,0.9,0,0,0,0,0,5.7,1.2,GD,0,H1,3.9,S1,,F1,,B1,,,1,8,7
+24,0,0,0,4,SRM 811,South Florida Flatwoods,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+27,0,0,0,4,SRM 812,North Florida Flatwoods,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,PFL,1,8,7
+299,0,0,0,4,SRM 813,Cutthroat Seeps,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+315,0,0,0,4,SRM 814,Cabbage Palms Flatwoods,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+319,0,0,0,4,SRM 815,Upland Hardwood Hammocks,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+310,0,0,0,4,SRM 816,Cabbage Palm Hammocks,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+311,0,0,0,4,SRM 817,Oak Hammocks,CFM,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+305,0,0,0,4,SRM 818,Florida Salt Marsh,FOFEM 311,0,0,0,0,0,0,0,0,GD,4.5,H1,0,S1,,F1,,B1,,,1,8,7
+316,0,0,0,4,SRM 819,Freshwater Marsh and Ponds,FOFEM 311,0,0,0,0,0,0,0,0,GD,4.5,H1,0,S1,,F1,,B1,,,1,8,7
+314,0,0,0,4,SRM 820,Everglades Flatwoods,CFM Palmetto,,,,,,,,,,,H1,,S1,,F1,,B1,,,1,8,7
+317,0,0,0,4,SRM 821,Pitcher Plant Bogs,FOFEM 311,0,0,0,0,0,0,0,0,GD,4.5,H1,0,S1,,F1,,B1,,,1,8,7
+239,1,2,0,0,SRM 901,Alder,SMFDB 271,0.5,0,0,0,0,0,5,1,GD,0.28,H1,3.25,S1,,F1,,B1,SMFDB 9,,3,8,7
+186,0,2,0,0,SRM 902,Alpine Herb,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,,5,8,7
+108,0,2,0,0,SRM 903,Beach Wildrye - Mixed Forb,Shiflet 1994,0,0,0,0,0,0,0,0,GD,0.47,H1,0,S1,,F1,,B1,,,5,8,7
+111,0,2,0,0,SRM 904,Black Spruce - Lichen,PMS-831,6.4,0.1,0.1,0.6,0,0,159.93,9.7,GD,0.02,H1,0.64,S1,,F1,,B1,,,2,8,7
+230,0,2,0,0,SRM 905,Bluejoint Reedgrass,Shiflet 1994,0,0,0,0,0,0,0,0,GD,1.85,H1,0,S1,,F1,,B1,,,5,8,7
+38,0,2,0,0,SRM 906,Broadleaf Forest,FOFEM 111,0.9,0.2,0.8,1.5,7,5,5,0.6,GD,0.35,H1,0.4,S1,,F1,,B1,,,3,8,7
+228,0,2,0,0,SRM 907,Dryas,SMFDB 288,0,0,0,0,0,0,0,0,GD,0.07,H1,0.07,S1,,F1,,B1,,,5,8,7
+229,0,2,0,0,SRM 908,Fescue,FOFEM 281,0,0,0,0,0,0,0,0,GD,0.95,H1,0,S1,,F1,,B1,,GG,5,8,7
+83,0,2,0,0,SRM 909,Freshwater Marsh,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+284,0,2,0,0,SRM 910,Hairgrass,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+,0,2,0,0,SRM 912,Low Scrub Shrub Birch - Ericaceous,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,GD,0.1,H1,2.57,S1,,F1,,B1,,,4,8,7
+,0,2,0,0,SRM 913,Low Scrub Swamp,SMFDB 282,0.2,0,0,0,0,0,2.5,0.5,GD,0.1,H1,2.57,S1,,F1,,B1,,,4,8,7
+,0,2,0,0,SRM 914,Mesic Sedge - Grass - Herb Meadow Tundra,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,GG,5,8,7
+,0,2,0,0,SRM 915,Mixed Herb - Herbaceous,FOFEM 291,0,0,0,0,0,0,0,0,GD,1.25,H1,0,S1,,F1,,B1,,,5,8,7
+,0,2,0,0,SRM 916,Sedge - Shrub Tundra,SMFDB 292,0,0,0,0,0,0,0,0,GD,0.14,H1,0.69,S1,,F1,,B1,,,5,8,7
+,0,2,0,0,SRM 917,Tall Shrub Swamp,SMFDB 276,0.5,0,0,0,0,0,5,1,GD,0.1,H1,4.73,S1,,F1,,B1,SMFDB 9,,4,8,7
+232,0,2,0,0,SRM 918,Tussock Tundra,SMFDB 291,0,0,0,0,0,0,0,0,GD,0.19,H1,1.19,S1,,F1,,B1,,,5,8,7
+227,0,2,0,0,SRM 919,Wet Meadow Tundra,SMFDB 293,0,0,0,0,0,0,0,0,GD,0.53,H1,0.25,S1,,F1,,B1,,,5,8,7
+252,1,2,0,0,SRM 921,Willow,SMFDB 277,0.5,0,0,0,0,0,5,1,GD,0.14,H1,1.88,S1,,F1,,B1,SMFDB 9,,4,8,7
