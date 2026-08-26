@@ -187,7 +187,7 @@ _FUEL_BOUNDS = {
 }
 
 _FIRE_BOUNDS = {
-    'fistart': (10.0,   1.0e5,   'igniting fire intensity (kW/m²)'),        # fir1=40,  fir2=1e5
+    'fistart': (40.0,   1.0e5,   'igniting fire intensity (kW/m²)'),        # fir1=40,  fir2=1e5
     'ti':      (10.0,   200.0,   'surface fire residence time (s)'),        # ti1=10,   ti2=200
     'u':       (0.0,    5.0,     'windspeed at fuelbed top (m/s)'),         # u1=0,     u2=5
     'd':       (0.1,    5.0,     'fuel bed depth (m)'),                     # d1=0.1,   d2=5

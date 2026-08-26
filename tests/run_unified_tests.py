@@ -31,6 +31,7 @@ CORE_TESTS: List[str] = [
     "tests/test_equations_golden.py",
     "tests/test_burnup_golden.py",
     "tests/test_emission_equation_ids.py",
+    "tests/test_pr1_review_regressions.py",
     "tests/test_run_fofem_emissions_output_keys.py",
     "tests/test_soil_heating_invalid_soil_family.py",
 ]

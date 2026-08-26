@@ -331,7 +331,7 @@ def run_fofem_emissions(
     scalar_call = _cat_scalar and all(_is_scalar(v) for v in _scalar_inputs) and _is_scalar(soil_moisture)
 
     # Broadcast numeric inputs to a common 1-D array shape
-    arrs = np.broadcast_arrays(*[np.atleast_1d(np.asarray(v, dtype=float)) for v in _scalar_inputs])
+    arrs = np.broadcast_arrays(*[np.ravel(np.asarray(v, dtype=float)) for v in _scalar_inputs])
     (
         lit_a, duf_a, duf_dep_a, her_a, shr_a, fol_a, bra_a,
         pcb_a, duf_m_a, l_m_a, dw10_m_a, dw1k_m_a,
@@ -341,15 +341,15 @@ def run_fofem_emissions(
     n = len(lit_a)
 
     # Optional fire environment arrays (default to broadcast scalar)
-    hfi_a   = np.broadcast_to(np.atleast_1d(np.asarray(hfi,   dtype=float))
+    hfi_a   = np.broadcast_to(np.ravel(np.asarray(hfi,   dtype=float))
                               if hfi   is not None else np.full(n, np.nan), (n,)).copy()
-    frt_a   = np.broadcast_to(np.atleast_1d(np.asarray(flame_res_time, dtype=float))
+    frt_a   = np.broadcast_to(np.ravel(np.asarray(flame_res_time, dtype=float))
                               if flame_res_time is not None else np.full(n, np.nan), (n,)).copy()
-    fb_a    = np.broadcast_to(np.atleast_1d(np.asarray(fuel_bed_depth, dtype=float))
+    fb_a    = np.broadcast_to(np.ravel(np.asarray(fuel_bed_depth, dtype=float))
                               if fuel_bed_depth is not None else np.full(n, 0.3), (n,)).copy()
-    at_a    = np.broadcast_to(np.atleast_1d(np.asarray(ambient_temp,   dtype=float))
+    at_a    = np.broadcast_to(np.ravel(np.asarray(ambient_temp,   dtype=float))
                               if ambient_temp   is not None else np.full(n, 27.0), (n,)).copy()
-    ws_a    = np.broadcast_to(np.atleast_1d(np.asarray(windspeed,      dtype=float))
+    ws_a    = np.broadcast_to(np.ravel(np.asarray(windspeed,      dtype=float))
                               if windspeed      is not None else np.full(n, 0.0), (n,)).copy()
 
     # Categorical arrays
@@ -422,7 +422,7 @@ def run_fofem_emissions(
     soil_start_temp = float(soil_cfg.get('start_temp', 21.0))
     soil_moist_override = soil_cfg.get('soil_moisture', None)
     if soil_moisture is not None:
-        _sm = np.atleast_1d(np.asarray(soil_moisture, dtype=float))
+        _sm = np.ravel(np.asarray(soil_moisture, dtype=float))
         if _sm.size == 1:
             soil_moist_arr = np.full(n, float(_sm[0]), dtype=float)
         elif _sm.size == n:

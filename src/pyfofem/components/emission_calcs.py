@@ -73,7 +73,7 @@ def calc_smoke_emissions(
         duff_load: float = 0.0,
         ef_csv_path: Optional[str] = None,
         units: str = 'SI',
-) -> Dict[str, float]:
+) -> Dict[str, np.ndarray]:
     """
     Compute smoke-emission mass per unit area from fuel consumption totals.
 

@@ -76,9 +76,9 @@ def mort_bolchar(
         tree_code_dict = None
 
     # Coerce all inputs to np.ndarray
-    spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh, dtype=float))
-    char_ht = np.atleast_1d(np.asarray(char_ht, dtype=float))
+    spp = np.ravel(np.array(spp))
+    dbh = np.ravel(np.asarray(dbh, dtype=float))
+    char_ht = np.ravel(np.asarray(char_ht, dtype=float))
 
     # Map numeric spp codes to FOFEM string codes if needed
     if np.issubdtype(spp.dtype, np.integer):
@@ -241,12 +241,12 @@ def mort_crcabe(
         tree_code_dict = None
 
     # Coerce all inputs to np.ndarray (at least 1-D)
-    spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh))
-    ht = np.atleast_1d(np.asarray(ht))
-    crown_depth = np.atleast_1d(np.asarray(crown_depth))
-    ckr = np.atleast_1d(np.asarray(ckr))
-    scorch_ht = np.atleast_1d(np.asarray(scorch_ht))
+    spp = np.ravel(np.array(spp))
+    dbh = np.ravel(np.asarray(dbh))
+    ht = np.ravel(np.asarray(ht))
+    crown_depth = np.ravel(np.asarray(crown_depth))
+    ckr = np.ravel(np.asarray(ckr))
+    scorch_ht = np.ravel(np.asarray(scorch_ht))
 
     # Broadcast beetles to a per-tree boolean array
     beetles = np.broadcast_to(np.asarray(beetles, dtype=bool), spp.shape).copy()
@@ -443,28 +443,28 @@ def mort_crnsch(
         tree_code_dict = None
 
     # Ensure all inputs are np.ndarrays (at least 1-D)
-    spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh))
-    ht = np.atleast_1d(np.asarray(ht))
-    crown_depth = np.atleast_1d(np.asarray(crown_depth))
+    spp = np.ravel(np.array(spp))
+    dbh = np.ravel(np.asarray(dbh))
+    ht = np.ravel(np.asarray(ht))
+    crown_depth = np.ravel(np.asarray(crown_depth))
     if bark_thickness is not None:
-        bark_thickness = np.atleast_1d(np.asarray(bark_thickness))
+        bark_thickness = np.ravel(np.asarray(bark_thickness))
     if fire_intensity is not None:
-        fire_intensity = np.atleast_1d(np.asarray(fire_intensity))
+        fire_intensity = np.ravel(np.asarray(fire_intensity))
     if amb_t is None:
         amb_t = np.full(len(spp), 25.0)
     else:
-        amb_t = np.atleast_1d(np.asarray(amb_t))
+        amb_t = np.ravel(np.asarray(amb_t))
     if flame_length is not None:
-        flame_length = np.atleast_1d(np.asarray(flame_length))
+        flame_length = np.ravel(np.asarray(flame_length))
     if char_ht is not None:
-        char_ht = np.atleast_1d(np.asarray(char_ht))
+        char_ht = np.ravel(np.asarray(char_ht))
     if scorch_ht is not None:
-        scorch_ht = np.atleast_1d(np.asarray(scorch_ht))
+        scorch_ht = np.ravel(np.asarray(scorch_ht))
     if instand_ws is None:
         instand_ws = np.ones(len(spp))
     else:
-        instand_ws = np.atleast_1d(np.asarray(instand_ws))
+        instand_ws = np.ravel(np.asarray(instand_ws))
 
     # Map numeric spp to FOFEM_sppCD if needed
     if np.issubdtype(spp.dtype, np.integer):

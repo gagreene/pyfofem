@@ -211,9 +211,9 @@ def consm_canopy(
     """
     scalar_input = _is_scalar(crown_burn) and _is_scalar(pre_fl) and _is_scalar(pre_bl)
 
-    crown_burn = np.atleast_1d(np.asarray(crown_burn, dtype=float))
-    pre_fl = np.atleast_1d(np.asarray(pre_fl, dtype=float))
-    pre_bl = np.atleast_1d(np.asarray(pre_bl, dtype=float))
+    crown_burn = np.ravel(np.asarray(crown_burn, dtype=float))
+    pre_fl = np.ravel(np.asarray(pre_fl, dtype=float))
+    pre_bl = np.ravel(np.asarray(pre_bl, dtype=float))
 
     if units == 'SI':
         pre_fl = pre_fl * 4.4609  # kg/m² → T/acre
@@ -329,21 +329,21 @@ def consm_duff(
     """
     scalar_input = _is_scalar(pre_dl) and _is_scalar(duff_moist)
 
-    pre_dl     = np.atleast_1d(np.asarray(pre_dl,     dtype=float))
-    duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    pre_dl     = np.ravel(np.asarray(pre_dl,     dtype=float))
+    duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
     if d_pre is not None:
-        d_pre = np.atleast_1d(np.asarray(d_pre, dtype=float))
+        d_pre = np.ravel(np.asarray(d_pre, dtype=float))
     if mc_lyr1 is not None:
-        mc_lyr1 = np.atleast_1d(np.asarray(mc_lyr1, dtype=float))
+        mc_lyr1 = np.ravel(np.asarray(mc_lyr1, dtype=float))
     if pre_dl110 is not None:
-        pre_dl110 = np.atleast_1d(np.asarray(pre_dl110, dtype=float))
+        pre_dl110 = np.ravel(np.asarray(pre_dl110, dtype=float))
     if pre_l110 is not None:
-        pre_l110 = np.atleast_1d(np.asarray(pre_l110, dtype=float))
+        pre_l110 = np.ravel(np.asarray(pre_l110, dtype=float))
 
     # Eq 3 / NE-Balsam-nfdth use 1000-hr moisture (C++ f_MoistDW1000).
     # Fall back to duff_moist when not supplied.
     if dw1000_moist is not None:
-        dw1k = np.atleast_1d(np.asarray(dw1000_moist, dtype=float))
+        dw1k = np.ravel(np.asarray(dw1000_moist, dtype=float))
     else:
         dw1k = duff_moist
 
@@ -535,7 +535,7 @@ def consm_duff(
                 pdc_val = np.clip((tot_consumed / dl_val) * 100.0, 0.0, 100.0)
             else:
                 pdc_val = 0.0
-            pdc = np.atleast_1d(np.full_like(duff_moist, pdc_val))
+            pdc = np.ravel(np.full_like(duff_moist, pdc_val))
 
         else:
             # SE non-Pocosin – Eq 16
@@ -650,8 +650,8 @@ def consm_herb(
     """
     scalar_input = _is_scalar(pre_ll) and _is_scalar(pre_hl)
 
-    pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
-    pre_hl = np.atleast_1d(np.asarray(pre_hl, dtype=float))
+    pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
+    pre_hl = np.ravel(np.asarray(pre_hl, dtype=float))
     n = max(len(pre_ll), len(pre_hl))
 
     if units == 'SI':
@@ -723,8 +723,8 @@ def consm_litter(
     """
     scalar_input = _is_scalar(pre_ll) and _is_scalar(l_moist)
 
-    pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
-    l_moist = np.atleast_1d(np.asarray(l_moist, dtype=float))
+    pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
+    l_moist = np.ravel(np.asarray(l_moist, dtype=float))
     n = max(len(pre_ll), len(l_moist))
 
     if units == 'SI':
@@ -789,10 +789,10 @@ def consm_mineral_soil(
     """
     scalar_input = _is_scalar(duff_moist)
 
-    duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
     n = len(duff_moist)
     if pdr is not None:
-        pdr = np.atleast_1d(np.asarray(pdr, dtype=float))
+        pdr = np.ravel(np.asarray(pdr, dtype=float))
 
     reg_arr = _to_str_arr(reg, REGION_CODES)
     cvr_arr = _to_str_arr(cvr_grp, CVR_GRP_CODES)
@@ -880,31 +880,31 @@ def consm_shrub(
     """
     scalar_input = _is_scalar(pre_sl)
 
-    pre_sl = np.atleast_1d(np.asarray(pre_sl, dtype=float))
+    pre_sl = np.ravel(np.asarray(pre_sl, dtype=float))
     n = len(pre_sl)
 
     if units == 'SI':
         pre_sl = pre_sl * 4.4609
         if pre_ll is not None:
-            pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float)) * 4.4609
+            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float)) * 4.4609
         if pre_dl is not None:
-            pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float)) * 4.4609
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * 4.4609
         if pre_rl is not None:
-            pre_rl = np.atleast_1d(np.asarray(pre_rl, dtype=float)) * 4.4609
+            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float)) * 4.4609
     else:
         if pre_ll is not None:
-            pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
+            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
         if pre_dl is not None:
-            pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float))
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float))
         if pre_rl is not None:
-            pre_rl = np.atleast_1d(np.asarray(pre_rl, dtype=float))
+            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float))
 
     if duff_moist is not None:
-        duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+        duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
     if llc is not None:
-        llc = np.atleast_1d(np.asarray(llc, dtype=float))
+        llc = np.ravel(np.asarray(llc, dtype=float))
     if ddc is not None:
-        ddc = np.atleast_1d(np.asarray(ddc, dtype=float))
+        ddc = np.ravel(np.asarray(ddc, dtype=float))
 
     reg_arr = _to_str_arr(reg, REGION_CODES)
     cvr_arr = _to_str_arr(cvr_grp, CVR_GRP_CODES)
