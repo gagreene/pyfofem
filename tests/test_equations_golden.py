@@ -56,7 +56,17 @@ _SHRUB_PCT_KEY = 'slc_pct'
 
 
 def _call_function(func_name: str, inputs: dict, expected_key: str):
-    """Call the named function with the given inputs and return the scalar result."""
+    """
+    Call the named function with the given inputs and return the scalar result.
+
+    :param func_name: Key into :data:`_FUNCTION_MAP` naming the consumption
+        function under test.
+    :param inputs: Keyword arguments to forward to the named function.
+    :param expected_key: Result dict key to extract (ignored for functions
+        that return a bare scalar).
+    :return: The scalar result value to compare against the golden expectation.
+    :raises ValueError: If *func_name* is not a recognised function name.
+    """
     func = _FUNCTION_MAP[func_name]
 
     if func_name == 'consm_duff':
@@ -107,7 +117,17 @@ _test_cases = [
     _test_cases,
 )
 def test_equation_golden(test_id, func_name, inputs, expected_key, expected_value, atol):
-    """Each row in equation_unit_tests_golden.csv becomes one pytest case."""
+    """
+    Verify one golden-CSV row: each row becomes one pytest case.
+
+    :param test_id: Golden-CSV test identifier (used as the pytest case ID).
+    :param func_name: Name of the consumption function under test.
+    :param inputs: Keyword arguments to forward to the function.
+    :param expected_key: Result dict key to extract and compare.
+    :param expected_value: Expected scalar value from the golden CSV.
+    :param atol: Absolute tolerance for the comparison.
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     actual = _call_function(func_name, inputs, expected_key)
     assert abs(actual - expected_value) <= atol, (
         f'[{test_id}] {func_name}({inputs})[{expected_key}]: '
@@ -157,21 +177,37 @@ class TestFixB_GrassHerbSeason:
     """Fix B: GrassGroup Eq 221 (10%) applies only in Spring."""
 
     def test_grass_spring_is_10pct(self):
+        """GrassGroup herb consumption in Spring is 10% (Eq 221).
+
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         hlc = consm_herb('InteriorWest', 'GrassGroup', 2.0, 2.0,
                          season='Spring', units='Imperial')
         assert abs(hlc - 0.2) < 0.001  # 2.0 * 0.1 = 0.2
 
     def test_grass_summer_is_100pct(self):
+        """GrassGroup herb consumption in Summer is 100%.
+
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         hlc = consm_herb('InteriorWest', 'GrassGroup', 2.0, 2.0,
                          season='Summer', units='Imperial')
         assert abs(hlc - 2.0) < 0.001  # 100 % consumed
 
     def test_grass_fall_is_100pct(self):
+        """GrassGroup herb consumption in Fall is 100%.
+
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         hlc = consm_herb('InteriorWest', 'GrassGroup', 2.0, 2.0,
                          season='Fall', units='Imperial')
         assert abs(hlc - 2.0) < 0.001
 
     def test_grass_winter_is_100pct(self):
+        """GrassGroup herb consumption in Winter is 100%.
+
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         hlc = consm_herb('InteriorWest', 'GrassGroup', 2.0, 2.0,
                          season='Winter', units='Imperial')
         assert abs(hlc - 2.0) < 0.001
@@ -234,12 +270,22 @@ class TestFixD_LowMoistureFloor:
 # Additional consm_canopy sanity checks
 # ---------------------------------------------------------------------------
 class TestCanopyEquations:
+    """Additional consm_canopy sanity checks (equations 37, 38)."""
+
     def test_zero_crown_burn(self):
+        """0% crown burn consumes no foliage or branch load.
+
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         result = consm_canopy(0.0, 10.0, 5.0, units='Imperial')
         assert result['flc'] == pytest.approx(0.0)
         assert result['blc'] == pytest.approx(0.0)
 
     def test_full_crown_burn(self):
+        """100% crown burn consumes all foliage and half the branch load.
+
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         result = consm_canopy(100.0, 10.0, 6.0, units='Imperial')
         assert result['flc'] == pytest.approx(10.0, abs=0.001)
         assert result['blc'] == pytest.approx(3.0, abs=0.001)  # 6.0 * 0.5 * 1.0

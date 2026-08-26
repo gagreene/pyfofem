@@ -77,10 +77,7 @@ SPP_CODES = read_csv(os.path.join(os.path.dirname(__file__), '..', 'supporting_d
 # Functions
 # ---------------------------------------------------------------------------
 
-def calc_bark_thickness(
-    spp: np.ndarray,
-    dbh: np.ndarray,
-) -> np.ndarray:
+def calc_bark_thickness(spp: np.ndarray, dbh: np.ndarray) -> np.ndarray:
     """
     Vectorized bark thickness calculation (cm).
 
@@ -111,11 +108,11 @@ def calc_bark_thickness(
 
 
 def calc_canopy_cover(
-    spp: Union[np.ndarray, List],
-    dbh: Union[np.ndarray, List[float]],
-    ht: Union[np.ndarray, List[float]],
-    tree_code_dict: Optional[Dict[str, int]] = None,
-    units: str = 'SI',
+        spp: Union[np.ndarray, List],
+        dbh: Union[np.ndarray, List[float]],
+        ht: Union[np.ndarray, List[float]],
+        tree_code_dict: Optional[Dict[str, int]] = None,
+        units: str = 'SI',
 ) -> float:
     """
     Estimate percent canopy cover for a stand from a tree list.
@@ -151,7 +148,7 @@ def calc_canopy_cover(
         equation number (see :data:`_CANOPY_COEFFS`).  When ``None``, a
         default mapping (keys = equation numbers as strings) is used.
     :param units: ``'SI'`` (m/m²) or ``'imperial'`` (in/ft).
-    :returns: Percent canopy cover (%), adjusted for crown overlap.
+    :return: Percent canopy cover (%), adjusted for crown overlap.
     """
     spp_arr = np.asarray(spp)
     dbh_arr = np.asarray(dbh, dtype=float)
@@ -218,9 +215,9 @@ def calc_char_ht(flame_length: Union[float, np.ndarray]) -> Union[float, np.ndar
 
 
 def calc_crown_length_vol_scorched(
-    scorch_ht: Union[float, np.ndarray],
-    ht: Union[float, np.ndarray],
-    crown_depth: Union[float, np.ndarray]
+        scorch_ht: Union[float, np.ndarray],
+        ht: Union[float, np.ndarray],
+        crown_depth: Union[float, np.ndarray],
 ) -> tuple:
     """
     Vectorized calculation of crown length scorched (m), percent crown volume scorched (cvs, %), and
@@ -243,9 +240,9 @@ def calc_crown_length_vol_scorched(
 
 
 def calc_flame_length(
-    fire_intensity: Optional[Union[float, np.ndarray]] = None,
-    char_ht: Optional[Union[float, np.ndarray]] = None,
-    fl_model: str = 'Byram'
+        fire_intensity: Optional[Union[float, np.ndarray]] = None,
+        char_ht: Optional[Union[float, np.ndarray]] = None,
+        fl_model: str = 'Byram',
 ) -> Union[float, np.ndarray]:
     """
     Flame length model (Byram, Butler, Thomas).
@@ -274,9 +271,9 @@ def calc_flame_length(
 
 
 def calc_scorch_ht(
-    sfi: Union[float, np.ndarray],
-    amb_t: Optional[Union[float, np.ndarray]] = None,
-    instand_ws: Optional[Union[float, np.ndarray]] = None
+        sfi: Union[float, np.ndarray],
+        amb_t: Optional[Union[float, np.ndarray]] = None,
+        instand_ws: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
     Van Wagner (1973) & Alexander (1982/85) lethal scorch height model.

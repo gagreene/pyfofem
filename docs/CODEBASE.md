@@ -10,43 +10,55 @@ single source of truth for contributors and reviewers.
 
 ```text
 pyfofem/
-|-- src/pyfofem/                   # <- Python library (the deliverable)
-|   |-- __init__.py                #    Public API re-exports
-|   |-- pyfofem.py                 #    Core orchestrator module
+|-- src/pyfofem/                       # <- Python library (the deliverable)
+|   |-- __init__.py                    #    Public API re-exports (from pyfofem.py)
+|   |-- pyfofem.py                     #    Core orchestrator module
 |   |-- components/
-|   |   |-- burnup.py              #    Albini & Reinhardt burnup engine
-|   |   |-- burnup_calcs.py        #    Burnup adapters / class mapping
-|   |   |-- consumption_calcs.py   #    Consumption equations
-|   |   |-- emission_calcs.py      #    Emissions modes
-|   |   |-- mortality_calcs.py     #    Mortality equations
-|   |   |-- tree_flame_calcs.py    #    Fire behavior + geometry helpers
-|   |   `-- soil_heating.py        #    Campbell + Massman HMV soil models
+|   |   |-- __init__.py                #    Re-exports every component's public symbols
+|   |   |-- _component_helpers.py      #    Shared scalar/array plumbing (cross-cutting)
+|   |   |-- burnup.py                  #    Albini & Reinhardt burnup engine
+|   |   |-- burnup_calcs.py            #    Burnup adapters / class mapping / per-cell worker
+|   |   |-- consumption_calcs.py       #    Consumption equations
+|   |   |-- emission_calcs.py          #    Emissions modes
+|   |   |-- emission_pipeline.py       #    run_fofem_emissions orchestration helpers
+|   |   |-- mortality_calcs.py         #    Mortality equations
+|   |   |-- tree_flame_calcs.py        #    Fire behavior + geometry helpers
+|   |   `-- soil_heating.py            #    Campbell + Massman HMV soil models
 |   `-- supporting_data/
-|       |-- species_codes_lut.csv  #    Species <-> FOFEM-code mapping
-|       `-- FOFEM6.7/              #    Bundled FOFEM data files
+|       |-- species_codes_lut.csv      #    Species <-> FOFEM-code mapping
+|       `-- FOFEM6.7/                  #    Bundled FOFEM data files
 |
-|-- reference/fofem_cpp/           # <- Official C++ FOFEM reference source
-|   |-- FOF_UNIX/                  #    Portable core science code
-|   |-- FOF_DLL/                   #    Windows DLL + Massman HMV solver
-|   |-- FOF_GUI/                   #    Windows .NET GUI
-|   `-- SWIG/                      #    Auto-generated C# interop
+|-- reference/fofem_cpp/               # <- Official C++ FOFEM reference source
+|   |-- FOF_UNIX/                      #    Portable core science code
+|   |-- FOF_DLL/                       #    Windows DLL + Massman HMV solver
+|   |-- FOF_GUI/                       #    Windows .NET GUI
+|   `-- SWIG/                          #    Auto-generated C# interop
 |
 |-- docs/reference/
-|   |-- code/burnup/               #    Standalone burnupw.cpp baseline
-|   `-- papers/                    #    Literature references
+|   |-- code/burnup/                   #    Standalone burnupw.cpp baseline
+|   `-- papers/                        #    Literature references
 |
 |-- tests/
-|   |-- example_fofem_emissions_batch.py
-|   |-- test_cpp_comparison.py
-|   |-- compare_cpp_python.py
-|   |-- test_soil_cpp_parity.py
-|   |-- compare_cpp_python_soil.py
+|   |-- run_unified_tests.py           #    `--suite core|full`, `--installed-only` test runner
+|   |-- prepare_cpp_reference.py       #    Regenerates C++ reference fixtures
+|   |-- test_compare_cpp_python.py     #    Python-vs-C++ multi-case parity assertions
+|   |-- test_cpp_comparison.py         #    Python-vs-C++ parity vs. reference/fofem_cpp/load.txt, emis.txt
+|   |-- test_burnup_golden.py          #    Golden-value regression tests for burnup()
+|   |-- test_equations_golden.py       #    Golden-value regression tests for consumption equations
+|   |-- test_emission_equation_ids.py  #    Equation-ID output regression tests
+|   |-- test_run_fofem_emissions_output_keys.py  # Output-dict key/shape contract tests
+|   |-- test_soil_heating_cpp_parity.py          # Soil Lay* parity vs C++ soil.tmp
+|   |-- test_soil_heating_invalid_soil_family.py # Invalid soil_family error-handling tests
+|   |-- compare_cpp_python_soil_heating.py       # Scripted Lay* parity comparison driver
 |   `-- test_data/
 |       |-- test_inputs/
 |       `-- _results/
 |
-|-- docs/CODEBASE.md               # <- This file
-|-- MISSING_COMPONENTS.md
+|-- examples/
+|   |-- emissions_batch.py             #    Batch/array usage driver, writes CSV output
+|   `-- example_data/                  #    fofem_emissions_batch_test.csv
+|
+|-- docs/CODEBASE.md                   # <- This file
 `-- README.md
 ```
 
@@ -54,11 +66,14 @@ pyfofem/
 
 ### Current parity/testing additions
 
-- `tests/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions.
-- `tests/compare_cpp_python.py` runs scripted multi-case comparisons.
-- `tests/test_soil_cpp_parity.py` and `tests/compare_cpp_python_soil.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
-- `tests/example_fofem_emissions_batch.py` is the current emissions batch/example driver.
+- `tests/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions against `reference/fofem_cpp/load.txt` and `emis.txt`.
+- `tests/test_compare_cpp_python.py` runs scripted multi-case comparisons against the C++ CSV harness.
+- `tests/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
+- `tests/run_unified_tests.py --suite core|full` is the current publish-oriented test runner (see `README.md`).
+- `examples/emissions_batch.py` (not under `tests/`) is the current emissions batch/example driver.
 - `reference/fofem_cpp/FOF_UNIX/test_harness.cpp` is the parameterized C++ CSV harness (`fofem_test`).
+
+> Note: as of this review, `MISSING_COMPONENTS.md` no longer exists in the repo root, and several test filenames previously documented here (`example_fofem_emissions_batch.py`, `compare_cpp_python.py`, `test_soil_cpp_parity.py`, `compare_cpp_python_soil.py`) have been renamed or moved — the listing above reflects the actual current filenames, verified 2026-08-26.
 
 ## Architecture Overview
 
@@ -69,10 +84,18 @@ plus multiple specialized modules under `components/`. Every public function acc
 both scalar and NumPy array inputs (internally converting to arrays and
 converting back via `_is_scalar` / `_maybe_scalar`).
 
+**Two re-export hops:** a component function reaches the package's public
+surface via `components/__init__.py` → `pyfofem.py` (re-imported "for
+backward compatibility," per its own top-of-file comment) → top-level
+`__init__.py`. All three layers must be kept in sync when adding a new
+public symbol.
+
 | Layer | Files | Responsibility |
 |-------|-------|----------------|
 | **Public API** | `__init__.py` | Re-exports all public symbols from `pyfofem.py` and `components/` |
 | **Core Orchestrator** | `pyfofem.py` | High-level facades (`run_fofem_mortality`, `run_fofem_emissions`) and pipeline wiring |
+| **Emissions Pipeline Helpers** | `components/emission_pipeline.py` | Pure computation stages extracted from `run_fofem_emissions()`: `compute_pre_burnup_consumption()`, `initialize_burnup_outputs()`, `compute_equation_arrays()`, `build_emissions_result()` |
+| **Shared Helpers** | `components/_component_helpers.py` | Cross-cutting scalar/array plumbing (`_is_scalar`, `_maybe_scalar`, `_to_str_arr`) used by multiple component modules |
 | **Burnup Engine** | `components/burnup.py` | Albini & Reinhardt post-frontal combustion simulation (ported from C++) |
 | **Burnup Facade/Adapters** | `components/burnup_calcs.py` | `run_burnup`, cell workers, summary extraction, class ordering/mapping |
 | **Consumption Equations** | `components/consumption_calcs.py` | Litter/duff/herb/shrub/canopy/mineral-soil equations and carbon |
@@ -176,10 +199,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    USER["User / DataFrame row"]
+    USER["User / DataFrame row(s)\n(scalar or equal-length arrays)"]
 
-    RFE["run_fofem_emissions()\n(pyfofem.py  orchestrator)"]
+    RFE["run_fofem_emissions()\n(pyfofem.py orchestrator)"]
 
+    PBC["compute_pre_burnup_consumption()\n(components/emission_pipeline.py)"]
     CL["consm_litter()"]
     CD["consm_duff()"]
     CH["consm_herb()"]
@@ -187,17 +211,26 @@ flowchart TD
     CC["consm_canopy()"]
     CM["consm_mineral_soil()"]
 
-    RB["run_burnup()\n(pyfofem.py  facade)"]
+    IBO["initialize_burnup_outputs()\n(simplified per-cell defaults,\noverwritten if burnup succeeds)"]
+
+    CELLS["Per-cell kwargs (1 dict per row)"]
+    POOL{{"num_workers == 1 ?\nsequential loop : ProcessPoolExecutor"}}
+    RBC["_run_burnup_cell()\n(components/burnup_calcs.py)"]
     BE["burnup()\n(components/burnup.py)"]
     EX["_extract_burnup_consumption()\n+ _burnup_durations()"]
+    ERRC{{"BurnupValidationError\nor other exception?"}}
+    ECODE["Translated to numeric\nBurnupError / BurnupLimitAdj code\n(message-substring match)"]
+    MERGE["Merge per-cell results back\ninto output arrays;\nBurnupError != 0 rows are\nzeroed and use IBO defaults"]
 
-    CSE["calc_smoke_emissions()"]
+    SHC["soil_heat_campbell()\n(per cell, 'duff' or 'non_duff' model,\ndriven by burnup fr_SFI-equivalent time series)"]
+    SHM["soil_heat_massman()\n(NOT called by run_fofem_emissions\n— separate user call only)"]
+    SOUT["Lay0/Lay2/Lay4/Lay6\nLay60d/Lay275d\n(NaN unless soil_heating enabled)"]
 
-    OUT["dict with CONSUMPTION_VARS keys\n(Pre/Con/Pos per class,\nemissions, durations)"]
+    EQA["compute_equation_arrays()\n(components/emission_pipeline.py)"]
+    CSE["calc_smoke_emissions()\n(legacy / default / expanded)"]
+    BER["build_emissions_result()\n(components/emission_pipeline.py)"]
 
-    SHC["soil_heat_campbell()"]
-    SHM["soil_heat_massman()"]
-    SOUT["Lay0/Lay2/Lay4/Lay6\nLay60d/Lay275d"]
+    OUT["dict with CONSUMPTION_VARS keys\n(Pre/Con/Pos per class,\nemissions, durations, Lay*)"]
 
     MB["mort_bolchar()"]
     MC["mort_crnsch()"]
@@ -205,16 +238,26 @@ flowchart TD
     MOUT["float / ndarray\nP(mortality)"]
 
     USER --> RFE
-    RFE --> CL & CD & CH & CS & CC & CM
-    RFE -->|"when use_burnup=True"| RB
-    RB --> BE
-    BE --> EX
-    EX -->|"per-class consumed,\nflaming/smoldering,\ndurations"| RFE
-    RFE -->|"optional (soil_heating)"| SHC
-    RFE --> CSE
-    CSE --> OUT
-    SHC --> OUT
-    CL & CD & CH & CS & CC & CM --> OUT
+    RFE --> PBC
+    PBC --> CL & CD & CH & CS & CC & CM
+    RFE --> IBO
+    RFE -->|"when use_burnup=True"| CELLS
+    CELLS --> POOL
+    POOL --> RBC
+    RBC --> BE --> EX
+    RBC --> ERRC
+    ERRC -->|"yes"| ECODE
+    EX -->|"per-class consumed,\nflaming/smoldering,\ndurations"| MERGE
+    ECODE --> MERGE
+    IBO --> MERGE
+    MERGE -->|"when soil_heating enabled\n(non-errored cells only)"| SHC
+    PBC --> EQA
+    MERGE --> CSE
+    SHC --> BER
+    EQA --> BER
+    CSE --> BER
+    MERGE --> BER
+    BER --> OUT
 
     USER -->|"optional separate call"| SHM
     SHC & SHM --> SOUT
@@ -227,6 +270,12 @@ flowchart TD
     style SOUT fill:#fff3e0
     style MOUT fill:#fce4ec
 ```
+
+**Diagram notes (verified against `pyfofem.py` and `components/emission_pipeline.py` 2026-08-26):**
+- `run_fofem_emissions()` no longer calls the six `consm_*` functions directly — that's done inside `compute_pre_burnup_consumption()`, one of four pipeline-stage helpers extracted from the orchestrator into `emission_pipeline.py`.
+- Per-cell burnup dispatch is parallelizable: `num_workers == 1` runs a plain Python loop over `_run_burnup_cell()`; `num_workers > 1` dispatches the same function across a `concurrent.futures.ProcessPoolExecutor`, both wrapped in a `tqdm` progress bar when `show_progress=True`.
+- A cell whose burnup run raises `BurnupValidationError` (or any other exception) never reaches `EX` — `_run_burnup_cell()` catches it and returns a numeric `BurnupError` code instead (see Gotcha below). Cells with `BurnupError != 0` have **all** of their per-cell consumption/duration outputs hard-zeroed before final assembly, not just the burnup-derived ones.
+- `soil_heat_massman()` is fully implemented but is **not** wired into `run_fofem_emissions()` — only `soil_heat_campbell()` is. The `Lay*` outputs in `OUT` always come from Campbell.
 
 ---
 
@@ -430,6 +479,51 @@ The C++ `bur_brn.h` changed the limit from 2000 to 3000.  ** RESOLVED: Python's 
 
 C++ `d_CO.f_FlaDur` / `f_SmoDur` are in **seconds**.  ** RESOLVED: Python's `_burnup_durations()` and `run_fofem_emissions()` now return durations in seconds.**
 
+### 16. A burnup error zeroes *all* per-cell consumption outputs, not just burnup-derived ones
+
+When a cell's `BurnupError != 0`, `run_fofem_emissions()`'s step 5b sets an
+explicit list of ~30 per-cell arrays to `0.0` — including litter, herb,
+shrub, foliage, branch, duff, and mineral-soil-exposure outputs that were
+computed independently of burnup in step 4. This is broader than "burnup
+didn't run, so skip burnup outputs": a duff-consumption result that
+`consm_duff()` computed successfully is still discarded for that row if
+burnup separately failed. Confirm this is the intended contract before
+relying on non-burnup outputs from a row with a nonzero `BurnupError`.
+
+### 17. `_run_burnup_cell()` maps exceptions to numeric codes by matching substrings in the exception message
+
+`components/burnup_calcs.py`'s per-cell worker catches `BurnupValidationError`
+and assigns a `BurnupError` code by checking whether specific substrings
+(`'cannot dry fuel'`, `'no fuel ignited'`, `'duff moisture'`, `'sav'`, etc.)
+appear in `str(exc).lower()`, with a hardcoded `_FUEL_ATTR_TO_CODE` dict for
+the fuel-property checks. There is no structural link (e.g. an error-code
+attribute on `BurnupValidationError`) between the message text raised in
+`burnup.py`/`_check_fuel()`/`_check_fire()` and this matching table — editing
+a raised message string in one place without updating the other can silently
+misclassify (or fail to classify) a failure as `BurnupError=99` ("unexpected
+burnup exception").
+
+### 18. `soil_heat_massman()` is not integrated into `run_fofem_emissions()`
+
+Only `soil_heat_campbell()` is called from the orchestrator's per-cell
+soil-heating branch (`model='duff'` or `model='non_duff'`, selected by
+whether pre-fire duff depth is positive). `soil_heat_massman()` — the full
+non-equilibrium heat-moisture-vapor PDE solver documented as a "Done"
+feature — is only reachable via a direct, separate call. The `Lay*` keys in
+`run_fofem_emissions()`'s output dict always originate from Campbell,
+regardless of which model a caller might assume from the README's mention of
+both models.
+
+### 19. `_to_str_arr()` exists in two places with identical logic
+
+`components/_component_helpers.py` defines a shared `_to_str_arr()`, and
+`components/consumption_calcs.py` (lines ~135-161) defines its own
+byte-for-byte-identical private copy rather than importing the shared one.
+`pyfofem.py` and `components/__init__.py` both import the shared
+`_component_helpers` version. Not a behavioral risk today since the two
+copies are currently in sync, but a future edit to one without the other
+would silently diverge categorical-parameter handling between call sites.
+
 ---
 
 ## Mapping: Python CONSUMPTION_VARS  C++ d_CO Fields
@@ -480,12 +574,12 @@ C++ `d_CO.f_FlaDur` / `f_SmoDur` are in **seconds**.  ** RESOLVED: Python's `_bu
 | Crown scorch mortality |  Done | `mort_crnsch` |
 | Crown volume + cambium mortality |  Done | `mort_crcabe` |
 | Bole char mortality |  Done | `mort_bolchar` |
-| Soil heating  Campbell |  Done | `soil_heat_campbell` |
-| Soil heating  Massman HMV |  Done | `soil_heat_massman` |
+| Soil heating  Campbell |  Done | `soil_heat_campbell` — the only model wired into `run_fofem_emissions()` |
+| Soil heating  Massman HMV |  Done (standalone) | `soil_heat_massman` — implemented but not called by `run_fofem_emissions()`; see Gotcha #18 |
 | Moisture adjustments (0.02, 2.5 rotten) |  Done | See `run_fofem_emissions()`  Gotcha #1 resolved |
 | Zero-load guard (`1e-7` kg/m^2 in DW1) |  Done | See `run_fofem_emissions()`  Gotcha #2 resolved |
-| Batch processing driver/example |  Done (example) | `tests/example_fofem_emissions_batch.py` performs array/batch runs and writes CSV outputs |
-| C++ soil-heating parity checks |  Done | `tests/test_soil_cpp_parity.py` + `tests/compare_cpp_python_soil.py` |
+| Batch processing driver/example |  Done (example) | `examples/emissions_batch.py` performs array/batch runs and writes CSV outputs |
+| C++ soil-heating parity checks |  Done | `tests/test_soil_heating_cpp_parity.py` + `tests/compare_cpp_python_soil_heating.py` |
 | Cover-type auto-lookup (SAF/NVCS/FCC) |  Not started | C++: `CVT_*.cpp` / `fof_fccs.csv` |
 | Weight distribution (1000-hr  size classes) |  Not started | C++: `cr_WD` in `d_CI` |
 | Duration units reconciliation (sec vs min) |  Done | `_burnup_durations()` and `run_fofem_emissions()` now return seconds  Gotcha #15 resolved |

@@ -21,28 +21,16 @@ from pyfofem import run_fofem_emissions
 SOIL_TMP = os.path.join(_REPO, "reference", "fofem_cpp", "soil.tmp")
 
 
-def _parse_soil_tmp(path: str):
-    rows = []
-    if not os.path.isfile(path):
-        raise FileNotFoundError(path)
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        for ln in f:
-            line = ln.strip()
-            if not line:
-                continue
-            if not re.match(r"^\d", line):
-                continue
-            vals = [float(x) for x in line.split()]
-            # expected: time + 14 temperatures (Surface + 1..13 cm)
-            if len(vals) < 15:
-                continue
-            rows.append(vals[:15])
-    if not rows:
-        raise RuntimeError(f"No numeric soil rows found in: {path}")
-    return rows
-
-
 def _cpp_lay_values_from_soil_tmp(rows):
+    """
+    Derive Lay0/Lay2/Lay4/Lay6/Lay60d/Lay275d from parsed ``soil.tmp`` rows.
+
+    :param rows: List of ``[time_min, surf, 1cm, 2cm, ..., 13cm]`` rows, as
+        returned by :func:`_parse_soil_tmp`.
+    :return: Dict with keys ``'Lay0'``, ``'Lay2'``, ``'Lay4'``, ``'Lay6'``,
+        ``'Lay60d'``, ``'Lay275d'`` matching the C++ ``ir_Temp``/depth-index
+        convention.
+    """
     # row format: [time_min, surf, 1cm, 2cm, ..., 13cm]
     max_layer = [0.0] * 14
     lay60d = -1
@@ -69,7 +57,41 @@ def _cpp_lay_values_from_soil_tmp(rows):
     }
 
 
+def _parse_soil_tmp(path: str):
+    """
+    Parse the C++ ``soil.tmp`` reference output into numeric rows.
+
+    :param path: Path to the C++ ``soil.tmp`` file.
+    :return: List of ``[time_min, surf, 1cm, 2cm, ..., 13cm]`` float rows.
+    :raises FileNotFoundError: If *path* does not exist.
+    :raises RuntimeError: If no numeric soil rows are found in *path*.
+    """
+    rows = []
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        for ln in f:
+            line = ln.strip()
+            if not line:
+                continue
+            if not re.match(r"^\d", line):
+                continue
+            vals = [float(x) for x in line.split()]
+            # expected: time + 14 temperatures (Surface + 1..13 cm)
+            if len(vals) < 15:
+                continue
+            rows.append(vals[:15])
+    if not rows:
+        raise RuntimeError(f"No numeric soil rows found in: {path}")
+    return rows
+
+
 def _run_python_case():
+    """
+    Run the ansi_mai-style single-case soil-heating scenario in Python.
+
+    :return: Dict of :func:`run_fofem_emissions` outputs for the reference case.
+    """
     # ansi_mai-style case + soil-heating args
     return run_fofem_emissions(
         litter=1.0,
@@ -116,6 +138,11 @@ def _run_python_case():
 
 
 def main() -> int:
+    """
+    Compare Python vs. C++ soil-heating Lay* outputs and print a report.
+
+    :return: Process exit code — 0 if all checks pass, 1 if any fail.
+    """
     cpp_rows = _parse_soil_tmp(SOIL_TMP)
     cpp_vals = _cpp_lay_values_from_soil_tmp(cpp_rows)
     py = _run_python_case()

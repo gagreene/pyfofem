@@ -14,6 +14,13 @@ from pyfofem import run_fofem_emissions
 
 
 def _base_kwargs():
+    """
+    Build a baseline scalar keyword-argument set for :func:`run_fofem_emissions`.
+
+    :return: Dict of scalar keyword arguments (burnup disabled, soil heating
+        enabled) suitable for overriding per-test with array/soil-family
+        variations.
+    """
     return {
         "litter": 1.0,
         "duff": 1.0,
@@ -47,6 +54,12 @@ def _base_kwargs():
 
 
 def test_invalid_soil_family_cell_is_skipped_and_returns_nan():
+    """
+    Verify an unrecognised per-cell soil_family value yields NaN soil outputs
+    for that cell only, leaving other cells unaffected.
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     n = 2
     kwargs = _base_kwargs()
     for key in (
@@ -71,6 +84,11 @@ def test_invalid_soil_family_cell_is_skipped_and_returns_nan():
 
 
 def test_scalar_invalid_soil_family_returns_nan_soil_outputs():
+    """
+    Verify an unrecognised scalar soil_family yields NaN for all soil outputs.
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     kwargs = _base_kwargs()
     kwargs["soil_family"] = "NA"
 

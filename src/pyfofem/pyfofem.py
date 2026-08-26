@@ -119,7 +119,14 @@ _SOIL_FAMILY_ALIASES = {
 
 
 def _normalize_soil_family(value: str) -> str:
-    """Map GUI/C++/user soil family strings to soil_heating.py keys."""
+    """
+    Map GUI/C++/user soil family strings to soil_heating.py keys.
+
+    :param value: Soil family name as supplied by the GUI, C++ layer, or user
+        (e.g. ``'Fine-Silt'``, ``'fine silt'``).
+    :return: Canonical ``soil_heating.py`` soil-family key.
+    :raises ValueError: If *value* does not match a recognised soil family.
+    """
     key = str(value).strip().lower()
     if key in _SOIL_FAMILY_ALIASES:
         return _SOIL_FAMILY_ALIASES[key]
@@ -132,133 +139,56 @@ def _normalize_soil_family(value: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Mortality driver
-# ---------------------------------------------------------------------------
-
-# Mapping of mortality function names to callables
-_MORT_FUNC_DICT = {
-    'bolchar': mort_bolchar,
-    'crnsch':  mort_crnsch,
-    'crcabe':  mort_crcabe,
-}
-
-
-def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.ndarray]:
-    """
-    Facade driver for FOFEM post-fire tree mortality modelling.
-
-    Selects and calls the appropriate FOFEM mortality function based on the
-    *mort_function* argument, forwarding all remaining keyword arguments to
-    that function.
-
-    Available mortality functions:
-
-    +-------------+----------------------------------------------+
-    | Key         | Model                                        |
-    +=============+==============================================+
-    | ``bolchar`` | Bole char model (BOLCHAR; Keyser 2018).      |
-    |             | For broadleaf hardwood species.              |
-    +-------------+----------------------------------------------+
-    | ``crnsch``  | Crown scorch model (CRNSCH).                 |
-    |             | For conifers and general species.            |
-    +-------------+----------------------------------------------+
-    | ``crcabe``  | Cambium kill model (CRCABE; Hood & Lutes     |
-    |             | 2017). For conifer species only.             |
-    +-------------+----------------------------------------------+
-
-    :param mort_function: Name of the mortality sub-model to use.
-        One of ``'bolchar'``, ``'crnsch'``, or ``'crcabe'``
-        (case-insensitive).
-    :param params: Keyword (parameter) arguments forwarded verbatim to the selected
-        mortality function.  See each function's own docstring for the full
-        parameter list:
-
-        * :func:`~pyfofem.components.mortality_calcs.mort_bolchar`
-        * :func:`~pyfofem.components.mortality_calcs.mort_crnsch`
-        * :func:`~pyfofem.components.mortality_calcs.mort_crcabe`
-
-    :returns: Mortality probability or array of probabilities (float in
-        [0, 1], or ``np.nan`` for unsupported species), matching the return
-        type of the selected sub-model.
-    :raises KeyError: If *mort_function* is not a recognised key.
-
-    Examples::
-
-        # Crown scorch for a single ponderosa pine tree
-        pm = run_fofem_mortality(
-            'crnsch',
-            spp='PIPO', dbh=25.0, ht=15.0, crown_depth=5.0,
-            fire_intensity=500.0,
-        )
-
-        # Bole char for multiple broadleaf trees
-        pm = run_fofem_mortality(
-            'bolchar',
-            spp=np.array(['ACRU', 'QUAL']),
-            dbh=np.array([12.0, 20.0]),
-            char_ht=np.array([1.5, 2.0]),
-        )
-    """
-    key = mort_function.strip().lower()
-    if key not in _MORT_FUNC_DICT:
-        raise KeyError(
-            f"Unknown mortality function '{mort_function}'. "
-            f"Valid options: {list(_MORT_FUNC_DICT.keys())}"
-        )
-    return _MORT_FUNC_DICT[key](**params)
-
-
-# ---------------------------------------------------------------------------
-# Emissions/Consumption driver
+# Public API
 # ---------------------------------------------------------------------------
 
 def run_fofem_emissions(
-    litter: Union[float, np.ndarray],
-    duff: Union[float, np.ndarray],
-    duff_depth: Union[float, np.ndarray],
-    herb: Union[float, np.ndarray],
-    shrub: Union[float, np.ndarray],
-    crown_foliage: Union[float, np.ndarray],
-    crown_branch: Union[float, np.ndarray],
-    pct_crown_burned: Union[float, np.ndarray],
-    region: Union[str, int, np.ndarray],
-    cvr_grp: Union[str, int, np.ndarray] = '',
-    season: Union[str, int, np.ndarray] = 'Summer',
-    fuel_category: Union[str, int, np.ndarray] = 'Natural',
-    duff_moist: Union[float, np.ndarray, None] = None,
-    l_moist: Union[float, np.ndarray, None] = None,
-    dw10_moist: Union[float, np.ndarray, None] = None,
-    dw1000_moist: Union[float, np.ndarray, None] = None,
-    dw1: Union[float, np.ndarray] = 0.0,
-    dw10: Union[float, np.ndarray] = 0.0,
-    dw100: Union[float, np.ndarray] = 0.0,
-    dw1000s: Union[float, np.ndarray] = 0.0,
-    dw1000r: Union[float, np.ndarray] = 0.0,
-    dw3_6s: Union[float, np.ndarray] = 0.0,
-    dw6_9s: Union[float, np.ndarray] = 0.0,
-    dw9_20s: Union[float, np.ndarray] = 0.0,
-    dw20s: Union[float, np.ndarray] = 0.0,
-    dw3_6r: Union[float, np.ndarray] = 0.0,
-    dw6_9r: Union[float, np.ndarray] = 0.0,
-    dw9_20r: Union[float, np.ndarray] = 0.0,
-    dw20r: Union[float, np.ndarray] = 0.0,
-    hfi: Optional[Union[float, np.ndarray]] = None,
-    flame_res_time: Optional[Union[float, np.ndarray]] = None,
-    fuel_bed_depth: Optional[Union[float, np.ndarray]] = None,
-    ambient_temp: Optional[Union[float, np.ndarray]] = None,
-    windspeed: Optional[Union[float, np.ndarray]] = None,
-    use_burnup: bool = True,
-    burnup_kwargs: Optional[dict] = None,
-    em_mode: str = 'default',
-    ef_group: int = _EF_GROUP_DEFAULT,
-    ef_csv_path: Optional[str] = None,
-    units: str = 'Imperial',
-    moisture_regime: Optional[str] = None,
-    soil_heating: Union[bool, dict] = False,
-    soil_moisture: Optional[Union[float, np.ndarray]] = None,
-    soil_family: Optional[Union[str, np.ndarray]] = None,
-    num_workers: int = 1,
-    show_progress: bool = False,
+        litter: Union[float, np.ndarray],
+        duff: Union[float, np.ndarray],
+        duff_depth: Union[float, np.ndarray],
+        herb: Union[float, np.ndarray],
+        shrub: Union[float, np.ndarray],
+        crown_foliage: Union[float, np.ndarray],
+        crown_branch: Union[float, np.ndarray],
+        pct_crown_burned: Union[float, np.ndarray],
+        region: Union[str, int, np.ndarray],
+        cvr_grp: Union[str, int, np.ndarray] = '',
+        season: Union[str, int, np.ndarray] = 'Summer',
+        fuel_category: Union[str, int, np.ndarray] = 'Natural',
+        duff_moist: Union[float, np.ndarray, None] = None,
+        l_moist: Union[float, np.ndarray, None] = None,
+        dw10_moist: Union[float, np.ndarray, None] = None,
+        dw1000_moist: Union[float, np.ndarray, None] = None,
+        dw1: Union[float, np.ndarray] = 0.0,
+        dw10: Union[float, np.ndarray] = 0.0,
+        dw100: Union[float, np.ndarray] = 0.0,
+        dw1000s: Union[float, np.ndarray] = 0.0,
+        dw1000r: Union[float, np.ndarray] = 0.0,
+        dw3_6s: Union[float, np.ndarray] = 0.0,
+        dw6_9s: Union[float, np.ndarray] = 0.0,
+        dw9_20s: Union[float, np.ndarray] = 0.0,
+        dw20s: Union[float, np.ndarray] = 0.0,
+        dw3_6r: Union[float, np.ndarray] = 0.0,
+        dw6_9r: Union[float, np.ndarray] = 0.0,
+        dw9_20r: Union[float, np.ndarray] = 0.0,
+        dw20r: Union[float, np.ndarray] = 0.0,
+        hfi: Optional[Union[float, np.ndarray]] = None,
+        flame_res_time: Optional[Union[float, np.ndarray]] = None,
+        fuel_bed_depth: Optional[Union[float, np.ndarray]] = None,
+        ambient_temp: Optional[Union[float, np.ndarray]] = None,
+        windspeed: Optional[Union[float, np.ndarray]] = None,
+        use_burnup: bool = True,
+        burnup_kwargs: Optional[dict] = None,
+        em_mode: str = 'default',
+        ef_group: int = _EF_GROUP_DEFAULT,
+        ef_csv_path: Optional[str] = None,
+        units: str = 'Imperial',
+        moisture_regime: Optional[str] = None,
+        soil_heating: Union[bool, dict] = False,
+        soil_moisture: Optional[Union[float, np.ndarray]] = None,
+        soil_family: Optional[Union[str, np.ndarray]] = None,
+        num_workers: int = 1,
+        show_progress: bool = False,
 ) -> dict:
     """
     Facade driver for FOFEM fuel consumption, carbon, and smoke emissions.
@@ -343,7 +273,7 @@ def run_fofem_emissions(
         ``ProcessPoolExecutor``.
     :param show_progress: If ``True``, display a :mod:`tqdm` progress bar
         during the per-cell burnup loop. Default ``False``.
-    :returns: Dict of modeled outputs. Values are plain Python ``float``/``int``
+    :return: Dict of modeled outputs. Values are plain Python ``float``/``int``
         when all inputs are scalars, otherwise ``np.ndarray``. Expanded
         emission outputs are only included for ``em_mode='legacy'`` or
         ``em_mode='expanded'``; soil-heating outputs are only included when
@@ -607,6 +537,15 @@ def run_fofem_emissions(
             dm: Dict[str, float] = {}
 
             def _add(key, val, moist):
+                """
+                Register a fuel-loading/moisture pair for this cell's burnup call.
+
+                :param key: Burnup fuel-loading dict key (e.g. ``'litter'``, ``'dw1'``).
+                :param val: Loading value in the caller's unit system.
+                :param moist: Moisture fraction for this fuel component.
+                :return: None. Populates the enclosing ``fl``/``fm`` dicts as a
+                    side effect when the SI-converted loading is positive.
+                """
                 v = float(val) * to_si
                 if v > 0:
                     fl[key] = v
@@ -828,6 +767,17 @@ def run_fofem_emissions(
     # ------------------------------------------------------------------
     if soil_enabled:
         def _cfg_float_at(key: str, default: float, idx: int) -> float:
+            """
+            Resolve a scalar-or-array ``soil_cfg`` override for one cell.
+
+            :param key: Key to look up in ``soil_cfg``.
+            :param default: Value to use when *key* is absent from ``soil_cfg``.
+            :param idx: Cell index to select when the configured value is an
+                array/list/tuple of per-cell overrides.
+            :return: Resolved float value for cell *idx*.
+            :raises ValueError: If the configured sequence's length is neither
+                1 nor the number of cells ``n``.
+            """
             val = soil_cfg.get(key, default)
             if isinstance(val, np.ndarray):
                 arr = val.ravel()
@@ -998,4 +948,77 @@ def run_fofem_emissions(
         lay0_arr=lay0_arr, lay2_arr=lay2_arr, lay4_arr=lay4_arr, lay6_arr=lay6_arr,
         lay60d_arr=lay60d_arr, lay275d_arr=lay275d_arr,
     )
+
+
+# Mapping of mortality function names to callables
+_MORT_FUNC_DICT = {
+    'bolchar': mort_bolchar,
+    'crnsch':  mort_crnsch,
+    'crcabe':  mort_crcabe,
+}
+
+
+def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.ndarray]:
+    """
+    Facade driver for FOFEM post-fire tree mortality modelling.
+
+    Selects and calls the appropriate FOFEM mortality function based on the
+    *mort_function* argument, forwarding all remaining keyword arguments to
+    that function.
+
+    Available mortality functions:
+
+    +-------------+----------------------------------------------+
+    | Key         | Model                                        |
+    +=============+==============================================+
+    | ``bolchar`` | Bole char model (BOLCHAR; Keyser 2018).      |
+    |             | For broadleaf hardwood species.              |
+    +-------------+----------------------------------------------+
+    | ``crnsch``  | Crown scorch model (CRNSCH).                 |
+    |             | For conifers and general species.            |
+    +-------------+----------------------------------------------+
+    | ``crcabe``  | Cambium kill model (CRCABE; Hood & Lutes     |
+    |             | 2017). For conifer species only.             |
+    +-------------+----------------------------------------------+
+
+    :param mort_function: Name of the mortality sub-model to use.
+        One of ``'bolchar'``, ``'crnsch'``, or ``'crcabe'``
+        (case-insensitive).
+    :param params: Keyword (parameter) arguments forwarded verbatim to the selected
+        mortality function.  See each function's own docstring for the full
+        parameter list:
+
+        * :func:`~pyfofem.components.mortality_calcs.mort_bolchar`
+        * :func:`~pyfofem.components.mortality_calcs.mort_crnsch`
+        * :func:`~pyfofem.components.mortality_calcs.mort_crcabe`
+
+    :return: Mortality probability or array of probabilities (float in
+        [0, 1], or ``np.nan`` for unsupported species), matching the return
+        type of the selected sub-model.
+    :raises KeyError: If *mort_function* is not a recognised key.
+
+    Examples::
+
+        # Crown scorch for a single ponderosa pine tree
+        pm = run_fofem_mortality(
+            'crnsch',
+            spp='PIPO', dbh=25.0, ht=15.0, crown_depth=5.0,
+            fire_intensity=500.0,
+        )
+
+        # Bole char for multiple broadleaf trees
+        pm = run_fofem_mortality(
+            'bolchar',
+            spp=np.array(['ACRU', 'QUAL']),
+            dbh=np.array([12.0, 20.0]),
+            char_ht=np.array([1.5, 2.0]),
+        )
+    """
+    key = mort_function.strip().lower()
+    if key not in _MORT_FUNC_DICT:
+        raise KeyError(
+            f"Unknown mortality function '{mort_function}'. "
+            f"Valid options: {list(_MORT_FUNC_DICT.keys())}"
+        )
+    return _MORT_FUNC_DICT[key](**params)
 

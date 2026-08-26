@@ -42,52 +42,16 @@ FULL_EXTRA_TESTS: List[str] = [
 ]
 
 
-def _repo_root() -> str:
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-def _resolve_tests(suite: str) -> List[str]:
-    tests = list(CORE_TESTS)
-    if suite == "full":
-        tests.extend(FULL_EXTRA_TESTS)
-    return tests
-
-
-def _discover_active_test_modules() -> List[str]:
-    """Return active pytest modules under tests/ that should be accounted for."""
-    tests_dir = Path(_repo_root()) / "tests"
-    paths = []
-    for path in sorted(tests_dir.glob("test_*.py")):
-        rel = path.relative_to(_repo_root()).as_posix()
-        if rel == "tests/run_unified_tests.py":
-            continue
-        paths.append(rel)
-    return paths
-
-
-def _validate_suite_coverage() -> None:
-    """Fail fast if a new test module was added but not assigned to a suite."""
-    configured = set(CORE_TESTS) | set(FULL_EXTRA_TESTS)
-    discovered = set(_discover_active_test_modules())
-    missing = sorted(discovered - configured)
-    if missing:
-        raise RuntimeError(
-            "run_unified_tests.py is missing active test modules:\n"
-            + "\n".join(f"  - {path}" for path in missing)
-        )
-
-
-def _verify_pytest_available() -> None:
-    try:
-        importlib.import_module("pytest")
-    except Exception as exc:  # pragma: no cover - environment check
-        raise RuntimeError(
-            "pytest is required for run_unified_tests.py. "
-            "Install test deps first (e.g., `pip install pytest`)."
-        ) from exc
-
-
 def _check_import(installed_only: bool) -> None:
+    """
+    Import pyfofem and print the resolved module path.
+
+    :param installed_only: If ``True``, raise when pyfofem resolves to the
+        local ``src/`` tree instead of an installed package.
+    :return: None. Prints the resolved import path as a side effect.
+    :raises RuntimeError: If *installed_only* is ``True`` and pyfofem
+        resolves to the local source tree.
+    """
     pyfofem = importlib.import_module("pyfofem")
     module_path = os.path.abspath(getattr(pyfofem, "__file__", ""))
     print(f"[unified-tests] pyfofem import: {module_path}")
@@ -104,7 +68,56 @@ def _check_import(installed_only: bool) -> None:
         )
 
 
+def _discover_active_test_modules() -> List[str]:
+    """
+    Return active pytest modules under tests/ that should be accounted for.
+
+    :return: Sorted list of ``tests/test_*.py`` relative paths, excluding
+        this runner script itself.
+    """
+    tests_dir = Path(_repo_root()) / "tests"
+    paths = []
+    for path in sorted(tests_dir.glob("test_*.py")):
+        rel = path.relative_to(_repo_root()).as_posix()
+        if rel == "tests/run_unified_tests.py":
+            continue
+        paths.append(rel)
+    return paths
+
+
+def _repo_root() -> str:
+    """
+    Resolve the repository root directory from this file's location.
+
+    :return: Absolute path to the repository root (two levels up from
+        ``tests/run_unified_tests.py``).
+    """
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _resolve_tests(suite: str) -> List[str]:
+    """
+    Resolve the list of test-file paths for the requested suite.
+
+    :param suite: ``'core'`` for the publish-safe default tests, or
+        ``'full'`` to additionally include parity/comparison tests.
+    :return: List of ``tests/*.py`` relative paths to run.
+    """
+    tests = list(CORE_TESTS)
+    if suite == "full":
+        tests.extend(FULL_EXTRA_TESTS)
+    return tests
+
+
 def _run_pytest(test_paths: List[str], verbosity: int) -> int:
+    """
+    Invoke pytest as a subprocess against the given test paths.
+
+    :param test_paths: Test file paths to run, relative to the repo root.
+    :param verbosity: Pytest verbosity level (``<=0`` for ``-q``, ``>=2``
+        for ``-vv``, otherwise pytest's default verbosity).
+    :return: The pytest subprocess return code.
+    """
     cmd = [sys.executable, "-m", "pytest", "-ra"]
     if verbosity <= 0:
         cmd.append("-q")
@@ -117,7 +130,47 @@ def _run_pytest(test_paths: List[str], verbosity: int) -> int:
     return int(proc.returncode)
 
 
+def _validate_suite_coverage() -> None:
+    """
+    Fail fast if a new test module was added but not assigned to a suite.
+
+    :return: None. Raises if uncovered test modules are discovered.
+    :raises RuntimeError: If any discovered test module is not present in
+        ``CORE_TESTS`` or ``FULL_EXTRA_TESTS``.
+    """
+    configured = set(CORE_TESTS) | set(FULL_EXTRA_TESTS)
+    discovered = set(_discover_active_test_modules())
+    missing = sorted(discovered - configured)
+    if missing:
+        raise RuntimeError(
+            "run_unified_tests.py is missing active test modules:\n"
+            + "\n".join(f"  - {path}" for path in missing)
+        )
+
+
+def _verify_pytest_available() -> None:
+    """
+    Confirm that pytest is importable before attempting to run any suite.
+
+    :return: None. Raises if pytest cannot be imported.
+    :raises RuntimeError: If pytest is not installed/importable.
+    """
+    try:
+        importlib.import_module("pytest")
+    except Exception as exc:  # pragma: no cover - environment check
+        raise RuntimeError(
+            "pytest is required for run_unified_tests.py. "
+            "Install test deps first (e.g., `pip install pytest`)."
+        ) from exc
+
+
 def main() -> int:
+    """
+    Parse CLI arguments, validate the environment, and run the selected suite.
+
+    :return: Process exit code — 0 on success, 2 if configured test files
+        are missing, or the pytest subprocess return code otherwise.
+    """
     parser = argparse.ArgumentParser(description="Unified pyfofem test runner.")
     parser.add_argument(
         "--suite",

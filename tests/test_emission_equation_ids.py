@@ -4,6 +4,11 @@ from pyfofem.components.emission_pipeline import compute_equation_arrays
 
 
 def test_compute_equation_arrays_matches_cpp_routing():
+    """
+    Verify equation-ID routing for one row per region against known C++ values.
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     reg = np.array(
         [
             "SouthEast",
@@ -45,6 +50,11 @@ def test_compute_equation_arrays_matches_cpp_routing():
 
 
 def test_compute_equation_arrays_northeast_special_cases():
+    """
+    Verify NorthEast RedJacPin/BalBRWSpr special-case equation-ID routing.
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     reg = np.array(["NorthEast", "NorthEast"], dtype=object)
     cvr = np.array(["RedJacPin", "BalBRWSpr"], dtype=object)
     season = np.array(["Spring", "Summer"], dtype=object)
