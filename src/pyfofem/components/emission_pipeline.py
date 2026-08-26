@@ -198,7 +198,7 @@ def build_emissions_result(
         "DufRed-Equ": out_int(duf_red_eq_arr),
         "MSE-Equ": out_int(mse_eq_arr),
         "Herb-Equ": out_int(herb_eq_arr),
-        "Shurb-Equ": out_int(shrub_eq_arr),
+        "Shrub-Equ": out_int(shrub_eq_arr),
         "BurnupLimitAdj": out_int(burnup_adj_arr),
         "BurnupError": out_int(burnup_err_arr),
     }

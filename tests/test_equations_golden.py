@@ -67,6 +67,8 @@ def _call_function(func_name: str, inputs: dict, expected_key: str):
     :return: The scalar result value to compare against the golden expectation.
     :raises ValueError: If *func_name* is not a recognised function name.
     """
+    if func_name not in _FUNCTION_MAP:
+        raise ValueError(f'Unknown function: {func_name}')
     func = _FUNCTION_MAP[func_name]
 
     if func_name == 'consm_duff':
