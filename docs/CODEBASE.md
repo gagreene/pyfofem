@@ -514,15 +514,91 @@ feature — is only reachable via a direct, separate call. The `Lay*` keys in
 regardless of which model a caller might assume from the README's mention of
 both models.
 
-### 19. `_to_str_arr()` exists in two places with identical logic
+### 19. `_to_str_arr()` duplication — Fixed 2026-08-26
 
-`components/_component_helpers.py` defines a shared `_to_str_arr()`, and
-`components/consumption_calcs.py` (lines ~135-161) defines its own
-byte-for-byte-identical private copy rather than importing the shared one.
-`pyfofem.py` and `components/__init__.py` both import the shared
-`_component_helpers` version. Not a behavioral risk today since the two
-copies are currently in sync, but a future edit to one without the other
-would silently diverge categorical-parameter handling between call sites.
+**RESOLVED** (PR #1 Copilot review): `components/consumption_calcs.py`
+imported the shared `_to_str_arr()` from `_component_helpers.py` but then
+redefined it locally, shadowing the import — the local copy was
+byte-for-byte identical logic, so the import was dead. Removed the local
+duplicate; the module now uses the shared helper it already imported.
+
+### 20. `calc_smoke_emissions()` return type annotation — Fixed 2026-08-26
+
+**RESOLVED** (PR #1 Copilot review): Was annotated
+`-> Dict[str, float]`, but every mode (legacy/default/expanded) always
+returns `np.ndarray` values — the internal `_total()` helper coerces every
+input through `np.asarray()`, so even scalar calls produce 0-d/1-element
+arrays, never plain Python floats. Corrected to `Dict[str, np.ndarray]`.
+
+### 21. `np.atleast_1d` doesn't flatten 2D+ input — Fixed 2026-08-26
+
+**RESOLVED** (PR #1 Copilot review + deeper sweep): `np.atleast_1d()`
+leaves already-≥1D input unchanged, including 2D+ arrays — unlike
+`np.ravel()`, which always flattens to 1D. All three `mort_*` functions in
+`mortality_calcs.py`, all of `consumption_calcs.py`'s input coercion, and
+`pyfofem.py`'s `run_fofem_emissions()` broadcast step used
+`np.atleast_1d(np.asarray(...))` (54 occurrences total), which meant a 2D
+input produced a 2D boolean mask indexed against a 1D output array —
+reproduced directly as `IndexError: too many indices for array: array is
+1-dimensional, but 2 were indexed`. Swapped every occurrence to
+`np.ravel()`, which is behavior-identical for scalar/1D input (the only
+shapes any test or documented usage exercises) and only changes the
+previously-broken 2D+ case. Regression coverage:
+`tests/test_pr1_review_regressions.py`.
+
+### 22. `_FIRE_BOUNDS['fistart']` minimum didn't match C++ — Fixed 2026-08-26
+
+**RESOLVED** (PR #1 Copilot review): Was `10.0`, contradicting its own
+inline comment, the `_check_fire()` docstring's C++ bounds table, and
+`_BURNUP_LIMIT_ERROR[10]`'s description, all three of which already said
+`40.0`. Verified directly against the compiled C++ source
+(`reference/fofem_cpp/FOF_UNIX/bur_brn.cpp:1144`,
+`const double fir1 = 40.0`) rather than trusting Python's own internal
+docs, since all three could in principle have inherited the same original
+mistake. Fixed to `40.0`. No test used a value in the 10–40 kW/m² range
+that this affects. Regression coverage:
+`tests/test_pr1_review_regressions.py::test_fistart_min_matches_cpp_reference`.
+
+### 23. `_check_fire()` is dead code — three different, inconsistent bounds-handling paths exist
+
+Found while fixing #22. `burnup()`'s `validate=True` path only calls
+`_check_fuel()` (fuel-particle bounds); `_check_fire()` (fire-environment
+bounds: `fistart`, `ti`, `u`, `d`, `tamb_c`, `dfm`), which has clean
+raise-with-message semantics for every bound, is fully defined but never
+invoked anywhere in production code or tests. Instead, two *different*,
+ad hoc implementations exist, neither of which calls `_check_fire()`:
+
+- `_run_burnup_cell()` (the actual worker `run_fofem_emissions()` uses,
+  via `ProcessPoolExecutor`) — asymmetric per bound: values exceeding the
+  *upper* limit are clipped (recording a `burnup_limit_adjust` code,
+  1-6), values below the *lower* limit are rejected outright (returned as
+  a numeric `burnup_error` code, 10-14) rather than clipped or raised as
+  an exception — except `dfm` (min/max inverted: clipped low, rejected
+  high) and `d`/fuel-bed-depth (clipped on *both* sides, no rejection
+  path at all).
+- `gen_burnup_in_file()` (a separate, standalone `.brn`-file-writing
+  utility, not used by `run_fofem_emissions()`) — clips *both* sides
+  unconditionally for every bound (`max(lo, min(x, hi))`), no error
+  codes, no rejection path for anything.
+
+So the same conceptual "is this fire-environment input valid" question
+currently has three different, disagreeing answers depending on which of
+the three code paths is asked. Left open pending explicit decision on
+whether/how to consolidate these — potentially wiring `_check_fire()` in
+as the single source of truth is a real behavior change for at least
+`_run_burnup_cell()`'s current lower-bound-rejection cases (previously
+returned a `burnup_error` code, would instead raise
+`BurnupValidationError`).
+
+### 24. No `_FIRE_BOUNDS` entry for C++'s duff-loading bounds
+
+Found while fixing #22. C++'s `BRN_CheckData()` also validates duff
+dry-weight loading (`wdf`) against `e_wdf1 = 0.022`, `e_wdf2 = 80.0`
+kg/m² (`bur_brn.h`), but Python's `_FIRE_BOUNDS` has no `wdf` entry at
+all — `_check_fire()`'s `wdf_load` parameter is only used to gate the
+`dfm` (duff moisture) check, never validated against its own magnitude.
+Left open pending explicit decision, and coupled to #23 since
+`_check_fire()` isn't currently called regardless.
 
 ---
 

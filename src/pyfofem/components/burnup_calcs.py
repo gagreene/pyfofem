@@ -126,12 +126,17 @@ def _run_burnup_cell(ckw: dict):
     Run the burnup model for a single spatial cell.
 
     Top-level, picklable worker function for parallel dispatch via
-    ``concurrent.futures.ProcessPoolExecutor``. Clips out-of-range fire/fuel
-    inputs to FOFEM's documented bounds (recording a ``burnup_limit_adjust``
-    code per clipped input) and translates any ``BurnupValidationError`` (or
-    other exception) raised by the underlying simulation into a numeric
-    ``burnup_error`` code instead of propagating it, so one invalid cell
-    cannot abort a batch run.
+    ``concurrent.futures.ProcessPoolExecutor``. Fire-environment inputs
+    (``fistart``, ``ti``, ``u``, ``tamb_c``, ``dfm``) are clipped when they
+    exceed the *upper* ``_FIRE_BOUNDS`` limit (recording a
+    ``burnup_limit_adjust`` code, 1-6) but rejected outright with a nonzero
+    ``burnup_error`` code (10-14) when they fall below the *lower* limit —
+    except ``dfm``, whose min/max are inverted (clipped low, rejected
+    high), and fuel bed depth (``d``), which is clipped on *both* sides
+    (code 4) with no rejection path. Also translates any
+    ``BurnupValidationError`` (or other exception) raised by the
+    underlying simulation into a numeric ``burnup_error`` code instead of
+    propagating it, so one invalid cell cannot abort a batch run.
 
     :param ckw: Dict of per-cell burnup inputs, keyed by 'fuel_loadings_bu',
         'fuel_moistures_bu', 'rotten_keys', 'density_map', 'intensity_kw',
