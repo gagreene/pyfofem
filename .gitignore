@@ -1,3 +1,6 @@
+# Claude Code workflow files (personal, not for repo)
+.claude/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -72,3 +75,6 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Local planning context (durable context belongs in the Pyfofem Obsidian vault)
+development/plans/

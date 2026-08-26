@@ -26,10 +26,10 @@ from .tree_flame_calcs import (
 
 
 def mort_bolchar(
-    spp: Union[str, int, np.ndarray],
-    dbh: Union[float, np.ndarray],
-    char_ht: Union[float, np.ndarray],
-    tree_code_dict: dict = None,
+        spp: Union[str, int, np.ndarray],
+        dbh: Union[float, np.ndarray],
+        char_ht: Union[float, np.ndarray],
+        tree_code_dict: dict = None,
 ) -> Union[float, np.ndarray]:
     """
     FOFEM bole char post-fire mortality model (BOLCHAR).
@@ -76,9 +76,9 @@ def mort_bolchar(
         tree_code_dict = None
 
     # Coerce all inputs to np.ndarray
-    spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh, dtype=float))
-    char_ht = np.atleast_1d(np.asarray(char_ht, dtype=float))
+    spp = np.ravel(np.array(spp))
+    dbh = np.ravel(np.asarray(dbh, dtype=float))
+    char_ht = np.ravel(np.asarray(char_ht, dtype=float))
 
     # Map numeric spp codes to FOFEM string codes if needed
     if np.issubdtype(spp.dtype, np.integer):
@@ -169,20 +169,228 @@ def mort_bolchar(
     return float(Pm[0]) if scalar_input else Pm
 
 
+def mort_crcabe(
+        spp: Union[str, int, np.ndarray],
+        dbh: Union[float, np.ndarray],
+        ht: Union[float, np.ndarray],
+        crown_depth: Union[float, np.ndarray],
+        ckr: Union[float, np.ndarray],
+        scorch_ht: Union[float, np.ndarray],
+        beetles: Union[bool, np.ndarray] = False,
+        cvk: Optional[Union[float, np.ndarray]] = None,
+        tree_code_dict: dict = None,
+) -> Union[float, np.ndarray]:
+    """
+    FOFEM cambium kill / post-fire mortality model (CRCABE).
+
+    Based on Hood and Lutes (2017). Accepts a single tree (scalar inputs) or
+    multiple trees (array inputs) of equal length. Models are available for the
+    12 conifer species listed below; unsupported species codes return ``np.nan``
+    with a printed warning.
+
+    Available species:
+        - White fir              – ABCO, ABCOC
+        - Grand/Subalpine fir    – ABGR, ABGRI2, ABGRG, ABGRI, ABGRJ, ABLA, ABLAL
+        - Red fir                – ABMA
+        - Incense Cedar          – CADE27, LIDE
+        - Engelmann spruce       – PIEN, PIENE, PIENM, PIENM2
+        - Western Larch          – LAOC
+        - Douglas-fir            – PSME, PSMEF, PSMEM
+        - Whitebark/Lodgepole pine – PIAL, PICO, PICOL, PICOL2
+        - Sugar pine             – PILA
+        - Ponderosa/Jeffrey pine – PIPO, PIPOK, PIPOB, PIPOBK, PIPOB2, PIPOB3,
+          PIPOB3K, PIPOP, PIPOPK, PIPOP2, PIPOP2K, PIPOS, PIPOSK, PIPOS2,
+          PIPOS2K, PIPO_BH, PIJE, PIJEK
+
+    :param spp: Species code(s) (str, int, or np.ndarray). A single string or
+        int may be passed for a single tree. If int, codes are mapped to FOFEM
+        species codes using ``tree_code_dict`` if provided; otherwise via the
+        lookup in ``species_codes_lut.csv``. Unknown codes map to ``'UNK'``.
+    :param dbh: Diameter at breast height (cm). Scalar or np.ndarray.
+    :param ht: Total tree height (m). Scalar or np.ndarray.
+    :param crown_depth: Crown depth (m). Scalar or np.ndarray.
+    :param ckr: Cambium Kill Rating (0–4), measured in the field. Scalar or
+        np.ndarray.
+    :param scorch_ht: Scorch height (m). Scalar or np.ndarray.
+    :param beetles: Beetle attack status. A single ``bool`` (applied to all
+        trees) or a boolean np.ndarray of the same length as ``spp``. Default
+        ``False``. Species-specific ``atk`` factor values are assigned
+        internally. Relevant beetle species: Ambrosia, Red turpentine, Mountain
+        pine, Douglas-fir beetle, IPS.
+    :param cvk: Percent total crown volume killed by bud kill (%). Used only
+        for Ponderosa/Jeffrey pine; selects the ``PK`` (bud-kill) equation over
+        the ``PP`` (scorch) equation when provided. Scalar or np.ndarray of the
+        same length as ``spp``. Default ``None`` (uses scorch-based equation).
+    :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
+        species code strings (e.g., ``{201: 'PIPO'}``).
+
+    :return: Mortality probability (float in [0, 1], or ``np.nan`` for
+        unsupported species). Returns a scalar ``float`` when all primary inputs
+        (``spp``, ``dbh``, ``ht``, ``crown_depth``, ``ckr``, ``scorch_ht``) are
+        scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
+    """
+    # Detect whether the caller passed scalar inputs
+    scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
+                    and _is_scalar(crown_depth) and _is_scalar(ckr)
+                    and _is_scalar(scorch_ht))
+
+    # Verify tree_code_dict
+    if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
+        print('tree_code_dict must be a dictionary, mapping numeric species codes to FOFEM species code strings. '
+              'Using default species code mapping from species_codes_lut.csv.')
+        tree_code_dict = None
+
+    # Coerce all inputs to np.ndarray (at least 1-D)
+    spp = np.ravel(np.array(spp))
+    dbh = np.ravel(np.asarray(dbh))
+    ht = np.ravel(np.asarray(ht))
+    crown_depth = np.ravel(np.asarray(crown_depth))
+    ckr = np.ravel(np.asarray(ckr))
+    scorch_ht = np.ravel(np.asarray(scorch_ht))
+
+    # Broadcast beetles to a per-tree boolean array
+    beetles = np.broadcast_to(np.asarray(beetles, dtype=bool), spp.shape).copy()
+
+    # Broadcast cvk to a per-tree float array (NaN where not provided)
+    if cvk is None:
+        cvk_arr = np.full(spp.shape, np.nan)
+    else:
+        cvk_arr = np.broadcast_to(np.asarray(cvk, dtype=float), spp.shape).copy()
+
+    # Map numeric spp codes to FOFEM string codes if needed
+    if np.issubdtype(spp.dtype, np.integer):
+        unique_num_cds = np.unique(spp)
+        for num_cd in unique_num_cds:
+            mask = spp == num_cd
+            if tree_code_dict is None:
+                spp[mask] = (SPP_CODES.loc[SPP_CODES['num_cd'] == num_cd, 'fofem_cd'].iloc[0]
+                             if num_cd in SPP_CODES['num_cd'].values else 'UNK')
+            else:
+                spp[mask] = tree_code_dict.get(num_cd, 'UNK')
+    else:
+        spp = spp.astype(str)
+
+    # Calculate crown volume scorched (cvs, %) and crown length scorched (cls, %)
+    _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
+
+    # Output array – NaN by default (unsupported species remain NaN)
+    Pm = np.full(len(spp), np.nan)
+
+    # --- Species masks ---
+    mask_abco = np.isin(spp, ['ABCO', 'ABCOC'])
+    mask_abgr = np.isin(spp, ['ABGR', 'ABGRI2', 'ABGRG', 'ABGRI', 'ABGRJ', 'ABLA', 'ABLAL'])
+    mask_abma = spp == 'ABMA'
+    mask_cade = np.isin(spp, ['CADE27', 'LIDE'])
+    mask_pien = np.isin(spp, ['PIEN', 'PIENE', 'PIENM', 'PIENM2'])
+    mask_laoc = spp == 'LAOC'
+    mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEM'])
+    mask_pial = np.isin(spp, ['PIAL', 'PICO', 'PICOL', 'PICOL2'])
+    mask_pila = spp == 'PILA'
+    mask_pipo = np.isin(spp, [
+        'PIPO', 'PIPOK', 'PIPOB', 'PIPOBK', 'PIPOB2', 'PIPOB3', 'PIPOB3K',
+        'PIPOP', 'PIPOPK', 'PIPOP2', 'PIPOP2K', 'PIPOS', 'PIPOSK', 'PIPOS2', 'PIPOS2K', 'PIPO_BH',
+        'PIJE', 'PIJEK'
+    ])
+
+    # FOFEM Eq WF - White Fir (ambrosia beetle; atk: attacked=1, unattacked=-1)
+    if np.any(mask_abco):
+        atk = np.where(beetles[mask_abco], 1, -1).astype(float)
+        Pm[mask_abco] = 1 / (1 + np.exp(
+            -(-3.5964 + (np.power(cls[mask_abco], 3) * 0.00000628) +
+              (ckr[mask_abco] * 0.3019) + (dbh[mask_abco] * 0.019) + (atk * 0.5209))))
+
+    # FOFEM Eq SF - Grand Fir and Subalpine Fir
+    if np.any(mask_abgr):
+        Pm[mask_abgr] = 1 / (1 + np.exp(
+            -(-2.6036 + (np.power(cvs[mask_abgr], 3) * 0.000004587) + (ckr[mask_abgr] * 1.3554))))
+
+    # FOFEM Eq RF - Red Fir
+    if np.any(mask_abma):
+        Pm[mask_abma] = 1 / (1 + np.exp(
+            -(-4.7515 + (np.power(cls[mask_abma], 3) * 0.000005989) + (ckr[mask_abma] * 1.0668))))
+
+    # FOFEM Eq IC - Incense Cedar
+    if np.any(mask_cade):
+        Pm[mask_cade] = 1 / (1 + np.exp(
+            -(-5.6465 + (np.power(cls[mask_cade], 3) * 0.000007274) + (ckr[mask_cade] * 0.5428))))
+
+    # FOFEM Eq ES - Engelmann Spruce
+    if np.any(mask_pien):
+        Pm[mask_pien] = 1 / (1 + np.exp(
+            -(-2.9791 + (cvs[mask_pien] * 0.0405) + (ckr[mask_pien] * 1.1596))))
+
+    # FOFEM Eq WL - Western Larch
+    if np.any(mask_laoc):
+        Pm[mask_laoc] = 1 / (1 + np.exp(
+            -(-3.8458 + (np.power(cvs[mask_laoc], 2) * 0.0004) + (ckr[mask_laoc] * 0.6266))))
+
+    # FOFEM Eq DF - Douglas-fir (Douglas-fir beetle; atk: attacked=1, unattacked=0)
+    if np.any(mask_psme):
+        atk = np.where(beetles[mask_psme], 1, 0).astype(float)
+        Pm[mask_psme] = 1 / (1 + np.exp(
+            -(-1.8912 + (cvs[mask_psme] * 0.07) -
+              (np.power(cvs[mask_psme], 2) * 0.0019) +
+              (np.power(cvs[mask_psme], 3) * 0.000018) +
+              (ckr[mask_psme] * 0.5840) - (dbh[mask_psme] * 0.031) -
+              (atk * 0.7959) + (dbh[mask_psme] * atk * 0.0492))))
+
+    # FOFEM Eq WP - Whitebark Pine and Lodgepole Pine
+    if np.any(mask_pial):
+        Pm[mask_pial] = 1 / (1 + np.exp(
+            -(-1.4059 + (np.power(cvs[mask_pial], 3) * 0.000004459) +
+              (np.power(ckr[mask_pial], 2) * 0.2843) - (dbh[mask_pial] * 0.0485))))
+
+    # FOFEM Eq SP - Sugar Pine (red turpentine / mountain pine beetle; atk: attacked=1, unattacked=-1)
+    if np.any(mask_pila):
+        atk = np.where(beetles[mask_pila], 1, -1).astype(float)
+        Pm[mask_pila] = 1 / (1 + np.exp(
+            -(-2.7598 + (np.power(cls[mask_pila], 2) * 0.000642) +
+              (np.power(ckr[mask_pila], 3) * 0.0386) + (atk * 0.8485))))
+
+    # FOFEM Eq PP / PK - Ponderosa / Jeffrey Pine
+    # (mountain pine, red turpentine, or ips beetle; atk: attacked=1, unattacked=0)
+    # Uses PK (cvk-based) equation where cvk is provided, otherwise PP (scorch-based).
+    if np.any(mask_pipo):
+        atk = np.where(beetles[mask_pipo], 1, 0).astype(float)
+        cvk_sub = cvk_arr[mask_pipo]
+        has_cvk = ~np.isnan(cvk_sub)
+        _Pm = np.empty(int(np.sum(mask_pipo)))
+        # PP equation (scorch-based)
+        _Pm[~has_cvk] = 1 / (1 + np.exp(
+            -(-4.1914 + (np.power(cvs[mask_pipo][~has_cvk], 2) * 0.000376) +
+              (ckr[mask_pipo][~has_cvk] * 0.5130) + (atk[~has_cvk] * 1.5873))))
+        # PK equation (cvk/bud-kill-based)
+        _Pm[has_cvk] = 1 / (1 + np.exp(
+            -(-3.5729 + (np.power(cvk_sub[has_cvk], 2) * 0.000567) +
+              (ckr[mask_pipo][has_cvk] * 0.4573) + (atk[has_cvk] * 1.6075))))
+        Pm[mask_pipo] = _Pm
+
+    # Warn about any unsupported species
+    mask_supported = (mask_abco | mask_abgr | mask_abma | mask_cade | mask_pien |
+                      mask_laoc | mask_psme | mask_pial | mask_pila | mask_pipo)
+    mask_unsupported = ~mask_supported
+    if np.any(mask_unsupported):
+        unsupported = np.unique(spp[mask_unsupported])
+        print(f'Warning: CRCABE mortality model unavailable for species: {unsupported.tolist()}. '
+              f'Mortality set to np.nan for those trees.')
+
+    return float(Pm[0]) if scalar_input else Pm
+
+
 def mort_crnsch(
-    spp: Union[str, int, np.ndarray],
-    dbh: Union[float, np.ndarray],
-    ht: Union[float, np.ndarray],
-    crown_depth: Union[float, np.ndarray],
-    bark_thickness: Optional[Union[float, np.ndarray]] = None,
-    fire_intensity: Optional[Union[float, np.ndarray]] = None,
-    amb_t: Optional[Union[float, np.ndarray]] = None,
-    flame_length: Optional[Union[float, np.ndarray]] = None,
-    char_ht: Optional[Union[float, np.ndarray]] = None,
-    scorch_ht: Optional[Union[float, np.ndarray]] = None,
-    instand_ws: Optional[Union[float, np.ndarray]] = None,
-    aspen_sev: str = 'low',
-    tree_code_dict: dict = None
+        spp: Union[str, int, np.ndarray],
+        dbh: Union[float, np.ndarray],
+        ht: Union[float, np.ndarray],
+        crown_depth: Union[float, np.ndarray],
+        bark_thickness: Optional[Union[float, np.ndarray]] = None,
+        fire_intensity: Optional[Union[float, np.ndarray]] = None,
+        amb_t: Optional[Union[float, np.ndarray]] = None,
+        flame_length: Optional[Union[float, np.ndarray]] = None,
+        char_ht: Optional[Union[float, np.ndarray]] = None,
+        scorch_ht: Optional[Union[float, np.ndarray]] = None,
+        instand_ws: Optional[Union[float, np.ndarray]] = None,
+        aspen_sev: str = 'low',
+        tree_code_dict: dict = None,
 ) -> Union[float, np.ndarray]:
     """
     FOFEM crown scorch mortality model (CRNSCH).
@@ -235,28 +443,28 @@ def mort_crnsch(
         tree_code_dict = None
 
     # Ensure all inputs are np.ndarrays (at least 1-D)
-    spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh))
-    ht = np.atleast_1d(np.asarray(ht))
-    crown_depth = np.atleast_1d(np.asarray(crown_depth))
+    spp = np.ravel(np.array(spp))
+    dbh = np.ravel(np.asarray(dbh))
+    ht = np.ravel(np.asarray(ht))
+    crown_depth = np.ravel(np.asarray(crown_depth))
     if bark_thickness is not None:
-        bark_thickness = np.atleast_1d(np.asarray(bark_thickness))
+        bark_thickness = np.ravel(np.asarray(bark_thickness))
     if fire_intensity is not None:
-        fire_intensity = np.atleast_1d(np.asarray(fire_intensity))
+        fire_intensity = np.ravel(np.asarray(fire_intensity))
     if amb_t is None:
         amb_t = np.full(len(spp), 25.0)
     else:
-        amb_t = np.atleast_1d(np.asarray(amb_t))
+        amb_t = np.ravel(np.asarray(amb_t))
     if flame_length is not None:
-        flame_length = np.atleast_1d(np.asarray(flame_length))
+        flame_length = np.ravel(np.asarray(flame_length))
     if char_ht is not None:
-        char_ht = np.atleast_1d(np.asarray(char_ht))
+        char_ht = np.ravel(np.asarray(char_ht))
     if scorch_ht is not None:
-        scorch_ht = np.atleast_1d(np.asarray(scorch_ht))
+        scorch_ht = np.ravel(np.asarray(scorch_ht))
     if instand_ws is None:
         instand_ws = np.ones(len(spp))
     else:
-        instand_ws = np.atleast_1d(np.asarray(instand_ws))
+        instand_ws = np.ravel(np.asarray(instand_ws))
 
     # Map numeric spp to FOFEM_sppCD if needed
     if np.issubdtype(spp.dtype, np.integer):
@@ -430,212 +638,3 @@ def mort_crnsch(
         Pm[mask_other] = _Pm
 
     return float(Pm[0]) if scalar_input else Pm
-
-
-def mort_crcabe(
-    spp: Union[str, int, np.ndarray],
-    dbh: Union[float, np.ndarray],
-    ht: Union[float, np.ndarray],
-    crown_depth: Union[float, np.ndarray],
-    ckr: Union[float, np.ndarray],
-    scorch_ht: Union[float, np.ndarray],
-    beetles: Union[bool, np.ndarray] = False,
-    cvk: Optional[Union[float, np.ndarray]] = None,
-    tree_code_dict: dict = None,
-) -> Union[float, np.ndarray]:
-    """
-    FOFEM cambium kill / post-fire mortality model (CRCABE).
-
-    Based on Hood and Lutes (2017). Accepts a single tree (scalar inputs) or
-    multiple trees (array inputs) of equal length. Models are available for the
-    12 conifer species listed below; unsupported species codes return ``np.nan``
-    with a printed warning.
-
-    Available species:
-        - White fir              – ABCO, ABCOC
-        - Grand/Subalpine fir    – ABGR, ABGRI2, ABGRG, ABGRI, ABGRJ, ABLA, ABLAL
-        - Red fir                – ABMA
-        - Incense Cedar          – CADE27, LIDE
-        - Engelmann spruce       – PIEN, PIENE, PIENM, PIENM2
-        - Western Larch          – LAOC
-        - Douglas-fir            – PSME, PSMEF, PSMEM
-        - Whitebark/Lodgepole pine – PIAL, PICO, PICOL, PICOL2
-        - Sugar pine             – PILA
-        - Ponderosa/Jeffrey pine – PIPO, PIPOK, PIPOB, PIPOBK, PIPOB2, PIPOB3,
-          PIPOB3K, PIPOP, PIPOPK, PIPOP2, PIPOP2K, PIPOS, PIPOSK, PIPOS2,
-          PIPOS2K, PIPO_BH, PIJE, PIJEK
-
-    :param spp: Species code(s) (str, int, or np.ndarray). A single string or
-        int may be passed for a single tree. If int, codes are mapped to FOFEM
-        species codes using ``tree_code_dict`` if provided; otherwise via the
-        lookup in ``species_codes_lut.csv``. Unknown codes map to ``'UNK'``.
-    :param dbh: Diameter at breast height (cm). Scalar or np.ndarray.
-    :param ht: Total tree height (m). Scalar or np.ndarray.
-    :param crown_depth: Crown depth (m). Scalar or np.ndarray.
-    :param ckr: Cambium Kill Rating (0–4), measured in the field. Scalar or
-        np.ndarray.
-    :param scorch_ht: Scorch height (m). Scalar or np.ndarray.
-    :param beetles: Beetle attack status. A single ``bool`` (applied to all
-        trees) or a boolean np.ndarray of the same length as ``spp``. Default
-        ``False``. Species-specific ``atk`` factor values are assigned
-        internally. Relevant beetle species: Ambrosia, Red turpentine, Mountain
-        pine, Douglas-fir beetle, IPS.
-    :param cvk: Percent total crown volume killed by bud kill (%). Used only
-        for Ponderosa/Jeffrey pine; selects the ``PK`` (bud-kill) equation over
-        the ``PP`` (scorch) equation when provided. Scalar or np.ndarray of the
-        same length as ``spp``. Default ``None`` (uses scorch-based equation).
-    :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
-        species code strings (e.g., ``{201: 'PIPO'}``).
-
-    :return: Mortality probability (float in [0, 1], or ``np.nan`` for
-        unsupported species). Returns a scalar ``float`` when all primary inputs
-        (``spp``, ``dbh``, ``ht``, ``crown_depth``, ``ckr``, ``scorch_ht``) are
-        scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
-    """
-    # Detect whether the caller passed scalar inputs
-    scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
-                    and _is_scalar(crown_depth) and _is_scalar(ckr)
-                    and _is_scalar(scorch_ht))
-
-    # Verify tree_code_dict
-    if tree_code_dict is not None and not isinstance(tree_code_dict, dict):
-        print('tree_code_dict must be a dictionary, mapping numeric species codes to FOFEM species code strings. '
-              'Using default species code mapping from species_codes_lut.csv.')
-        tree_code_dict = None
-
-    # Coerce all inputs to np.ndarray (at least 1-D)
-    spp = np.atleast_1d(np.array(spp))
-    dbh = np.atleast_1d(np.asarray(dbh))
-    ht = np.atleast_1d(np.asarray(ht))
-    crown_depth = np.atleast_1d(np.asarray(crown_depth))
-    ckr = np.atleast_1d(np.asarray(ckr))
-    scorch_ht = np.atleast_1d(np.asarray(scorch_ht))
-
-    # Broadcast beetles to a per-tree boolean array
-    beetles = np.broadcast_to(np.asarray(beetles, dtype=bool), spp.shape).copy()
-
-    # Broadcast cvk to a per-tree float array (NaN where not provided)
-    if cvk is None:
-        cvk_arr = np.full(spp.shape, np.nan)
-    else:
-        cvk_arr = np.broadcast_to(np.asarray(cvk, dtype=float), spp.shape).copy()
-
-    # Map numeric spp codes to FOFEM string codes if needed
-    if np.issubdtype(spp.dtype, np.integer):
-        unique_num_cds = np.unique(spp)
-        for num_cd in unique_num_cds:
-            mask = spp == num_cd
-            if tree_code_dict is None:
-                spp[mask] = (SPP_CODES.loc[SPP_CODES['num_cd'] == num_cd, 'fofem_cd'].iloc[0]
-                             if num_cd in SPP_CODES['num_cd'].values else 'UNK')
-            else:
-                spp[mask] = tree_code_dict.get(num_cd, 'UNK')
-    else:
-        spp = spp.astype(str)
-
-    # Calculate crown volume scorched (cvs, %) and crown length scorched (cls, %)
-    _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
-
-    # Output array – NaN by default (unsupported species remain NaN)
-    Pm = np.full(len(spp), np.nan)
-
-    # --- Species masks ---
-    mask_abco = np.isin(spp, ['ABCO', 'ABCOC'])
-    mask_abgr = np.isin(spp, ['ABGR', 'ABGRI2', 'ABGRG', 'ABGRI', 'ABGRJ', 'ABLA', 'ABLAL'])
-    mask_abma = spp == 'ABMA'
-    mask_cade = np.isin(spp, ['CADE27', 'LIDE'])
-    mask_pien = np.isin(spp, ['PIEN', 'PIENE', 'PIENM', 'PIENM2'])
-    mask_laoc = spp == 'LAOC'
-    mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEM'])
-    mask_pial = np.isin(spp, ['PIAL', 'PICO', 'PICOL', 'PICOL2'])
-    mask_pila = spp == 'PILA'
-    mask_pipo = np.isin(spp, [
-        'PIPO', 'PIPOK', 'PIPOB', 'PIPOBK', 'PIPOB2', 'PIPOB3', 'PIPOB3K',
-        'PIPOP', 'PIPOPK', 'PIPOP2', 'PIPOP2K', 'PIPOS', 'PIPOSK', 'PIPOS2', 'PIPOS2K', 'PIPO_BH',
-        'PIJE', 'PIJEK'
-    ])
-
-    # FOFEM Eq WF - White Fir (ambrosia beetle; atk: attacked=1, unattacked=-1)
-    if np.any(mask_abco):
-        atk = np.where(beetles[mask_abco], 1, -1).astype(float)
-        Pm[mask_abco] = 1 / (1 + np.exp(
-            -(-3.5964 + (np.power(cls[mask_abco], 3) * 0.00000628) +
-              (ckr[mask_abco] * 0.3019) + (dbh[mask_abco] * 0.019) + (atk * 0.5209))))
-
-    # FOFEM Eq SF - Grand Fir and Subalpine Fir
-    if np.any(mask_abgr):
-        Pm[mask_abgr] = 1 / (1 + np.exp(
-            -(-2.6036 + (np.power(cvs[mask_abgr], 3) * 0.000004587) + (ckr[mask_abgr] * 1.3554))))
-
-    # FOFEM Eq RF - Red Fir
-    if np.any(mask_abma):
-        Pm[mask_abma] = 1 / (1 + np.exp(
-            -(-4.7515 + (np.power(cls[mask_abma], 3) * 0.000005989) + (ckr[mask_abma] * 1.0668))))
-
-    # FOFEM Eq IC - Incense Cedar
-    if np.any(mask_cade):
-        Pm[mask_cade] = 1 / (1 + np.exp(
-            -(-5.6465 + (np.power(cls[mask_cade], 3) * 0.000007274) + (ckr[mask_cade] * 0.5428))))
-
-    # FOFEM Eq ES - Engelmann Spruce
-    if np.any(mask_pien):
-        Pm[mask_pien] = 1 / (1 + np.exp(
-            -(-2.9791 + (cvs[mask_pien] * 0.0405) + (ckr[mask_pien] * 1.1596))))
-
-    # FOFEM Eq WL - Western Larch
-    if np.any(mask_laoc):
-        Pm[mask_laoc] = 1 / (1 + np.exp(
-            -(-3.8458 + (np.power(cvs[mask_laoc], 2) * 0.0004) + (ckr[mask_laoc] * 0.6266))))
-
-    # FOFEM Eq DF - Douglas-fir (Douglas-fir beetle; atk: attacked=1, unattacked=0)
-    if np.any(mask_psme):
-        atk = np.where(beetles[mask_psme], 1, 0).astype(float)
-        Pm[mask_psme] = 1 / (1 + np.exp(
-            -(-1.8912 + (cvs[mask_psme] * 0.07) -
-              (np.power(cvs[mask_psme], 2) * 0.0019) +
-              (np.power(cvs[mask_psme], 3) * 0.000018) +
-              (ckr[mask_psme] * 0.5840) - (dbh[mask_psme] * 0.031) -
-              (atk * 0.7959) + (dbh[mask_psme] * atk * 0.0492))))
-
-    # FOFEM Eq WP - Whitebark Pine and Lodgepole Pine
-    if np.any(mask_pial):
-        Pm[mask_pial] = 1 / (1 + np.exp(
-            -(-1.4059 + (np.power(cvs[mask_pial], 3) * 0.000004459) +
-              (np.power(ckr[mask_pial], 2) * 0.2843) - (dbh[mask_pial] * 0.0485))))
-
-    # FOFEM Eq SP - Sugar Pine (red turpentine / mountain pine beetle; atk: attacked=1, unattacked=-1)
-    if np.any(mask_pila):
-        atk = np.where(beetles[mask_pila], 1, -1).astype(float)
-        Pm[mask_pila] = 1 / (1 + np.exp(
-            -(-2.7598 + (np.power(cls[mask_pila], 2) * 0.000642) +
-              (np.power(ckr[mask_pila], 3) * 0.0386) + (atk * 0.8485))))
-
-    # FOFEM Eq PP / PK - Ponderosa / Jeffrey Pine
-    # (mountain pine, red turpentine, or ips beetle; atk: attacked=1, unattacked=0)
-    # Uses PK (cvk-based) equation where cvk is provided, otherwise PP (scorch-based).
-    if np.any(mask_pipo):
-        atk = np.where(beetles[mask_pipo], 1, 0).astype(float)
-        cvk_sub = cvk_arr[mask_pipo]
-        has_cvk = ~np.isnan(cvk_sub)
-        _Pm = np.empty(int(np.sum(mask_pipo)))
-        # PP equation (scorch-based)
-        _Pm[~has_cvk] = 1 / (1 + np.exp(
-            -(-4.1914 + (np.power(cvs[mask_pipo][~has_cvk], 2) * 0.000376) +
-              (ckr[mask_pipo][~has_cvk] * 0.5130) + (atk[~has_cvk] * 1.5873))))
-        # PK equation (cvk/bud-kill-based)
-        _Pm[has_cvk] = 1 / (1 + np.exp(
-            -(-3.5729 + (np.power(cvk_sub[has_cvk], 2) * 0.000567) +
-              (ckr[mask_pipo][has_cvk] * 0.4573) + (atk[has_cvk] * 1.6075))))
-        Pm[mask_pipo] = _Pm
-
-    # Warn about any unsupported species
-    mask_supported = (mask_abco | mask_abgr | mask_abma | mask_cade | mask_pien |
-                      mask_laoc | mask_psme | mask_pial | mask_pila | mask_pipo)
-    mask_unsupported = ~mask_supported
-    if np.any(mask_unsupported):
-        unsupported = np.unique(spp[mask_unsupported])
-        print(f'Warning: CRCABE mortality model unavailable for species: {unsupported.tolist()}. '
-              f'Mortality set to np.nan for those trees.')
-
-    return float(Pm[0]) if scalar_input else Pm
-

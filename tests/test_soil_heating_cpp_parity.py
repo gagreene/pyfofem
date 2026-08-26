@@ -20,6 +20,13 @@ from compare_cpp_python_soil_heating import (  # noqa: E402
 
 @pytest.mark.skipif(not os.path.isfile(SOIL_TMP), reason="C++ soil.tmp reference not found")
 def test_soil_lay_values_vs_cpp():
+    """
+    Verify Python soil-heating layer values against the C++ ``soil.tmp`` reference.
+
+    Skipped when the C++ reference file is not present.
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     cpp_rows = _parse_soil_tmp(SOIL_TMP)
     cpp_vals = _cpp_lay_values_from_soil_tmp(cpp_rows)
     py = _run_python_case()

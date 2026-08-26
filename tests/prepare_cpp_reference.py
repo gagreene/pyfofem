@@ -31,7 +31,16 @@ from pathlib import Path
 from typing import Iterable, List
 
 
+# _repo_root() is defined and called first, ahead of alphabetical order,
+# because the module-level path constants below call it immediately at
+# import time and Python requires the definition to exist before that call.
 def _repo_root() -> Path:
+    """
+    Resolve the repository root directory from this file's location.
+
+    :return: Absolute path to the repository root (two levels up from
+        ``tests/prepare_cpp_reference.py``).
+    """
     return Path(__file__).resolve().parents[1]
 
 
@@ -43,25 +52,90 @@ OVERLAY_SOURCE_DIR = OVERLAY_DIR / "source"
 BUILD_DIR = CPP_DIR / "build-test"
 
 
-def _read_gitmodules_url() -> str:
-    gitmodules = REPO_ROOT / ".gitmodules"
-    if gitmodules.is_file():
-        text = gitmodules.read_text(encoding="utf-8", errors="replace")
-        for line in text.splitlines():
-            line = line.strip()
-            if line.startswith("url ="):
-                return line.split("=", 1)[1].strip()
-    return "https://github.com/bran-jnw/fofem_wuinity.git"
+def _apply_overlay() -> None:
+    """
+    Copy overlay source files on top of the C++ reference checkout.
+
+    :return: None. Copies files from ``OVERLAY_SOURCE_DIR`` into ``CPP_DIR``
+        as a side effect and prints a summary count.
+    :raises RuntimeError: If the overlay source or C++ reference directory
+        does not exist.
+    """
+    if not OVERLAY_SOURCE_DIR.is_dir():
+        raise RuntimeError(f"Overlay source directory not found: {OVERLAY_SOURCE_DIR}")
+    if not CPP_DIR.is_dir():
+        raise RuntimeError(f"C++ reference directory not found: {CPP_DIR}")
+    copied = _copy_tree_contents(OVERLAY_SOURCE_DIR, CPP_DIR)
+    print(f"[prepare-cpp] applied overlay files: {len(copied)}")
 
 
-def _run(cmd: Iterable[str], *, cwd: Path | None = None) -> None:
-    cmd = list(cmd)
-    shown_cwd = str(cwd or REPO_ROOT)
-    print(f"[prepare-cpp] ({shown_cwd})$ {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
+def _build_harness(build_system: str) -> None:
+    """
+    Build the ``fofem_test`` C++ harness using the requested build system.
+
+    :param build_system: One of ``'cmake'``, ``'batch'``, or ``'auto'``
+        (prefers CMake, falls back to the Windows batch script).
+    :return: None. Builds the harness as a side effect.
+    :raises RuntimeError: If *build_system* is ``'batch'`` on a non-Windows
+        OS, or if ``'auto'`` finds no usable build system.
+    """
+    if build_system == "cmake":
+        _build_with_cmake()
+        return
+    if build_system == "batch":
+        if os.name != "nt":
+            raise RuntimeError("Batch build is only supported on Windows.")
+        _build_with_batch()
+        return
+
+    # auto
+    if _which("cmake") is not None:
+        _build_with_cmake()
+        return
+    if os.name == "nt" and (CPP_DIR / "compile_test.bat").is_file():
+        _build_with_batch()
+        return
+    raise RuntimeError(
+        "No usable build system found. Install CMake or provide compile_test.bat on Windows."
+    )
+
+
+def _build_with_batch() -> None:
+    """
+    Build the C++ harness via the Windows ``compile_test.bat`` script.
+
+    :return: None. Runs the batch build as a side effect.
+    :raises RuntimeError: If ``compile_test.bat`` is not found.
+    """
+    batch_path = CPP_DIR / "compile_test.bat"
+    if not batch_path.is_file():
+        raise RuntimeError(f"Batch build file not found: {batch_path}")
+    _run(["cmd", "/c", str(batch_path)], cwd=CPP_DIR)
+
+
+def _build_with_cmake() -> None:
+    """
+    Build the C++ harness via CMake.
+
+    :return: None. Configures and builds the ``fofem_test`` target as a
+        side effect.
+    :raises RuntimeError: If ``cmake`` is not found on ``PATH``.
+    """
+    if _which("cmake") is None:
+        raise RuntimeError("cmake was not found on PATH.")
+    BUILD_DIR.mkdir(parents=True, exist_ok=True)
+    _run(["cmake", "-S", str(CPP_DIR), "-B", str(BUILD_DIR)], cwd=REPO_ROOT)
+    _run(["cmake", "--build", str(BUILD_DIR), "--config", "Release", "--target", "fofem_test"], cwd=REPO_ROOT)
 
 
 def _copy_tree_contents(src: Path, dst: Path) -> List[Path]:
+    """
+    Copy all files (recursively) from *src* into *dst*, preserving relative paths.
+
+    :param src: Source directory to copy files from.
+    :param dst: Destination directory to copy files into.
+    :return: List of destination file paths that were written.
+    """
     copied: List[Path] = []
     for path in sorted(src.rglob("*")):
         if path.is_dir():
@@ -75,6 +149,15 @@ def _copy_tree_contents(src: Path, dst: Path) -> List[Path]:
 
 
 def _ensure_cpp_repo(refresh: bool) -> None:
+    """
+    Clone the C++ reference repository if missing, or refresh it in place.
+
+    :param refresh: If ``True`` and the repo already exists, fetch and hard
+        reset it to ``origin/master`` before returning.
+    :return: None. Clones or refreshes ``CPP_DIR`` as a side effect.
+    :raises RuntimeError: If *refresh* is ``True`` but ``CPP_DIR`` exists
+        and is not a git checkout.
+    """
     remote_url = _read_gitmodules_url()
     if not CPP_DIR.exists():
         REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
@@ -98,57 +181,12 @@ def _ensure_cpp_repo(refresh: bool) -> None:
         shutil.rmtree(BUILD_DIR)
 
 
-def _apply_overlay() -> None:
-    if not OVERLAY_SOURCE_DIR.is_dir():
-        raise RuntimeError(f"Overlay source directory not found: {OVERLAY_SOURCE_DIR}")
-    if not CPP_DIR.is_dir():
-        raise RuntimeError(f"C++ reference directory not found: {CPP_DIR}")
-    copied = _copy_tree_contents(OVERLAY_SOURCE_DIR, CPP_DIR)
-    print(f"[prepare-cpp] applied overlay files: {len(copied)}")
-
-
-def _which(executable: str) -> str | None:
-    return shutil.which(executable)
-
-
-def _build_with_cmake() -> None:
-    if _which("cmake") is None:
-        raise RuntimeError("cmake was not found on PATH.")
-    BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    _run(["cmake", "-S", str(CPP_DIR), "-B", str(BUILD_DIR)], cwd=REPO_ROOT)
-    _run(["cmake", "--build", str(BUILD_DIR), "--config", "Release", "--target", "fofem_test"], cwd=REPO_ROOT)
-
-
-def _build_with_batch() -> None:
-    batch_path = CPP_DIR / "compile_test.bat"
-    if not batch_path.is_file():
-        raise RuntimeError(f"Batch build file not found: {batch_path}")
-    _run(["cmd", "/c", str(batch_path)], cwd=CPP_DIR)
-
-
-def _build_harness(build_system: str) -> None:
-    if build_system == "cmake":
-        _build_with_cmake()
-        return
-    if build_system == "batch":
-        if os.name != "nt":
-            raise RuntimeError("Batch build is only supported on Windows.")
-        _build_with_batch()
-        return
-
-    # auto
-    if _which("cmake") is not None:
-        _build_with_cmake()
-        return
-    if os.name == "nt" and (CPP_DIR / "compile_test.bat").is_file():
-        _build_with_batch()
-        return
-    raise RuntimeError(
-        "No usable build system found. Install CMake or provide compile_test.bat on Windows."
-    )
-
-
 def _print_status() -> None:
+    """
+    Print the current C++ reference checkout HEAD and directory locations.
+
+    :return: None. Prints status lines to stdout as a side effect.
+    """
     if (CPP_DIR / ".git").exists():
         proc = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -162,7 +200,55 @@ def _print_status() -> None:
     print(f"[prepare-cpp] overlay dir: {OVERLAY_DIR}")
 
 
+def _read_gitmodules_url() -> str:
+    """
+    Read the C++ reference repository URL from ``.gitmodules``.
+
+    :return: The remote URL from ``.gitmodules``, or a hardcoded fallback
+        URL if ``.gitmodules`` is missing or has no matching entry.
+    """
+    gitmodules = REPO_ROOT / ".gitmodules"
+    if gitmodules.is_file():
+        text = gitmodules.read_text(encoding="utf-8", errors="replace")
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("url ="):
+                return line.split("=", 1)[1].strip()
+    return "https://github.com/bran-jnw/fofem_wuinity.git"
+
+
+def _run(cmd: Iterable[str], *, cwd: Path | None = None) -> None:
+    """
+    Print and execute a subprocess command, raising on non-zero exit.
+
+    :param cmd: Command and arguments to execute.
+    :param cwd: Working directory to run the command in. Defaults to
+        ``REPO_ROOT`` when omitted.
+    :return: None. Runs the command as a side effect.
+    :raises subprocess.CalledProcessError: If the command exits non-zero.
+    """
+    cmd = list(cmd)
+    shown_cwd = str(cwd or REPO_ROOT)
+    print(f"[prepare-cpp] ({shown_cwd})$ {' '.join(cmd)}")
+    subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
+
+
+def _which(executable: str) -> str | None:
+    """
+    Locate an executable on ``PATH``.
+
+    :param executable: Executable name to search for.
+    :return: Absolute path to the executable, or ``None`` if not found.
+    """
+    return shutil.which(executable)
+
+
 def main() -> int:
+    """
+    Parse CLI arguments and prepare the local FOFEM C++ reference checkout.
+
+    :return: Process exit code — 0 on success, non-zero on failure.
+    """
     parser = argparse.ArgumentParser(description="Prepare local FOFEM C++ reference assets.")
     parser.add_argument(
         "--refresh",

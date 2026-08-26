@@ -152,7 +152,7 @@ def main():
     # Write output columns back into the dataframe
     # ------------------------------------------------------------------
     _INT_COLS = {'Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ',
-                 'Herb-Equ', 'Shurb-Equ', 'BurnupLimitAdj', 'BurnupError'}
+                 'Herb-Equ', 'Shrub-Equ', 'BurnupLimitAdj', 'BurnupError'}
     for col, val in results.items():
         if col in _INT_COLS:
             df[col] = np.asarray(val, dtype=int)

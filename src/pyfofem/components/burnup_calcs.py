@@ -39,11 +39,18 @@ _CLASS_ORDER_ALL = [
 ]
 
 def _burnup_durations(
-    results: List[BurnResult],
-    fla_threshold: float = 1e-05,
-    smo_threshold: float = 1e-05,
+        results: List[BurnResult],
+        fla_threshold: float = 1e-05,
+        smo_threshold: float = 1e-05,
 ) -> Tuple[float, float]:
-    """Derive flaming and smoldering durations from burnup time-series."""
+    """
+    Derive flaming and smoldering durations from burnup time-series.
+
+    :param results: Per-timestep burnup results from :func:`burnup`.
+    :param fla_threshold: Minimum flaming mass-loss rate (kg/m²/s) counted as still flaming.
+    :param smo_threshold: Minimum smoldering mass-loss rate (kg/m²/s) counted as still smoldering.
+    :return: Tuple of (flaming duration, smoldering duration), both in seconds.
+    """
     if not results:
         return float('nan'), float('nan')
     fla_dur = 0.0
@@ -64,12 +71,22 @@ def _burnup_durations(
     return fla_dur, smo_dur
 
 def _extract_burnup_consumption(
-    results: List[BurnResult],
-    summary: List[BurnSummaryRow],
-    class_order: List[str],
-    dt: float,
+        results: List[BurnResult],
+        summary: List[BurnSummaryRow],
+        class_order: List[str],
+        dt: float,
 ) -> Dict[str, Dict[str, float]]:
-    """Extract per-fuel-class consumption and flaming/smoldering partition from burnup."""
+    """
+    Extract per-fuel-class consumption and flaming/smoldering partition from burnup.
+
+    :param results: Per-timestep burnup results from :func:`burnup`.
+    :param summary: Per-component summary rows from :func:`burnup`.
+    :param class_order: Fuel-class names in burnup's sorted component order (see :func:`run_burnup`).
+    :param dt: Simulation timestep (s). Currently unused — each result's own recorded
+        time interval is used instead of a fixed dt.
+    :return: Dict keyed by fuel-class name; each value is a dict with 'consumed',
+        'flaming', 'smoldering' (all kg/m²), and 'frac_remaining'.
+    """
     n_comp = len(class_order)
     out: Dict[str, Dict[str, float]] = {}
     comp_fla = [0.0] * n_comp
@@ -105,7 +122,35 @@ def _extract_burnup_consumption(
     return out
 
 def _run_burnup_cell(ckw: dict):
-    """Run the burnup model for a single spatial cell."""
+    """
+    Run the burnup model for a single spatial cell.
+
+    Top-level, picklable worker function for parallel dispatch via
+    ``concurrent.futures.ProcessPoolExecutor``. Fire-environment inputs
+    (``fistart``, ``ti``, ``u``, ``tamb_c``, ``dfm``) are clipped when they
+    exceed the *upper* ``_FIRE_BOUNDS`` limit (recording a
+    ``burnup_limit_adjust`` code, 1-6) but rejected outright with a nonzero
+    ``burnup_error`` code (10-14) when they fall below the *lower* limit —
+    except ``dfm``, whose min/max are inverted (clipped low, rejected
+    high), and fuel bed depth (``d``), which is clipped on *both* sides
+    (code 4) with no rejection path. Also translates any
+    ``BurnupValidationError`` (or other exception) raised by the
+    underlying simulation into a numeric ``burnup_error`` code instead of
+    propagating it, so one invalid cell cannot abort a batch run.
+
+    :param ckw: Dict of per-cell burnup inputs, keyed by 'fuel_loadings_bu',
+        'fuel_moistures_bu', 'rotten_keys', 'density_map', 'intensity_kw',
+        'frt_s', 'ws', 'fb_depth', 'amb_temp', 'duf_loading_si',
+        'duf_moist_frac', 'duf_pct_consumed' (optional), 'hsf_consumed_si'
+        (optional), 'brafol_consumed_si' (optional), 'burnup_dt', and 'bkw'
+        (burnup keyword-argument overrides).
+    :return: On success, a dict with 'bcon' (per-class consumption from
+        :func:`_extract_burnup_consumption`), 'fla_dur'/'smo_dur' (seconds),
+        'burnup_times_s', 'burnup_fi_wl', 'burnup_fi_hs' (per-timestep
+        series), 'class_order', 'burnup_limit_adjust', and 'burnup_error'
+        (0). On failure, a dict with only 'burnup_limit_adjust' and a
+        nonzero 'burnup_error' code (see ``README.md`` for the code table).
+    """
     fl     = ckw['fuel_loadings_bu']
     fm     = ckw['fuel_moistures_bu']
     rk     = ckw['rotten_keys']
@@ -267,7 +312,33 @@ def gen_burnup_in_file(
         surat_dwk_9_20=12.7,
         surat_dwk_20=5.91
 ) -> None:
-    """Function generates a Burnup-in.brn file from the input parameters, and saves it at the out_brn_path location"""
+    """
+    Generate a Burnup-in.brn file from the input parameters and save it at out_brn_path.
+
+    Clips fire-environment inputs (intensity, ig_time, windspeed, depth,
+    ambient_temp) to FOFEM's documented bounds before writing.
+
+    :param out_brn_path: Output file path for the generated Burnup-in.brn file. Required.
+    :param max_times: Maximum number of simulation time steps, clipped to [1, 100000].
+    :param intensity: Igniting fire intensity (kW/m²), clipped to FOFEM's fistart bounds.
+    :param ig_time: Spreading-fire residence time (s), clipped to FOFEM's ti bounds.
+    :param windspeed: Mean horizontal windspeed at fuelbed top (m/s), clipped to FOFEM's u bounds.
+    :param depth: Fuel bed depth (m), clipped to FOFEM's d bounds.
+    :param ambient_temp: Ambient temperature (°C), clipped to FOFEM's tamb_c bounds.
+    :param r0: Minimum mixing parameter (dimensionless).
+    :param dr: Range (max - min) of mixing parameter.
+    :param timestep: Simulation time-step (s).
+    :param surat_lit: Litter surface-area-to-volume ratio (1/m).
+    :param surat_dw1: 1-hr down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dw10: 10-hr down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dw100: 100-hr down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dwk_3_6: 1000-hr (3-6 in) down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dwk_6_9: 1000-hr (6-9 in) down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dwk_9_20: 1000-hr (9-20 in) down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dwk_20: 1000-hr (>=20 in) down-wood surface-area-to-volume ratio (1/m).
+    :raises Exception: If out_brn_path is not provided.
+    :return: None. Writes the generated file to out_brn_path.
+    """
     if out_brn_path is None:
         raise Exception('No output path specified for Burnup-in.brn file')
     max_times = max(1, min(max_times, 100000))
@@ -302,47 +373,97 @@ def gen_burnup_in_file(
     return
 
 def run_burnup(
-    fuel_loadings: Dict[str, float],
-    fuel_moistures: Dict[str, float],
-    intensity: float = 50.0,
-    ig_time: float = 60.0,
-    windspeed: float = 0.0,
-    depth: float = 0.3,
-    ambient_temp: float = 21.0,
-    r0: float = 1.83,
-    dr: float = 0.4,
-    timestep: float = 15.0,
-    max_times: int = 3000,
-    surat_lit: float = 8200.0,
-    surat_dw1: float = 1480.0,
-    surat_dw10: float = 394.0,
-    surat_dw100: float = 105.0,
-    surat_dwk_3_6: float = 39.4,
-    surat_dwk_6_9: float = 21.9,
-    surat_dwk_9_20: float = 12.7,
-    surat_dwk_20: float = 5.91,
-    heat_content: float = 1.86e7,
-    density: float = 513.0,
-    heat_capacity: float = 2750.0,
-    conductivity: float = 0.133,
-    ignition_temp: float = 327.0,
-    char_temp: float = 377.0,
-    ash_content: float = 0.05,
-    duff_loading: float = 0.0,
-    duff_moisture: float = 2.0,
-    duff_pct_consumed: float = -1.0,
-    densities: Optional[Dict[str, float]] = None,
-    fint_switch: float = 15.0,
-    validate: bool = True,
-    hsf_consumed: float = 0.0,
-    brafol_consumed: float = 0.0,
+        fuel_loadings: Dict[str, float],
+        fuel_moistures: Dict[str, float],
+        intensity: float = 50.0,
+        ig_time: float = 60.0,
+        windspeed: float = 0.0,
+        depth: float = 0.3,
+        ambient_temp: float = 21.0,
+        r0: float = 1.83,
+        dr: float = 0.4,
+        timestep: float = 15.0,
+        max_times: int = 3000,
+        surat_lit: float = 8200.0,
+        surat_dw1: float = 1480.0,
+        surat_dw10: float = 394.0,
+        surat_dw100: float = 105.0,
+        surat_dwk_3_6: float = 39.4,
+        surat_dwk_6_9: float = 21.9,
+        surat_dwk_9_20: float = 12.7,
+        surat_dwk_20: float = 5.91,
+        heat_content: float = 1.86e7,
+        density: float = 513.0,
+        heat_capacity: float = 2750.0,
+        conductivity: float = 0.133,
+        ignition_temp: float = 327.0,
+        char_temp: float = 377.0,
+        ash_content: float = 0.05,
+        duff_loading: float = 0.0,
+        duff_moisture: float = 2.0,
+        duff_pct_consumed: float = -1.0,
+        densities: Optional[Dict[str, float]] = None,
+        fint_switch: float = 15.0,
+        validate: bool = True,
+        hsf_consumed: float = 0.0,
+        brafol_consumed: float = 0.0,
 ) -> Tuple[List[BurnResult], List[BurnSummaryRow], List[str]]:
-    """Run the BURNUP post-frontal combustion model.
+    """
+    Run the BURNUP post-frontal combustion model.
 
-    Recognized fuel-loading / moisture keys:
-      - sound: ``litter``, ``dw1``, ``dw10``, ``dw100``,
-        ``dwk_3_6``, ``dwk_6_9``, ``dwk_9_20``, ``dwk_20``
-      - rotten: ``dwk_3_6_r``, ``dwk_6_9_r``, ``dwk_9_20_r``, ``dwk_20_r``
+    Facade over :func:`~pyfofem.components.burnup.burnup`: builds a
+    :class:`FuelParticle` per nonzero fuel-loading key, in the fixed
+    sound/rotten-interleaved-by-size order matching C++ ``load.txt``, then
+    runs the simulation. Recognized fuel-loading / moisture keys:
+
+    * sound: ``litter``, ``dw1``, ``dw10``, ``dw100``,
+      ``dwk_3_6``, ``dwk_6_9``, ``dwk_9_20``, ``dwk_20``
+    * rotten: ``dwk_3_6_r``, ``dwk_6_9_r``, ``dwk_9_20_r``, ``dwk_20_r``
+
+    :param fuel_loadings: Dict of fuel-class key -> oven-dry loading (kg/m²).
+        Classes with a loading <= 0 are excluded from the simulation.
+    :param fuel_moistures: Dict of fuel-class key -> moisture fraction. Missing
+        keys default to 0.10.
+    :param intensity: Igniting fire intensity (kW/m²).
+    :param ig_time: Spreading-fire residence time (s).
+    :param windspeed: Mean horizontal windspeed at fuelbed top (m/s).
+    :param depth: Fuel bed depth (m).
+    :param ambient_temp: Ambient temperature (°C).
+    :param r0: Minimum mixing parameter (dimensionless).
+    :param dr: Range (max - min) of mixing parameter.
+    :param timestep: Simulation time-step (s).
+    :param max_times: Maximum number of simulation time steps.
+    :param surat_lit: Litter surface-area-to-volume ratio (1/m).
+    :param surat_dw1: 1-hr down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dw10: 10-hr down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dw100: 100-hr down-wood surface-area-to-volume ratio (1/m).
+    :param surat_dwk_3_6: 1000-hr (3-6 in) surface-area-to-volume ratio (1/m); shared by sound and rotten.
+    :param surat_dwk_6_9: 1000-hr (6-9 in) surface-area-to-volume ratio (1/m); shared by sound and rotten.
+    :param surat_dwk_9_20: 1000-hr (9-20 in) surface-area-to-volume ratio (1/m); shared by sound and rotten.
+    :param surat_dwk_20: 1000-hr (>=20 in) surface-area-to-volume ratio (1/m); shared by sound and rotten.
+    :param heat_content: Low heat of combustion (J/kg), applied to every fuel class.
+    :param density: Oven-dry mass density (kg/m³) for sound classes; rotten classes use
+        :data:`_DENSITY_ROTTEN` unless overridden via *densities*.
+    :param heat_capacity: Specific heat capacity (J/kg·K), applied to every fuel class.
+    :param conductivity: Oven-dry thermal conductivity (W/m·K), applied to every fuel class.
+    :param ignition_temp: Piloted-ignition temperature (°C) for sound classes; rotten classes
+        use the module's rotten-wood ignition temperature.
+    :param char_temp: End-of-pyrolysis (char) temperature (°C), applied to every fuel class.
+    :param ash_content: Mineral ash content, mass fraction, applied to every fuel class.
+    :param duff_loading: Duff dry-weight loading (kg/m²). 0 means no duff.
+    :param duff_moisture: Duff moisture content, fraction of dry weight.
+    :param duff_pct_consumed: Percent of duff consumed as pre-calculated by FOFEM's
+        ``DUF_Mngr`` (0-100). Pass -1 (default) for the moisture-only fallback.
+    :param densities: Optional per-fuel-class density (kg/m³) overrides, keyed like
+        *fuel_loadings*. Falls back to *density* (sound) or :data:`_DENSITY_ROTTEN` (rotten).
+    :param fint_switch: Flaming/smoldering intensity threshold (kW/m²).
+    :param validate: If True (default), run range-checks on all burnup inputs.
+    :param hsf_consumed: Total herb + shrub consumed (kg/m²), contributing to fire intensity.
+    :param brafol_consumed: Total branch + foliage consumed (kg/m²), contributing to fire intensity.
+    :raises ValueError: If no fuel-loading key has a loading > 0.
+    :return: Tuple of (results, summary, class_order) — see :func:`~pyfofem.components.burnup.burnup`
+        for *results*/*summary*; *class_order* maps burnup's sorted component
+        indices back to the fuel-class keys actually included.
     """
     _sigma_map: Dict[str, float] = {
         'litter':   surat_lit,

@@ -44,6 +44,12 @@ _EMIS_TXT = os.path.join(_CPP_DIR, 'emis.txt')
 
 # ---------------------------------------------------------------------------
 # C++ reference parsers
+#
+# Top-level layout intentionally not alphabetized beyond this block: pytest
+# test modules are organized narratively (reference parsers, then input
+# constants, then module-scoped fixtures, then feature-grouped test classes,
+# then a closing diagnostic helper + its test) rather than by function name,
+# to keep that structure legible.
 # ---------------------------------------------------------------------------
 def parse_load_txt(path: str) -> list:
     """Parse C++ load.txt into a list of dicts (one per fuel component).
@@ -60,6 +66,12 @@ def parse_load_txt(path: str) -> list:
       9: postburn T/ac
      10: preburn lb/ac
      11: postburn lb/ac
+
+    :param path: Path to the C++ ``load.txt`` reference output file.
+    :return: List of per-component dicts with keys ``comp_idx``,
+        ``preburn_kgm2``, ``postburn_kgm2``, ``t_ignite_s``, ``t_burnout_s``,
+        ``moisture_frac``, ``sigma``, ``preburn_tac``, ``postburn_tac``,
+        ``preburn_lbac``, ``postburn_lbac``.
     """
     rows = []
     with open(path) as f:
@@ -110,6 +122,12 @@ def parse_emis_txt(path: str) -> list:
      11: smoldering weight (kg/m2)
      12: flaming weight (T/ac)
      13: smoldering weight (T/ac)
+
+    :param path: Path to the C++ ``emis.txt`` reference output file.
+    :return: List of per-timestep dicts with keys ``time_s``,
+        ``intensity_kw``, ``pm25_gm2``, ``pm10_gm2``, ``ch4_gm2``,
+        ``co2_gm2``, ``co_gm2``, ``nox_gm2``, ``so2_gm2``, ``flame_kgm2``,
+        ``smolder_kgm2``, ``flame_tac``, ``smolder_tac``.
     """
     rows = []
     with open(path) as f:
@@ -207,7 +225,12 @@ CPP_COMP_TO_PYKEY = {
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope='module')
 def cpp_load():
-    """Parse C++ load.txt reference output."""
+    """
+    Parse C++ load.txt reference output.
+
+    :return: List of per-component dicts from :func:`parse_load_txt`, or
+        a pytest skip if the reference file is not present.
+    """
     if not os.path.isfile(_LOAD_TXT):
         pytest.skip(f'C++ reference file not found: {_LOAD_TXT}')
     return parse_load_txt(_LOAD_TXT)
@@ -215,7 +238,12 @@ def cpp_load():
 
 @pytest.fixture(scope='module')
 def cpp_emis():
-    """Parse C++ emis.txt reference output."""
+    """
+    Parse C++ emis.txt reference output.
+
+    :return: List of per-timestep dicts from :func:`parse_emis_txt`, or
+        a pytest skip if the reference file is not present.
+    """
     if not os.path.isfile(_EMIS_TXT):
         pytest.skip(f'C++ reference file not found: {_EMIS_TXT}')
     return parse_emis_txt(_EMIS_TXT)
@@ -223,7 +251,12 @@ def cpp_emis():
 
 @pytest.fixture(scope='module')
 def py_pipeline_result():
-    """Run the full Python pipeline with ansi_mai.cpp inputs."""
+    """
+    Run the full Python pipeline with ansi_mai.cpp inputs.
+
+    :return: Dict of :func:`run_fofem_emissions` outputs for the ansi_mai
+        reference case.
+    """
     inp = ANSI_MAI_INPUTS
     return run_fofem_emissions(
         litter=inp['litter'],
@@ -263,7 +296,11 @@ def py_pipeline_result():
 
 @pytest.fixture(scope='module')
 def py_burnup_direct():
-    """Run run_burnup() with full 12-class parity to C++ load.txt."""
+    """
+    Run run_burnup() with full 12-class parity to C++ load.txt.
+
+    :return: ``(results, summary, class_order)`` tuple from :func:`run_burnup`.
+    """
     # C++ moisture adjustments (fof_bcm.h / fof_bcm.cpp):
     #   DW10 moisture: 20% -> 0.20 (fraction, no adjustment for DW10)
     #   DW1/litter:    0.20 - 0.02 = 0.18
@@ -355,13 +392,23 @@ class TestBurnupDirect:
     """Compare low-level Python burnup() against C++ load.txt (12 classes)."""
 
     def test_component_count(self, py_burnup_direct, cpp_load):
-        """Python should have 12 components to match C++ load.txt."""
+        """Python should have 12 components to match C++ load.txt.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = py_burnup_direct
         assert len(summary) == 12, f'Expected 12 components, got {len(summary)}'
         assert len(cpp_load) == 12
 
     def test_preburn_loads_match(self, py_burnup_direct, cpp_load):
-        """Pre-burn loads should match between C++ and Python."""
+        """Pre-burn loads should match between C++ and Python.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = py_burnup_direct
         py_to_cpp = {
             'litter': 1, 'dw1': 2, 'dw10': 3, 'dw100': 4,
@@ -378,7 +425,12 @@ class TestBurnupDirect:
                 f'{key}: Python wdry={py_wdry:.6f} vs C++ preburn={cpp_wdry:.6f}'
 
     def test_frac_remaining(self, py_burnup_direct, cpp_load):
-        """Fraction remaining should be close for all 12 classes."""
+        """Fraction remaining should be close for all 12 classes.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = py_burnup_direct
         py_to_cpp = {
             'litter': 1, 'dw1': 2, 'dw10': 3, 'dw100': 4,
@@ -395,7 +447,12 @@ class TestBurnupDirect:
                 f'{key}: Python frac_remaining={py_frac:.6f} vs C++ frac={cpp_frac:.6f}'
 
     def test_ignition_times(self, py_burnup_direct, cpp_load):
-        """Ignition times should be close for all 12 classes."""
+        """Ignition times should be close for all 12 classes.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = py_burnup_direct
         py_to_cpp = {
             'litter': 1, 'dw1': 2, 'dw10': 3, 'dw100': 4,
@@ -411,7 +468,13 @@ class TestBurnupDirect:
                 f'{key}: Python t_ignite={py_tig:.1f} vs C++ t_ignite={cpp_tig:.1f}'
 
     def test_fine_fuels_consumed(self, py_burnup_direct, cpp_load):
-        """Fine fuels (litter, dw1) should be fully consumed in both."""
+        """Fine fuels (litter, dw1) should be fully consumed in both.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture (unused; present
+            for fixture ordering with other tests in this class).
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = py_burnup_direct
         for i, key in enumerate(class_order):
             if key in ('litter', 'dw1'):
@@ -423,7 +486,12 @@ class TestBurnupTimeSeries:
     """Compare per-timestep fire intensity between C++ emis.txt and Python burnup."""
 
     def test_timestep_count(self, py_burnup_direct, cpp_emis):
-        """Number of timesteps should be similar."""
+        """Number of timesteps should be similar.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_emis: Parsed C++ ``emis.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = py_burnup_direct
         py_count = len(results)
         cpp_count = len(cpp_emis)
@@ -437,6 +505,10 @@ class TestBurnupTimeSeries:
 
         Note: C++ includes herb/shrub/foliage/branch fire intensity contribution
         which Python burnup does not, so C++ will be higher.
+
+        :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+        :param cpp_emis: Parsed C++ ``emis.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
         """
         results, _, _ = py_burnup_direct
         if not results or not cpp_emis:
@@ -460,7 +532,12 @@ class TestFullPipeline:
     """
 
     def test_litter_consumed(self, py_pipeline_result, cpp_load):
-        """Litter consumed should be close."""
+        """Litter consumed should be close.
+
+        :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         py_lit_con = py_pipeline_result['LitCon']
         # C++ component 1 = litter
         cpp_lit_pre = cpp_load[0]['preburn_tac']
@@ -470,7 +547,12 @@ class TestFullPipeline:
             f'LitCon: Python={py_lit_con:.4f} vs C++={cpp_lit_con:.4f}'
 
     def test_dw1_consumed(self, py_pipeline_result, cpp_load):
-        """DW1 consumed should match."""
+        """DW1 consumed should match.
+
+        :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         py_con = py_pipeline_result['DW1Con']
         cpp_pre = cpp_load[1]['preburn_tac']
         cpp_post = cpp_load[1]['postburn_tac']
@@ -479,7 +561,12 @@ class TestFullPipeline:
             f'DW1Con: Python={py_con:.4f} vs C++={cpp_con:.4f}'
 
     def test_dw10_consumed(self, py_pipeline_result, cpp_load):
-        """DW10 consumed should be close (partial consumption expected)."""
+        """DW10 consumed should be close (partial consumption expected).
+
+        :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         py_con = py_pipeline_result['DW10Con']
         cpp_pre = cpp_load[2]['preburn_tac']
         cpp_post = cpp_load[2]['postburn_tac']
@@ -488,7 +575,12 @@ class TestFullPipeline:
             f'DW10Con: Python={py_con:.4f} vs C++={cpp_con:.4f}'
 
     def test_dw100_consumed(self, py_pipeline_result, cpp_load):
-        """DW100 consumed — expect minimal consumption."""
+        """DW100 consumed — expect minimal consumption.
+
+        :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         py_con = py_pipeline_result['DW100Con']
         cpp_pre = cpp_load[3]['preburn_tac']
         cpp_post = cpp_load[3]['postburn_tac']
@@ -498,7 +590,12 @@ class TestFullPipeline:
             f'DW100Con: Python={py_con:.4f} vs C++={cpp_con:.4f}'
 
     def test_1k_sound_consumed(self, py_pipeline_result, cpp_load):
-        """1000-hr sound consumed total."""
+        """1000-hr sound consumed total.
+
+        :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         py_con = py_pipeline_result['DW1kSndCon']
         # Sum C++ components 5, 7, 9, 11 (sound 3-6, 6-9, 9-20, 20)
         cpp_con = sum(
@@ -509,7 +606,12 @@ class TestFullPipeline:
             f'DW1kSndCon: Python={py_con:.4f} vs C++={cpp_con:.4f}'
 
     def test_1k_rotten_consumed(self, py_pipeline_result, cpp_load):
-        """1000-hr rotten consumed total."""
+        """1000-hr rotten consumed total.
+
+        :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+        :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         py_con = py_pipeline_result['DW1kRotCon']
         # Sum C++ components 6, 8, 10, 12 (rotten 3-6, 6-9, 9-20, 20)
         cpp_con = sum(
@@ -524,7 +626,17 @@ class TestFullPipeline:
 # Diagnostic: print detailed comparison (not a test, run with -s flag)
 # ---------------------------------------------------------------------------
 def print_comparison(cpp_load, cpp_emis, py_burnup_direct, py_pipeline_result):
-    """Print a side-by-side comparison table. Run: pytest -s -k print_comparison"""
+    """
+    Print a side-by-side comparison table. Run: pytest -s -k print_comparison
+
+    :param cpp_load: Parsed C++ ``load.txt`` rows.
+    :param cpp_emis: Parsed C++ ``emis.txt`` rows (unused; accepted for a
+        signature symmetric with :func:`test_print_comparison`'s fixtures).
+    :param py_burnup_direct: ``(results, summary, class_order)`` tuple from
+        :func:`run_burnup`.
+    :param py_pipeline_result: Dict of :func:`run_fofem_emissions` outputs.
+    :return: None. Prints the comparison tables to stdout as a side effect.
+    """
     _, summary, class_order = py_burnup_direct
 
     py_to_cpp = {
@@ -570,5 +682,13 @@ def print_comparison(cpp_load, cpp_emis, py_burnup_direct, py_pipeline_result):
 
 
 def test_print_comparison(cpp_load, cpp_emis, py_burnup_direct, py_pipeline_result):
-    """Diagnostic: print detailed comparison (run with pytest -s)."""
+    """
+    Diagnostic: print detailed comparison (run with pytest -s).
+
+    :param cpp_load: Parsed C++ ``load.txt`` rows fixture.
+    :param cpp_emis: Parsed C++ ``emis.txt`` rows fixture.
+    :param py_burnup_direct: ``(results, summary, class_order)`` fixture.
+    :param py_pipeline_result: :func:`run_fofem_emissions` output fixture.
+    :return: None. Prints a comparison table as a side effect; always passes.
+    """
     print_comparison(cpp_load, cpp_emis, py_burnup_direct, py_pipeline_result)

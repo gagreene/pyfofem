@@ -35,7 +35,12 @@ _COMPARE_COLS = {
 
 # Map CSV input column names to run_fofem_emissions kwargs
 def _run_python_case(row):
-    """Run Python pipeline for one input row dict."""
+    """
+    Run Python pipeline for one input row dict.
+
+    :param row: Dict of raw string values from one ``cpp_comparison_cases.csv`` row.
+    :return: Dict of :func:`run_fofem_emissions` outputs for this case.
+    """
     return run_fofem_emissions(
         litter=float(row['litter']),
         duff=float(row['duff']),
@@ -81,6 +86,11 @@ _PY_TO_CPP = {
 }
 
 def main():
+    """
+    Run all comparison cases and print a pass/fail report to stdout.
+
+    :return: 1 if any check failed, 0 if all checks passed.
+    """
     # Load inputs
     with open(_INPUT_CSV) as f:
         inputs = list(csv.DictReader(f))
@@ -148,7 +158,11 @@ def main():
 
 
 def test_cpp_python_case_summary_matches():
-    """Compare Python outputs against the CSV-based C++ golden summary."""
+    """
+    Compare Python outputs against the CSV-based C++ golden summary.
+
+    :return: None. Raises via ``pytest.fail`` on any mismatch.
+    """
     with open(_INPUT_CSV) as f:
         inputs = list(csv.DictReader(f))
     with open(_CPP_SUMMARY) as f:

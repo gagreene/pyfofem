@@ -13,14 +13,19 @@ pyfofem/
 |   |-- pyfofem.py                      # Core orchestrators
 |   `-- components/                     # Specialized computation modules
 |-- tests/                              # Unit, golden, and parity tests
+|   |-- run_unified_tests.py
+|   |-- prepare_cpp_reference.py
 |   |-- test_equations_golden.py
 |   |-- test_burnup_golden.py
 |   |-- test_compare_cpp_python.py
 |   |-- test_cpp_comparison.py
-|   |-- test_soil_cpp_parity.py
-|   |-- compare_cpp_python.py
-|   |-- compare_cpp_python_soil.py
+|   |-- test_emission_equation_ids.py
+|   |-- test_run_fofem_emissions_output_keys.py
+|   |-- test_soil_heating_cpp_parity.py
+|   |-- test_soil_heating_invalid_soil_family.py
+|   |-- compare_cpp_python_soil_heating.py
 |   `-- test_data/                      # Input CSVs and expected outputs
+|-- examples/                           # Batch/array usage driver + example data
 |-- reference/fofem_cpp/                # C++ FOFEM reference source
 |-- docs/reference/                     # Literature and reference docs
 |-- docs/CODEBASE.md                    # Architecture and model mapping
@@ -207,9 +212,9 @@ build and test commands.
 
 Key parity checks:
 
-- `tests/test_compare_cpp_python.py` and `tests/compare_cpp_python.py` compare Python outputs against C++ multi-case CSV harness results.
+- `tests/test_compare_cpp_python.py` compares Python outputs against C++ multi-case CSV harness results.
 - `tests/test_cpp_comparison.py` compares Python against `reference/fofem_cpp/load.txt` and `emis.txt`.
-- `tests/test_soil_cpp_parity.py` and `tests/compare_cpp_python_soil.py` compare `Lay*` soil-heating outputs against C++ `reference/fofem_cpp/soil.tmp`.
+- `tests/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` compare `Lay*` soil-heating outputs against C++ `reference/fofem_cpp/soil.tmp`.
 
 ## License
 

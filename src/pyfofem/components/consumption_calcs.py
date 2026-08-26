@@ -38,23 +38,6 @@ from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
 
 
 # ---------------------------------------------------------------------------
-# Carbon Calculations
-# ---------------------------------------------------------------------------
-
-# Fuel component groups and their carbon conversion factors (Penman 2003;
-# Smith & Heath 2002)
-_CARBON_FACTOR_WOODY = 0.50   # down woody, herb, shrub, foliage, branch
-_CARBON_FACTOR_DUFF  = 0.37   # duff and litter
-
-_CARBON_WOODY_KEYS = frozenset({
-    'dw1', 'dw10', 'dw100',
-    'dwk_3_6', 'dwk_6_9', 'dwk_9_20', 'dwk_20',
-    'herb', 'shrub', 'foliage', 'branch',
-})
-_CARBON_DUFF_KEYS = frozenset({'duff', 'litter'})
-
-
-# ---------------------------------------------------------------------------
 # Output variable lists
 # ---------------------------------------------------------------------------
 
@@ -132,85 +115,26 @@ FUEL_CATEGORY_CODES: Dict[int, str] = {
 }
 
 
-def _to_str_arr(
-    val: Union[str, int, np.ndarray],
-    lut: Dict[int, str],
-) -> np.ndarray:
-    """Convert a categorical parameter to a 1-D numpy string array.
-
-    Accepts a plain string, an integer code (looked up in *lut*), or a
-    numpy array of strings or integer codes.  Scalar inputs return a
-    length-1 array; array inputs are returned as a 1-D string array.
-
-    :param val: Input value — ``str``, ``int``, or ``np.ndarray``.
-    :param lut: Integer → string lookup table (e.g. :data:`REGION_CODES`).
-    :returns: 1-D ``np.ndarray`` of ``dtype=object`` (strings).
-    :raises KeyError: If an integer code is not present in *lut*.
-    """
-    if isinstance(val, np.ndarray):
-        flat = val.ravel()
-        out = np.empty(flat.shape, dtype=object)
-        for i, v in enumerate(flat):
-            if isinstance(v, (int, np.integer)):
-                out[i] = lut[int(v)]
-            else:
-                out[i] = str(v)
-        return out
-    if isinstance(val, (int, np.integer)):
-        return np.array([lut[int(val)]], dtype=object)
-    return np.array([str(val)], dtype=object)
-
-
-# ---------------------------------------------------------------------------
-# Moisture regime lookup
-# ---------------------------------------------------------------------------
-
-_MOISTURE_REGIMES: Dict[str, Dict[str, float]] = {
-    'wet':      {'duff': 130.0, '10hr': 22.0, '3plus': 40.0, 'soil': 25.0},
-    'moderate': {'duff':  75.0, '10hr': 16.0, '3plus': 30.0, 'soil': 15.0},
-    'dry':      {'duff':  40.0, '10hr': 10.0, '3plus': 15.0, 'soil': 10.0},
-    'very dry': {'duff':  20.0, '10hr':  6.0, '3plus': 10.0, 'soil':  5.0},
-}
-
-
-def get_moisture_regime(regime: str) -> Dict[str, float]:
-    """
-    Return default fuel moisture values (%) for a named FOFEM moisture regime.
-
-    Four western moisture regimes are defined (Lutes 2020, p. 79):
-
-    +----------+---------+---------+----------+---------+
-    | Regime   | Duff    | 10-hr   | 3+ in.   | Soil    |
-    +==========+=========+=========+==========+=========+
-    | Wet      | 130 %   | 22 %    | 40 %     | 25 %    |
-    | Moderate |  75 %   | 16 %    | 30 %     | 15 %    |
-    | Dry      |  40 %   | 10 %    | 15 %     | 10 %    |
-    | Very dry |  20 %   |  6 %    | 10 %     |  5 %    |
-    +----------+---------+---------+----------+---------+
-
-    :param regime: One of ``'wet'``, ``'moderate'``, ``'dry'``, or ``'very dry'``
-        (case-insensitive).
-    :returns: Dict with keys ``'duff'``, ``'10hr'``, ``'3plus'``, ``'soil'``
-        and float values in percent.
-    :raises KeyError: If *regime* is not one of the four recognised values.
-    """
-    key = regime.strip().lower()
-    if key not in _MOISTURE_REGIMES:
-        raise KeyError(
-            f"Unknown moisture regime '{regime}'. "
-            f"Valid options: {list(_MOISTURE_REGIMES.keys())}"
-        )
-    return dict(_MOISTURE_REGIMES[key])
-
-
 # ---------------------------------------------------------------------------
 # Functions
 # ---------------------------------------------------------------------------
 
+# Fuel component groups and their carbon conversion factors (Penman 2003;
+# Smith & Heath 2002), used only by calc_carbon().
+_CARBON_FACTOR_WOODY = 0.50   # down woody, herb, shrub, foliage, branch
+_CARBON_FACTOR_DUFF  = 0.37   # duff and litter
+
+_CARBON_WOODY_KEYS = frozenset({
+    'dw1', 'dw10', 'dw100',
+    'dwk_3_6', 'dwk_6_9', 'dwk_9_20', 'dwk_20',
+    'herb', 'shrub', 'foliage', 'branch',
+})
+_CARBON_DUFF_KEYS = frozenset({'duff', 'litter'})
+
 
 def calc_carbon(
-    loadings: Dict[str, Union[float, np.ndarray]],
-    units: str = 'SI',
+        loadings: Dict[str, Union[float, np.ndarray]],
+        units: str = 'SI',
 ) -> Dict[str, Union[float, np.ndarray]]:
     """
     Convert fuel loadings to carbon loadings using FOFEM conversion factors.
@@ -233,7 +157,7 @@ def calc_carbon(
         not converted — values are returned in the same units as supplied.
     :param units: ``'SI'`` (kg/m²) or ``'imperial'`` (T/ac).  Currently
         informational only; no unit conversion is performed.
-    :returns: Dict with the same keys as *loadings* and carbon loading values
+    :return: Dict with the same keys as *loadings* and carbon loading values
         in the same units.
     :raises ValueError: If *loadings* contains a key that is not recognised.
     """
@@ -253,10 +177,10 @@ def calc_carbon(
 
 
 def consm_canopy(
-    crown_burn: Union[float, np.ndarray],
-    pre_fl: Union[float, np.ndarray],
-    pre_bl: Union[float, np.ndarray],
-    units: str = 'SI',
+        crown_burn: Union[float, np.ndarray],
+        pre_fl: Union[float, np.ndarray],
+        pre_bl: Union[float, np.ndarray],
+        units: str = 'SI',
 ) -> dict:
     """
     FOFEM canopy (crown fire) fuel consumption model.
@@ -287,9 +211,9 @@ def consm_canopy(
     """
     scalar_input = _is_scalar(crown_burn) and _is_scalar(pre_fl) and _is_scalar(pre_bl)
 
-    crown_burn = np.atleast_1d(np.asarray(crown_burn, dtype=float))
-    pre_fl = np.atleast_1d(np.asarray(pre_fl, dtype=float))
-    pre_bl = np.atleast_1d(np.asarray(pre_bl, dtype=float))
+    crown_burn = np.ravel(np.asarray(crown_burn, dtype=float))
+    pre_fl = np.ravel(np.asarray(pre_fl, dtype=float))
+    pre_bl = np.ravel(np.asarray(pre_bl, dtype=float))
 
     if units == 'SI':
         pre_fl = pre_fl * 4.4609  # kg/m² → T/acre
@@ -309,18 +233,18 @@ def consm_canopy(
 
 
 def consm_duff(
-    pre_dl: Union[float, np.ndarray],
-    duff_moist: Union[float, np.ndarray],
-    reg: Optional[str] = None,
-    cvr_grp: Optional[str] = None,
-    duff_moist_cat: Optional[str] = None,
-    d_pre: Optional[Union[float, np.ndarray]] = None,
-    mc_lyr1: Optional[Union[float, np.ndarray]] = None,
-    pre_dl110: Optional[Union[float, np.ndarray]] = None,
-    pre_l110: Optional[Union[float, np.ndarray]] = None,
-    dw1000_moist: Optional[Union[float, np.ndarray]] = None,
-    pile: bool = False,
-    units: str = 'SI',
+        pre_dl: Union[float, np.ndarray],
+        duff_moist: Union[float, np.ndarray],
+        reg: Optional[str] = None,
+        cvr_grp: Optional[str] = None,
+        duff_moist_cat: Optional[str] = None,
+        d_pre: Optional[Union[float, np.ndarray]] = None,
+        mc_lyr1: Optional[Union[float, np.ndarray]] = None,
+        pre_dl110: Optional[Union[float, np.ndarray]] = None,
+        pre_l110: Optional[Union[float, np.ndarray]] = None,
+        dw1000_moist: Optional[Union[float, np.ndarray]] = None,
+        pile: bool = False,
+        units: str = 'SI',
 ) -> dict:
     """
     FOFEM duff consumption model.
@@ -405,21 +329,21 @@ def consm_duff(
     """
     scalar_input = _is_scalar(pre_dl) and _is_scalar(duff_moist)
 
-    pre_dl     = np.atleast_1d(np.asarray(pre_dl,     dtype=float))
-    duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    pre_dl     = np.ravel(np.asarray(pre_dl,     dtype=float))
+    duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
     if d_pre is not None:
-        d_pre = np.atleast_1d(np.asarray(d_pre, dtype=float))
+        d_pre = np.ravel(np.asarray(d_pre, dtype=float))
     if mc_lyr1 is not None:
-        mc_lyr1 = np.atleast_1d(np.asarray(mc_lyr1, dtype=float))
+        mc_lyr1 = np.ravel(np.asarray(mc_lyr1, dtype=float))
     if pre_dl110 is not None:
-        pre_dl110 = np.atleast_1d(np.asarray(pre_dl110, dtype=float))
+        pre_dl110 = np.ravel(np.asarray(pre_dl110, dtype=float))
     if pre_l110 is not None:
-        pre_l110 = np.atleast_1d(np.asarray(pre_l110, dtype=float))
+        pre_l110 = np.ravel(np.asarray(pre_l110, dtype=float))
 
     # Eq 3 / NE-Balsam-nfdth use 1000-hr moisture (C++ f_MoistDW1000).
     # Fall back to duff_moist when not supplied.
     if dw1000_moist is not None:
-        dw1k = np.atleast_1d(np.asarray(dw1000_moist, dtype=float))
+        dw1k = np.ravel(np.asarray(dw1000_moist, dtype=float))
     else:
         dw1k = duff_moist
 
@@ -611,7 +535,7 @@ def consm_duff(
                 pdc_val = np.clip((tot_consumed / dl_val) * 100.0, 0.0, 100.0)
             else:
                 pdc_val = 0.0
-            pdc = np.atleast_1d(np.full_like(duff_moist, pdc_val))
+            pdc = np.ravel(np.full_like(duff_moist, pdc_val))
 
         else:
             # SE non-Pocosin – Eq 16
@@ -695,12 +619,12 @@ def consm_duff(
 
 
 def consm_herb(
-    reg: Union[str, int, np.ndarray],
-    cvr_grp: Union[str, int, np.ndarray],
-    pre_ll: Union[float, np.ndarray],
-    pre_hl: Union[float, np.ndarray],
-    season: Union[str, int, np.ndarray, None] = None,
-    units: str = 'SI',
+        reg: Union[str, int, np.ndarray],
+        cvr_grp: Union[str, int, np.ndarray],
+        pre_ll: Union[float, np.ndarray],
+        pre_hl: Union[float, np.ndarray],
+        season: Union[str, int, np.ndarray, None] = None,
+        units: str = 'SI',
 ) -> Union[float, np.ndarray]:
     """
     FOFEM herbaceous fuel consumption model.
@@ -726,8 +650,8 @@ def consm_herb(
     """
     scalar_input = _is_scalar(pre_ll) and _is_scalar(pre_hl)
 
-    pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
-    pre_hl = np.atleast_1d(np.asarray(pre_hl, dtype=float))
+    pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
+    pre_hl = np.ravel(np.asarray(pre_hl, dtype=float))
     n = max(len(pre_ll), len(pre_hl))
 
     if units == 'SI':
@@ -768,11 +692,11 @@ def consm_herb(
 
 
 def consm_litter(
-    pre_ll: Union[float, np.ndarray],
-    l_moist: Union[float, np.ndarray],
-    cvr_grp: Union[str, int, np.ndarray, None] = None,
-    reg: Union[str, int, np.ndarray, None] = None,
-    units: str = 'SI',
+        pre_ll: Union[float, np.ndarray],
+        l_moist: Union[float, np.ndarray],
+        cvr_grp: Union[str, int, np.ndarray, None] = None,
+        reg: Union[str, int, np.ndarray, None] = None,
+        units: str = 'SI',
 ) -> Union[float, np.ndarray]:
     """
     FOFEM litter consumption model (Eqs 997–999).
@@ -799,8 +723,8 @@ def consm_litter(
     """
     scalar_input = _is_scalar(pre_ll) and _is_scalar(l_moist)
 
-    pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
-    l_moist = np.atleast_1d(np.asarray(l_moist, dtype=float))
+    pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
+    l_moist = np.ravel(np.asarray(l_moist, dtype=float))
     n = max(len(pre_ll), len(l_moist))
 
     if units == 'SI':
@@ -835,13 +759,13 @@ def consm_litter(
 
 
 def consm_mineral_soil(
-    reg: Union[str, int, np.ndarray],
-    cvr_grp: Union[str, int, np.ndarray],
-    fuel_type: Union[str, int, np.ndarray],
-    duff_moist: Union[float, np.ndarray],
-    duff_moist_cat: str,
-    pile: bool = False,
-    pdr: Optional[Union[float, np.ndarray]] = None,
+        reg: Union[str, int, np.ndarray],
+        cvr_grp: Union[str, int, np.ndarray],
+        fuel_type: Union[str, int, np.ndarray],
+        duff_moist: Union[float, np.ndarray],
+        duff_moist_cat: str,
+        pile: bool = False,
+        pdr: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
     FOFEM mineral soil exposure model.
@@ -865,10 +789,10 @@ def consm_mineral_soil(
     """
     scalar_input = _is_scalar(duff_moist)
 
-    duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+    duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
     n = len(duff_moist)
     if pdr is not None:
-        pdr = np.atleast_1d(np.asarray(pdr, dtype=float))
+        pdr = np.ravel(np.asarray(pdr, dtype=float))
 
     reg_arr = _to_str_arr(reg, REGION_CODES)
     cvr_arr = _to_str_arr(cvr_grp, CVR_GRP_CODES)
@@ -921,17 +845,17 @@ def consm_mineral_soil(
 
 
 def consm_shrub(
-    reg: Union[str, int, np.ndarray],
-    cvr_grp: Union[str, int, np.ndarray],
-    pre_sl: Union[float, np.ndarray],
-    season: Union[str, int, np.ndarray, None] = None,
-    pre_ll: Optional[Union[float, np.ndarray]] = None,
-    pre_dl: Optional[Union[float, np.ndarray]] = None,
-    pre_rl: Optional[Union[float, np.ndarray]] = None,
-    duff_moist: Optional[Union[float, np.ndarray]] = None,
-    llc: Optional[Union[float, np.ndarray]] = None,
-    ddc: Optional[Union[float, np.ndarray]] = None,
-    units: str = 'SI',
+        reg: Union[str, int, np.ndarray],
+        cvr_grp: Union[str, int, np.ndarray],
+        pre_sl: Union[float, np.ndarray],
+        season: Union[str, int, np.ndarray, None] = None,
+        pre_ll: Optional[Union[float, np.ndarray]] = None,
+        pre_dl: Optional[Union[float, np.ndarray]] = None,
+        pre_rl: Optional[Union[float, np.ndarray]] = None,
+        duff_moist: Optional[Union[float, np.ndarray]] = None,
+        llc: Optional[Union[float, np.ndarray]] = None,
+        ddc: Optional[Union[float, np.ndarray]] = None,
+        units: str = 'SI',
 ) -> Union[float, np.ndarray]:
     """
     FOFEM shrub fuel consumption model.
@@ -956,31 +880,31 @@ def consm_shrub(
     """
     scalar_input = _is_scalar(pre_sl)
 
-    pre_sl = np.atleast_1d(np.asarray(pre_sl, dtype=float))
+    pre_sl = np.ravel(np.asarray(pre_sl, dtype=float))
     n = len(pre_sl)
 
     if units == 'SI':
         pre_sl = pre_sl * 4.4609
         if pre_ll is not None:
-            pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float)) * 4.4609
+            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float)) * 4.4609
         if pre_dl is not None:
-            pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float)) * 4.4609
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * 4.4609
         if pre_rl is not None:
-            pre_rl = np.atleast_1d(np.asarray(pre_rl, dtype=float)) * 4.4609
+            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float)) * 4.4609
     else:
         if pre_ll is not None:
-            pre_ll = np.atleast_1d(np.asarray(pre_ll, dtype=float))
+            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
         if pre_dl is not None:
-            pre_dl = np.atleast_1d(np.asarray(pre_dl, dtype=float))
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float))
         if pre_rl is not None:
-            pre_rl = np.atleast_1d(np.asarray(pre_rl, dtype=float))
+            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float))
 
     if duff_moist is not None:
-        duff_moist = np.atleast_1d(np.asarray(duff_moist, dtype=float))
+        duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
     if llc is not None:
-        llc = np.atleast_1d(np.asarray(llc, dtype=float))
+        llc = np.ravel(np.asarray(llc, dtype=float))
     if ddc is not None:
-        ddc = np.atleast_1d(np.asarray(ddc, dtype=float))
+        ddc = np.ravel(np.asarray(ddc, dtype=float))
 
     reg_arr = _to_str_arr(reg, REGION_CODES)
     cvr_arr = _to_str_arr(cvr_grp, CVR_GRP_CODES)
@@ -1041,6 +965,45 @@ def consm_shrub(
     )
 
     return float(slc[0]) if scalar_input else slc
+
+
+# Named moisture regimes, used only by get_moisture_regime().
+_MOISTURE_REGIMES: Dict[str, Dict[str, float]] = {
+    'wet':      {'duff': 130.0, '10hr': 22.0, '3plus': 40.0, 'soil': 25.0},
+    'moderate': {'duff':  75.0, '10hr': 16.0, '3plus': 30.0, 'soil': 15.0},
+    'dry':      {'duff':  40.0, '10hr': 10.0, '3plus': 15.0, 'soil': 10.0},
+    'very dry': {'duff':  20.0, '10hr':  6.0, '3plus': 10.0, 'soil':  5.0},
+}
+
+
+def get_moisture_regime(regime: str) -> Dict[str, float]:
+    """
+    Return default fuel moisture values (%) for a named FOFEM moisture regime.
+
+    Four western moisture regimes are defined (Lutes 2020, p. 79):
+
+    +----------+---------+---------+----------+---------+
+    | Regime   | Duff    | 10-hr   | 3+ in.   | Soil    |
+    +==========+=========+=========+==========+=========+
+    | Wet      | 130 %   | 22 %    | 40 %     | 25 %    |
+    | Moderate |  75 %   | 16 %    | 30 %     | 15 %    |
+    | Dry      |  40 %   | 10 %    | 15 %     | 10 %    |
+    | Very dry |  20 %   |  6 %    | 10 %     |  5 %    |
+    +----------+---------+---------+----------+---------+
+
+    :param regime: One of ``'wet'``, ``'moderate'``, ``'dry'``, or ``'very dry'``
+        (case-insensitive).
+    :return: Dict with keys ``'duff'``, ``'10hr'``, ``'3plus'``, ``'soil'``
+        and float values in percent.
+    :raises KeyError: If *regime* is not one of the four recognised values.
+    """
+    key = regime.strip().lower()
+    if key not in _MOISTURE_REGIMES:
+        raise KeyError(
+            f"Unknown moisture regime '{regime}'. "
+            f"Valid options: {list(_MOISTURE_REGIMES.keys())}"
+        )
+    return dict(_MOISTURE_REGIMES[key])
 
 
 # Removed burnup-related constants and functions (now in burnup_calcs.py)

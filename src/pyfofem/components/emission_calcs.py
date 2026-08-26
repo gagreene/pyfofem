@@ -42,7 +42,7 @@ def _load_ef_csv(csv_path: Optional[str] = None) -> DataFrame:
     """Load and cache the emission-factors CSV.
 
     :param csv_path: Explicit path override; falls back to the bundled file.
-    :returns: :class:`~pandas.DataFrame` with one row per emission-factor
+    :return: :class:`~pandas.DataFrame` with one row per emission-factor
         group (row 0 = group 1, etc.).
     :raises FileNotFoundError: If the CSV cannot be located.
     """
@@ -64,16 +64,16 @@ def _load_ef_csv(csv_path: Optional[str] = None) -> DataFrame:
 
 
 def calc_smoke_emissions(
-    flaming_load: Union[float, Dict[str, float]],
-    smoldering_load: Union[float, Dict[str, float]],
-    mode: str = 'default',
-    ef_group: int = _EF_GROUP_DEFAULT,
-    ef_smoldering_group: int = _EF_SMOLDERING_GROUP_DEFAULT,
-    ef_duff_group: int = _EF_DUFF_GROUP_DEFAULT,
-    duff_load: float = 0.0,
-    ef_csv_path: Optional[str] = None,
-    units: str = 'SI',
-) -> Dict[str, float]:
+        flaming_load: Union[float, Dict[str, float]],
+        smoldering_load: Union[float, Dict[str, float]],
+        mode: str = 'default',
+        ef_group: int = _EF_GROUP_DEFAULT,
+        ef_smoldering_group: int = _EF_SMOLDERING_GROUP_DEFAULT,
+        ef_duff_group: int = _EF_DUFF_GROUP_DEFAULT,
+        duff_load: float = 0.0,
+        ef_csv_path: Optional[str] = None,
+        units: str = 'SI',
+) -> Dict[str, np.ndarray]:
     """
     Compute smoke-emission mass per unit area from fuel consumption totals.
 
@@ -122,7 +122,7 @@ def calc_smoke_emissions(
         (default) the bundled file under ``supporting_data/`` is used.
     :param units: ``'SI'`` (kg/m²) or ``'imperial'`` (T/acre).  Outputs are
         returned in **g/m²** (SI) or **lb/acre** (imperial).
-    :returns: Dict with keys matching the FOFEM emission slots:
+    :return: Dict with keys matching the FOFEM emission slots:
         ``'PM10F'``, ``'PM10S'``, ``'PM25F'``, ``'PM25S'``,
         ``'CH4F'``, ``'CH4S'``, ``'COF'``, ``'COS'``,
         ``'CO2F'``, ``'CO2S'``, ``'NOXF'``, ``'NOXS'``,
@@ -137,6 +137,12 @@ def calc_smoke_emissions(
     """
     # Resolve total loads — supports scalars, arrays, or dicts
     def _total(load):
+        """
+        Sum a scalar, array, or dict of component loads into a single array.
+
+        :param load: Scalar, array, or dict of component name -> value.
+        :return: np.ndarray of the summed load.
+        """
         if isinstance(load, dict):
             vals = list(load.values())
             return np.sum(np.stack([np.asarray(v, dtype=float) for v in vals], axis=0), axis=0)
@@ -210,7 +216,12 @@ def calc_smoke_emissions(
         lc = {c.strip().lower(): c for c in ef_df.columns}
 
         def _ef_val(col: str) -> float:
-            """Look up emission factor for the default group (case-insensitive)."""
+            """
+            Look up emission factor for the default group (case-insensitive).
+
+            :param col: Emission-factor CSV column name (e.g. 'PM10', 'CO2').
+            :return: Emission factor (g/kg) for the configured ef_group, or 0.0 if the column is missing.
+            """
             row = ef_df.iloc[ef_group - 1]
             return float(row[lc[col.lower()]]) if col.lower() in lc else 0.0
 
@@ -243,6 +254,13 @@ def calc_smoke_emissions(
         d_kg = np.asarray(duff_load, dtype=float)
 
         def _validate_group(grp, name):
+            """
+            Raise ValueError if an emission-factor group index is out of the CSV's row range.
+
+            :param grp: 1-based emission-factor group index to validate.
+            :param name: Parameter name to use in the error message.
+            :return: None
+            """
             if grp < 1 or grp > len(ef_df):
                 raise ValueError(
                     f"{name} must be between 1 and {len(ef_df)}; got {grp}."
@@ -255,7 +273,13 @@ def calc_smoke_emissions(
         lc = {c.strip().lower(): c for c in ef_df.columns}
 
         def _get_ef_row(row_idx: int, col: str) -> float:
-            """Case-insensitive column lookup for a given row; return 0 if missing."""
+            """
+            Case-insensitive column lookup for a given emission-factor row.
+
+            :param row_idx: 0-based row index into the emission-factors table.
+            :param col: Emission-factor CSV column name (e.g. 'PM10', 'CO2').
+            :return: Emission factor (g/kg) for the given row/column, or 0.0 if the column is missing.
+            """
             r = ef_df.iloc[row_idx]
             return float(r[lc[col.lower()]]) if col.lower() in lc else 0.0
 
@@ -273,7 +297,13 @@ def calc_smoke_emissions(
             unit_conv = 2.0
 
         def _emit(row_idx, load):
-            """Return {species: emission} for a given factor row and load."""
+            """
+            Compute per-species emissions for a given factor row and load.
+
+            :param row_idx: 0-based row index into the emission-factors table.
+            :param load: Fuel-consumption load (kg/m² or T/ac) to multiply by each factor.
+            :return: Dict of species code -> emission mass.
+            """
             return {
                 'PM10': _get_ef_row(row_idx, 'PM10')      * load * unit_conv,
                 'PM25': _get_ef_row(row_idx, 'PM2.5')     * load * unit_conv,

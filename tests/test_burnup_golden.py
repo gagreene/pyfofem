@@ -65,10 +65,19 @@ _TAC_TO_KGM2 = 1.0 / 4.4609  # T/ac → kg/m²
 
 # ---------------------------------------------------------------------------
 # Fixtures
+#
+# Top-level layout intentionally not alphabetized beyond this block: pytest
+# test modules are organized narratively (module-scoped fixtures, then
+# feature-grouped test classes, then a closing smoke test) rather than by
+# function name, to keep the fixture/class/smoke-test structure legible.
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope='module')
 def burnup_results():
-    """Run run_burnup once with the canonical inputs; cache for all tests."""
+    """
+    Run run_burnup once with the canonical inputs; cache for all tests.
+
+    :return: ``(results, summary, class_order)`` tuple from :func:`run_burnup`.
+    """
     inp = pd.read_csv(_INPUT_CSV, comment='#')
 
     fuel_loadings = {
@@ -96,11 +105,21 @@ def burnup_results():
 
 @pytest.fixture(scope='module')
 def load_golden():
+    """
+    Load the golden per-component summary CSV.
+
+    :return: ``pandas.DataFrame`` of expected per-component summary values.
+    """
     return pd.read_csv(_LOAD_GOLDEN_CSV, comment='#')
 
 
 @pytest.fixture(scope='module')
 def ts_golden():
+    """
+    Load the golden per-timestep time-series CSV.
+
+    :return: ``pandas.DataFrame`` of expected per-timestep wdf/ff values.
+    """
     return pd.read_csv(_TS_GOLDEN_CSV, comment='#')
 
 
@@ -111,12 +130,24 @@ class TestBurnupLoadGolden:
     """Validate per-component summary against golden load data."""
 
     def test_number_of_components(self, burnup_results, load_golden):
+        """Component count must match the golden summary row count.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param load_golden: Golden per-component summary ``DataFrame`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = burnup_results
         assert len(class_order) == len(load_golden), (
             f'Expected {len(load_golden)} components, got {len(class_order)}'
         )
 
     def test_component_order(self, burnup_results, load_golden):
+        """Component ordering must match the golden summary row order.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param load_golden: Golden per-component summary ``DataFrame`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, _, class_order = burnup_results
         expected = list(load_golden['component'])
         assert class_order == expected, (
@@ -128,7 +159,13 @@ class TestBurnupLoadGolden:
         'dwk_3_6', 'dwk_6_9', 'dwk_9_20', 'dwk_20',
     ])
     def test_frac_remaining(self, burnup_results, load_golden, component):
-        """Remaining fraction should match golden within 0.5 pp."""
+        """Remaining fraction should match golden within 0.5 pp.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param load_golden: Golden per-component summary ``DataFrame`` fixture.
+        :param component: Fuel-component name under test (parametrized).
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = burnup_results
         idx = class_order.index(component)
         actual = summary[idx].frac_remaining
@@ -140,7 +177,13 @@ class TestBurnupLoadGolden:
 
     @pytest.mark.parametrize('component', ['litter', 'dw1', 'dw10'])
     def test_ignition_time(self, burnup_results, load_golden, component):
-        """Fine fuels should ignite within 2 s of the golden value."""
+        """Fine fuels should ignite within 2 s of the golden value.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param load_golden: Golden per-component summary ``DataFrame`` fixture.
+        :param component: Fine-fuel component name under test (parametrized).
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = burnup_results
         idx = class_order.index(component)
         actual = summary[idx].t_ignite
@@ -151,7 +194,11 @@ class TestBurnupLoadGolden:
         )
 
     def test_fine_fuels_fully_consumed(self, burnup_results):
-        """Litter and 1-hr wood must be 100 % consumed (frac_remaining ≈ 0)."""
+        """Litter and 1-hr wood must be 100 % consumed (frac_remaining ≈ 0).
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = burnup_results
         for comp in ('litter', 'dw1'):
             idx = class_order.index(comp)
@@ -161,7 +208,11 @@ class TestBurnupLoadGolden:
             )
 
     def test_coarse_fuels_mostly_intact(self, burnup_results):
-        """1000-hr fuels should have > 99 % remaining (low intensity fire)."""
+        """1000-hr fuels should have > 99 % remaining (low intensity fire).
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         _, summary, class_order = burnup_results
         for comp in ('dwk_3_6', 'dwk_6_9', 'dwk_9_20', 'dwk_20'):
             idx = class_order.index(comp)
@@ -171,7 +222,11 @@ class TestBurnupLoadGolden:
             )
 
     def test_prefire_loads_correct(self, burnup_results):
-        """Pre-fire wdry values must match the inputs from burnup_input.csv."""
+        """Pre-fire wdry values must match the inputs from burnup_input.csv.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         inp = pd.read_csv(_INPUT_CSV, comment='#')
         _, summary, class_order = burnup_results
         for _, row in inp.iterrows():
@@ -190,22 +245,46 @@ class TestBurnupTimeseriesGolden:
     """Validate per-timestep wdf and ff against golden time-series data."""
 
     def test_timestep_count(self, burnup_results, ts_golden):
+        """Recorded timestep count must match the golden time series.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param ts_golden: Golden per-timestep ``DataFrame`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         assert len(results) == len(ts_golden), (
             f'Expected {len(ts_golden)} timesteps, got {len(results)}'
         )
 
     def test_first_timestep_time(self, burnup_results, ts_golden):
+        """First recorded timestep time must match golden within 1 s.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param ts_golden: Golden per-timestep ``DataFrame`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         assert abs(results[0].time - float(ts_golden.iloc[0]['time_s'])) < 1.0
 
     def test_last_timestep_time(self, burnup_results, ts_golden):
+        """Last recorded timestep time must match golden within 1 s.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param ts_golden: Golden per-timestep ``DataFrame`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         assert abs(results[-1].time - float(ts_golden.iloc[-1]['time_s'])) < 1.0
 
     @pytest.mark.parametrize('step_idx', list(range(24)))
     def test_wdf_at_step(self, burnup_results, ts_golden, step_idx):
-        """Overall remaining fraction at each timestep within atol=0.005."""
+        """Overall remaining fraction at each timestep within atol=0.005.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param ts_golden: Golden per-timestep ``DataFrame`` fixture.
+        :param step_idx: Timestep index under test (parametrized).
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         if step_idx >= len(results):
             pytest.skip('step_idx beyond result length')
@@ -219,7 +298,13 @@ class TestBurnupTimeseriesGolden:
 
     @pytest.mark.parametrize('step_idx', [0, 1, 2])
     def test_ff_at_flaming_steps(self, burnup_results, ts_golden, step_idx):
-        """Flaming fraction at early (flaming-phase) steps within atol=0.02."""
+        """Flaming fraction at early (flaming-phase) steps within atol=0.02.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param ts_golden: Golden per-timestep ``DataFrame`` fixture.
+        :param step_idx: Timestep index under test (parametrized).
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         actual = results[step_idx].ff
         expected = float(ts_golden.iloc[step_idx]['ff'])
@@ -230,7 +315,13 @@ class TestBurnupTimeseriesGolden:
         )
 
     def test_ff_zero_after_flaming(self, burnup_results, ts_golden):
-        """ff must be 0 for all smoldering-only timesteps (step ≥ 3)."""
+        """ff must be 0 for all smoldering-only timesteps (step ≥ 3).
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :param ts_golden: Golden per-timestep ``DataFrame`` fixture (unused;
+            present for fixture ordering with other tests in this class).
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         for i in range(3, len(results)):
             assert results[i].ff == pytest.approx(0.0, abs=_ATOL_FF), (
@@ -239,7 +330,11 @@ class TestBurnupTimeseriesGolden:
             )
 
     def test_wdf_monotonically_decreasing(self, burnup_results):
-        """Overall remaining fraction must not increase between steps."""
+        """Overall remaining fraction must not increase between steps.
+
+        :param burnup_results: ``(results, summary, class_order)`` fixture.
+        :return: None. Raises via ``assert`` on mismatch.
+        """
         results, _, _ = burnup_results
         for i in range(1, len(results)):
             assert results[i].wdf <= results[i - 1].wdf + 1e-9, (
@@ -252,7 +347,11 @@ class TestBurnupTimeseriesGolden:
 # Smoke test — simulation completes without exception
 # ---------------------------------------------------------------------------
 def test_burnup_runs_without_error():
-    """Basic smoke test: run_burnup returns (results, summary, class_order)."""
+    """
+    Basic smoke test: run_burnup returns (results, summary, class_order).
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
     inp = pd.read_csv(_INPUT_CSV, comment='#')
     fl = {r['component']: r['load_tac'] * _TAC_TO_KGM2 for _, r in inp.iterrows()}
     fm = {r['component']: r['moisture_fraction'] for _, r in inp.iterrows()}

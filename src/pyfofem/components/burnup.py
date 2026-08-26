@@ -187,7 +187,7 @@ _FUEL_BOUNDS = {
 }
 
 _FIRE_BOUNDS = {
-    'fistart': (10.0,   1.0e5,   'igniting fire intensity (kW/m²)'),        # fir1=40,  fir2=1e5
+    'fistart': (40.0,   1.0e5,   'igniting fire intensity (kW/m²)'),        # fir1=40,  fir2=1e5
     'ti':      (10.0,   200.0,   'surface fire residence time (s)'),        # ti1=10,   ti2=200
     'u':       (0.0,    5.0,     'windspeed at fuelbed top (m/s)'),         # u1=0,     u2=5
     'd':       (0.1,    5.0,     'fuel bed depth (m)'),                     # d1=0.1,   d2=5
@@ -257,30 +257,16 @@ _BURNUP_LIMIT_ERROR = {
 
 
 # ---------------------------------------------------------------------------
-# Helper: triangular pair index  (pure-integer, no float division)
+# Validation error
 # ---------------------------------------------------------------------------
-def _loc(k: int, l: int) -> int:
-    """Return flat index into the lower-triangular pair array.
-
-    Equivalent to C++ ``k*(k+1)/2 + l - 1`` but uses integer arithmetic
-    to avoid any floating-point truncation risk.
-
-    :param k: 1-based size-class index (the larger particle).
-    :param l: 0-based interacting-partner index (0 = alone, 1..k = partner class).
-    :return: 0-based flat index into the pair arrays.
-    """
-    return k * (k + 1) // 2 + l - 1
+class BurnupValidationError(ValueError):
+    """Raised when input parameters fall outside physically valid ranges."""
+    pass
 
 
-def _maxkl(n: int) -> int:
-    """Return total number of interaction-pair slots for *n* fuel classes.
-
-    :param n: Number of fuel classes.
-    :return: Array length required to store all (k, l) pair data.
-    """
-    return n * (n + 1) // 2 + n
-
-
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
 def _build_kl_map(number: int) -> Dict[str, object]:
     """Pre-compute all (k, l) → flat-index mappings once.
 
@@ -320,15 +306,158 @@ def _build_kl_map(number: int) -> Dict[str, object]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Physics helpers
-# ---------------------------------------------------------------------------
+def _check_fire(
+        fistart: float,
+        ti: float,
+        u: float,
+        d: float,
+        tamb_c: float,
+        wdf_load: float,
+        dfm: float,
+) -> Tuple[float, float]:
+    """Validate fire-environment parameters against C++ ``BRN_CheckData`` bounds.
+
+    Bounds are taken directly from ``BRN_CheckData()`` local constants in
+    ``BUR_BRN.cpp`` (lines 1057–1061):
+
+    * ``fir1 = 40.0``,  ``fir2 = 1.0e5``  – igniting fire intensity (kW/m²)
+    * ``ti1  = 10.0``,  ``ti2  = 200.0``  – flame residence time (s)
+    * ``u1   = 0.0``,   ``u2   = 5.0``    – windspeed at fuelbed top (m/s)
+    * ``d1   = 0.1``,   ``d2   = 5.0``    – fuel bed depth (m)
+    * ``tam1 = -40.0``, ``tam2 = 40.0``   – ambient temperature (°C)
+    * ``e_dfm1 = 0.1``, ``e_dfm2 = 1.972``– duff moisture fraction
+
+    No auto-adjustment is applied; the C++ code performs straight range checks
+    and returns an error string when any value is out of bounds.
+
+    :param fistart: Igniting fire intensity (kW/m²).
+    :param ti: Surface fire residence time (s).
+    :param u: Windspeed at fuelbed top (m/s).
+    :param d: Fuel bed depth (m).
+    :param tamb_c: Ambient temperature (°C).
+    :param wdf_load: Duff dry-weight loading (kg/m²).
+    :param dfm: Duff moisture fraction.
+    :return: ``(fistart, ti)`` unchanged.
+    :raises BurnupValidationError: If any parameter is out of range.
+    """
+
+    if fistart < _FIRE_BOUNDS['fistart'][0] or fistart > _FIRE_BOUNDS['fistart'][1]:
+        raise BurnupValidationError(
+            f"igniting fire intensity = {fistart} out of range "
+            f"({_FIRE_BOUNDS['fistart'][0]}, {_FIRE_BOUNDS['fistart'][1]}) kW/m²")
+    if ti < _FIRE_BOUNDS['ti'][0] or ti > _FIRE_BOUNDS['ti'][1]:
+        raise BurnupValidationError(
+            f"surface fire residence time = {ti} out of range "
+            f"({_FIRE_BOUNDS['ti'][0]}, {_FIRE_BOUNDS['ti'][1]}) s")
+    if u < _FIRE_BOUNDS['u'][0] or u > _FIRE_BOUNDS['u'][1]:
+        raise BurnupValidationError(
+            f"windspeed = {u} out of range "
+            f"({_FIRE_BOUNDS['u'][0]}, {_FIRE_BOUNDS['u'][1]}) m/s")
+    if d < _FIRE_BOUNDS['d'][0] or d > _FIRE_BOUNDS['d'][1]:
+        raise BurnupValidationError(
+            f"fuel bed depth = {d} out of range "
+            f"({_FIRE_BOUNDS['d'][0]}, {_FIRE_BOUNDS['d'][1]}) m")
+    if tamb_c < _FIRE_BOUNDS['tamb_c'][0] or tamb_c > _FIRE_BOUNDS['tamb_c'][1]:
+        raise BurnupValidationError(
+            f"ambient temperature = {tamb_c} out of range "
+            f"({_FIRE_BOUNDS['tamb_c'][0]}, {_FIRE_BOUNDS['tamb_c'][1]}) °C")
+    if wdf_load > 0.0 and (dfm < _FIRE_BOUNDS['dfm'][0] or dfm > _FIRE_BOUNDS['dfm'][1]):
+        raise BurnupValidationError(
+            f"duff moisture = {dfm} out of range "
+            f"({_FIRE_BOUNDS['dfm'][0]}, {_FIRE_BOUNDS['dfm'][1]})")
+
+    return fistart, ti
+
+
+def _check_fuel(particles: Sequence[FuelParticle]) -> None:
+    """Validate all fuel-particle parameters against physical bounds.
+
+    :param particles: Sequence of :class:`FuelParticle` objects.
+    :return: None. Raises if any parameter is invalid.
+    :raises BurnupValidationError: If any parameter is out of range.
+    """
+    for i, p in enumerate(particles):
+        for attr, (lo, hi, label) in _FUEL_BOUNDS.items():
+            val = getattr(p, attr)
+            if val <= lo or val >= hi:
+                raise BurnupValidationError(
+                    f"Fuel class {i}: {label} = {val} out of range ({lo}, {hi})"
+                )
+
+
+def _dry_time(enu: float, theta: float) -> float:
+    """Compute dimensionless time to onset of surface drying.
+
+    The ``_func_dry`` auxiliary is inlined to eliminate per-iteration
+    function-call overhead.
+
+    :param enu: Biot number (``hbar * dia / k``).
+    :param theta: Dimensionless temperature ratio.
+    :return: Dimensionless drying time.
+    """
+    P = 0.47047
+    # Inlined constants
+    A = 0.7478556
+    B = 0.4653628
+    C = 0.1282064
+    rhs = (1.0 - theta) / A
+
+    xl = 0.0
+    xh = 1.0
+    xm = 0.5
+    for _ in range(15):
+        xm = 0.5 * (xl + xh)
+        if xm * (B - xm * (C - xm)) - rhs < 0.0:
+            xl = xm
+        else:
+            xh = xm
+    x = (1.0 / xm - 1.0) / P
+    return (0.5 * x / enu) ** 2
+
+
+def _duff_burn(
+        wdf_load: float,
+        dfm: float,
+        duff_pct_consumed: float = -1.0,
+) -> Tuple[float, float, float]:
+    """Compute duff burning intensity, duration, and smoldering rate.
+
+    Mirrors ``DuffBurn()`` in the C++ source (``BUR_BRN.cpp``).  When
+    *duff_pct_consumed* is a valid FOFEM-calculated percent (0–100), it is
+    used as the consumed fraction ``ff`` exactly as in the C++ code
+    (``f_DufConPerCent / 100.0``).  Otherwise the original moisture-only
+    fallback formula is used (``ff = 0.837 – 0.426 × dfm``).
+
+    :param wdf_load: Duff dry-weight loading (kg/m²).
+    :param dfm: Duff moisture content (fraction).
+    :param duff_pct_consumed: Percent of duff consumed as calculated by
+        FOFEM's ``DUF_Mngr`` (0–100, whole number).  Pass ``-1`` (default)
+        to use the fallback formula (matches running burnup standalone
+        without a prior FOFEM duff calculation).
+    :return: ``(dfi, tdf, smolder_rate)`` – duff fire intensity (kW/m²),
+        duff burn duration (s), and duff smoldering mass rate (kg/m²·s).
+    """
+    if wdf_load <= 0.0 or dfm >= 1.96:
+        return 0.0, 0.0, 0.0
+    dfi = 11.25 - 4.05 * dfm
+    # C++ DuffBurn: use FOFEM pdc when valid, else moisture-only fallback
+    if 0.0 <= duff_pct_consumed <= 100.0:
+        ff = duff_pct_consumed / 100.0
+    else:
+        ff = 0.837 - 0.426 * dfm
+    if ff <= 0.0:
+        return 0.0, 0.0, 0.0
+    tdf = 1.0e4 * ff * wdf_load / (7.5 - 2.7 * dfm)
+    smolder_rate = (ff * wdf_load / tdf) if tdf > 0.0 else 0.0
+    return dfi, tdf, smolder_rate
+
+
 def _heat_exchange(
-    v_eff: float,
-    dia: float,
-    tf: float,
-    ts: float,
-    cond: float,
+        v_eff: float,
+        dia: float,
+        tf: float,
+        ts: float,
+        cond: float,
 ) -> Tuple[float, float, float]:
     """Compute combined convective + radiative heat-transfer coefficients.
 
@@ -365,178 +494,33 @@ def _heat_exchange(
     return hfm, hbar, en
 
 
-def _temp_fire(q: float, r: float, tamb: float) -> float:
-    """Compute fire environment temperature via iterative mixing model.
+def _loc(k: int, l: int) -> int:
+    """Return flat index into the lower-triangular pair array.
 
-    :param q: Fire intensity (kW/m²).
-    :param r: Dimensionless mixing parameter.
-    :param tamb: Ambient temperature (K).
-    :return: Fire environment temperature (K).
+    Equivalent to C++ ``k*(k+1)/2 + l - 1`` but uses integer arithmetic
+    to avoid any floating-point truncation risk.
+
+    :param k: 1-based size-class index (the larger particle).
+    :param l: 0-based interacting-partner index (0 = alone, 1..k = partner class).
+    :return: 0-based flat index into the pair arrays.
     """
-    ERR = 1.0e-04
-    AA = 20.0
-
-    term = r / (AA * q)
-    rlast = r
-    for _ in range(500):
-        den = 1.0 + term * (rlast + 1.0) * (rlast * rlast + 1.0)
-        rnext = 0.5 * (rlast + 1.0 + r / den)
-        if rnext - rlast < ERR and rlast - rnext < ERR:
-            return rnext * tamb
-        rlast = rnext
-    return rlast * tamb
+    return k * (k + 1) // 2 + l - 1
 
 
-def _t_ignite(
-    tpdr: float,
-    tpig: float,
-    tpfi: float,
-    cond: float,
-    chtd: float,
-    fmof: float,
-    dend: float,
-    hbar: float,
-    tamb: float,
-) -> float:
-    """Predict time to piloted ignition via binary search.
+def _maxkl(n: int) -> int:
+    """Return total number of interaction-pair slots for *n* fuel classes.
 
-    The ``_ff_ignite`` auxiliary is inlined to eliminate per-iteration
-    function-call overhead.
-
-    :param tpdr: Fuel temperature at start of drying (K).
-    :param tpig: Fuel surface ignition temperature (K).
-    :param tpfi: Fire environment temperature (K).
-    :param cond: Oven-dry thermal conductivity (W/m·K).
-    :param chtd: Oven-dry specific heat capacity (J/kg·K).
-    :param fmof: Moisture content, dry-weight fraction.
-    :param dend: Oven-dry density (kg/m³).
-    :param hbar: Effective film heat-transfer coefficient (W/m²·K).
-    :param tamb: Ambient temperature (K).
-    :return: Predicted time to piloted ignition (s).
+    :param n: Number of fuel classes.
+    :return: Array length required to store all (k, l) pair data.
     """
-    PINV = 2.125534
-    HVAP = 2.177e+06
-    CPM = 4186.0
-    CONC = 4.27e-04
-
-    # Inlined _ff_ignite constants
-    A03 = -1.3371565
-    A13 = 0.4653628
-    A23 = -0.1282064
-    b03 = A03 * (tpfi - tpig) / (tpfi - tamb)
-
-    # Binary search for root
-    xlo = 0.0
-    xhi = 1.0
-    xav = 0.5
-    for _ in range(60):
-        xav = 0.5 * (xlo + xhi)
-        fav = b03 + xav * (A13 + xav * (A23 + xav))
-        if fav < 0.0:
-            xlo = xav
-        elif fav > 0.0:
-            xhi = xav
-        else:
-            break
-        if xhi - xlo < 1.0e-12:
-            break
-
-    beta = PINV * (1.0 - xav) / xav
-    conw = cond + CONC * dend * fmof
-    dtb = tpdr - tamb
-    dti = tpig - tamb
-    ratio = (HVAP + CPM * dtb) / (chtd * dti)
-    rhoc = dend * chtd * (1.0 + fmof * ratio)
-    return (beta / hbar) ** 2 * conw * rhoc
-
-
-def _dry_time(enu: float, theta: float) -> float:
-    """Compute dimensionless time to onset of surface drying.
-
-    The ``_func_dry`` auxiliary is inlined to eliminate per-iteration
-    function-call overhead.
-
-    :param enu: Biot number (``hbar * dia / k``).
-    :param theta: Dimensionless temperature ratio.
-    :return: Dimensionless drying time.
-    """
-    P = 0.47047
-    # Inlined constants
-    A = 0.7478556
-    B = 0.4653628
-    C = 0.1282064
-    rhs = (1.0 - theta) / A
-
-    xl = 0.0
-    xh = 1.0
-    xm = 0.5
-    for _ in range(15):
-        xm = 0.5 * (xl + xh)
-        if xm * (B - xm * (C - xm)) - rhs < 0.0:
-            xl = xm
-        else:
-            xh = xm
-    x = (1.0 / xm - 1.0) / P
-    return (0.5 * x / enu) ** 2
-
-
-def _duff_burn(wdf_load: float, dfm: float,
-               duff_pct_consumed: float = -1.0) -> Tuple[float, float, float]:
-    """Compute duff burning intensity, duration, and smoldering rate.
-
-    Mirrors ``DuffBurn()`` in the C++ source (``BUR_BRN.cpp``).  When
-    *duff_pct_consumed* is a valid FOFEM-calculated percent (0–100), it is
-    used as the consumed fraction ``ff`` exactly as in the C++ code
-    (``f_DufConPerCent / 100.0``).  Otherwise the original moisture-only
-    fallback formula is used (``ff = 0.837 – 0.426 × dfm``).
-
-    :param wdf_load: Duff dry-weight loading (kg/m²).
-    :param dfm: Duff moisture content (fraction).
-    :param duff_pct_consumed: Percent of duff consumed as calculated by
-        FOFEM's ``DUF_Mngr`` (0–100, whole number).  Pass ``-1`` (default)
-        to use the fallback formula (matches running burnup standalone
-        without a prior FOFEM duff calculation).
-    :return: ``(dfi, tdf, smolder_rate)`` – duff fire intensity (kW/m²),
-        duff burn duration (s), and duff smoldering mass rate (kg/m²·s).
-    """
-    if wdf_load <= 0.0 or dfm >= 1.96:
-        return 0.0, 0.0, 0.0
-    dfi = 11.25 - 4.05 * dfm
-    # C++ DuffBurn: use FOFEM pdc when valid, else moisture-only fallback
-    if 0.0 <= duff_pct_consumed <= 100.0:
-        ff = duff_pct_consumed / 100.0
-    else:
-        ff = 0.837 - 0.426 * dfm
-    if ff <= 0.0:
-        return 0.0, 0.0, 0.0
-    tdf = 1.0e4 * ff * wdf_load / (7.5 - 2.7 * dfm)
-    smolder_rate = (ff * wdf_load / tdf) if tdf > 0.0 else 0.0
-    return dfi, tdf, smolder_rate
-
-
-# ---------------------------------------------------------------------------
-# Sorting & interaction matrix
-# ---------------------------------------------------------------------------
-def _sort_fuels(
-    sigma: np.ndarray,
-    fmois: np.ndarray,
-    dendry: np.ndarray,
-) -> np.ndarray:
-    """Sort fuel classes by increasing size (decreasing SAV), then moisture, then density.
-
-    :param sigma: Surface-to-volume ratios (1/m), shape ``(n,)``.
-    :param fmois: Moisture fractions, shape ``(n,)``.
-    :param dendry: Oven-dry densities (kg/m³), shape ``(n,)``.
-    :return: Integer array of original indices in sorted order, shape ``(n,)``.
-    """
-    return np.lexsort((dendry, fmois, 1.0 / sigma))
+    return n * (n + 1) // 2 + n
 
 
 def _overlaps(
-    wdry: np.ndarray,
-    sigma: np.ndarray,
-    fmois: np.ndarray,
-    dendry: np.ndarray,
+        wdry: np.ndarray,
+        sigma: np.ndarray,
+        fmois: np.ndarray,
+        dendry: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute the interaction (overlap) matrix for sorted fuel classes.
 
@@ -592,108 +576,127 @@ def _overlaps(
     return elam, alone, area
 
 
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
-class BurnupValidationError(ValueError):
-    """Raised when input parameters fall outside physically valid ranges."""
-    pass
+def _sort_fuels(
+        sigma: np.ndarray,
+        fmois: np.ndarray,
+        dendry: np.ndarray,
+) -> np.ndarray:
+    """Sort fuel classes by increasing size (decreasing SAV), then moisture, then density.
 
-
-def _check_fuel(particles: Sequence[FuelParticle]) -> None:
-    """Validate all fuel-particle parameters against physical bounds.
-
-    :param particles: Sequence of :class:`FuelParticle` objects.
-    :raises BurnupValidationError: If any parameter is out of range.
+    :param sigma: Surface-to-volume ratios (1/m), shape ``(n,)``.
+    :param fmois: Moisture fractions, shape ``(n,)``.
+    :param dendry: Oven-dry densities (kg/m³), shape ``(n,)``.
+    :return: Integer array of original indices in sorted order, shape ``(n,)``.
     """
-    for i, p in enumerate(particles):
-        for attr, (lo, hi, label) in _FUEL_BOUNDS.items():
-            val = getattr(p, attr)
-            if val <= lo or val >= hi:
-                raise BurnupValidationError(
-                    f"Fuel class {i}: {label} = {val} out of range ({lo}, {hi})"
-                )
+    return np.lexsort((dendry, fmois, 1.0 / sigma))
 
 
-def _check_fire(
-    fistart: float,
-    ti: float,
-    u: float,
-    d: float,
-    tamb_c: float,
-    wdf_load: float,
-    dfm: float,
-) -> Tuple[float, float]:
-    """Validate fire-environment parameters against C++ ``BRN_CheckData`` bounds.
+def _t_ignite(
+        tpdr: float,
+        tpig: float,
+        tpfi: float,
+        cond: float,
+        chtd: float,
+        fmof: float,
+        dend: float,
+        hbar: float,
+        tamb: float,
+) -> float:
+    """Predict time to piloted ignition via binary search.
 
-    Bounds are taken directly from ``BRN_CheckData()`` local constants in
-    ``BUR_BRN.cpp`` (lines 1057–1061):
+    The ``_ff_ignite`` auxiliary is inlined to eliminate per-iteration
+    function-call overhead.
 
-    * ``fir1 = 40.0``,  ``fir2 = 1.0e5``  – igniting fire intensity (kW/m²)
-    * ``ti1  = 10.0``,  ``ti2  = 200.0``  – flame residence time (s)
-    * ``u1   = 0.0``,   ``u2   = 5.0``    – windspeed at fuelbed top (m/s)
-    * ``d1   = 0.1``,   ``d2   = 5.0``    – fuel bed depth (m)
-    * ``tam1 = -40.0``, ``tam2 = 40.0``   – ambient temperature (°C)
-    * ``e_dfm1 = 0.1``, ``e_dfm2 = 1.972``– duff moisture fraction
-
-    No auto-adjustment is applied; the C++ code performs straight range checks
-    and returns an error string when any value is out of bounds.
-
-    :param fistart: Igniting fire intensity (kW/m²).
-    :param ti: Surface fire residence time (s).
-    :param u: Windspeed at fuelbed top (m/s).
-    :param d: Fuel bed depth (m).
-    :param tamb_c: Ambient temperature (°C).
-    :param wdf_load: Duff dry-weight loading (kg/m²).
-    :param dfm: Duff moisture fraction.
-    :return: ``(fistart, ti)`` unchanged.
-    :raises BurnupValidationError: If any parameter is out of range.
+    :param tpdr: Fuel temperature at start of drying (K).
+    :param tpig: Fuel surface ignition temperature (K).
+    :param tpfi: Fire environment temperature (K).
+    :param cond: Oven-dry thermal conductivity (W/m·K).
+    :param chtd: Oven-dry specific heat capacity (J/kg·K).
+    :param fmof: Moisture content, dry-weight fraction.
+    :param dend: Oven-dry density (kg/m³).
+    :param hbar: Effective film heat-transfer coefficient (W/m²·K).
+    :param tamb: Ambient temperature (K).
+    :return: Predicted time to piloted ignition (s).
     """
+    PINV = 2.125534
+    HVAP = 2.177e+06
+    CPM = 4186.0
+    CONC = 4.27e-04
 
-    if fistart < _FIRE_BOUNDS['fistart'][0] or fistart > _FIRE_BOUNDS['fistart'][1]:
-        raise BurnupValidationError(
-            f"igniting fire intensity = {fistart} out of range "
-            f"({_FIRE_BOUNDS['fistart'][0]}, {_FIRE_BOUNDS['fistart'][1]}) kW/m²")
-    if ti < _FIRE_BOUNDS['ti'][0] or ti > _FIRE_BOUNDS['ti'][1]:
-        raise BurnupValidationError(
-            f"surface fire residence time = {ti} out of range (10, 200) s")
-    if u < _FIRE_BOUNDS['u'][0] or u > _FIRE_BOUNDS['u'][1]:
-        raise BurnupValidationError(
-            f"windspeed = {u} out of range (0, 5) m/s")
-    if d < _FIRE_BOUNDS['d'][0] or d > _FIRE_BOUNDS['d'][1]:
-        raise BurnupValidationError(
-            f"fuel bed depth = {d} out of range (0.1, 5) m")
-    if tamb_c < _FIRE_BOUNDS['tamb_c'][0] or tamb_c > _FIRE_BOUNDS['tamb_c'][1]:
-        raise BurnupValidationError(
-            f"ambient temperature = {tamb_c} out of range (-40, 40) °C")
-    if wdf_load > 0.0 and (dfm < _FIRE_BOUNDS['dfm'][0] or dfm > _FIRE_BOUNDS['dfm'][1]):
-        raise BurnupValidationError(
-            f"duff moisture = {dfm} out of range (0.1, 1.972)")
+    # Inlined _ff_ignite constants
+    A03 = -1.3371565
+    A13 = 0.4653628
+    A23 = -0.1282064
+    b03 = A03 * (tpfi - tpig) / (tpfi - tamb)
 
-    return fistart, ti
+    # Binary search for root
+    xlo = 0.0
+    xhi = 1.0
+    xav = 0.5
+    for _ in range(60):
+        xav = 0.5 * (xlo + xhi)
+        fav = b03 + xav * (A13 + xav * (A23 + xav))
+        if fav < 0.0:
+            xlo = xav
+        elif fav > 0.0:
+            xhi = xav
+        else:
+            break
+        if xhi - xlo < 1.0e-12:
+            break
+
+    beta = PINV * (1.0 - xav) / xav
+    conw = cond + CONC * dend * fmof
+    dtb = tpdr - tamb
+    dti = tpig - tamb
+    ratio = (HVAP + CPM * dtb) / (chtd * dti)
+    rhoc = dend * chtd * (1.0 + fmof * ratio)
+    return (beta / hbar) ** 2 * conw * rhoc
+
+
+def _temp_fire(q: float, r: float, tamb: float) -> float:
+    """Compute fire environment temperature via iterative mixing model.
+
+    :param q: Fire intensity (kW/m²).
+    :param r: Dimensionless mixing parameter.
+    :param tamb: Ambient temperature (K).
+    :return: Fire environment temperature (K).
+    """
+    ERR = 1.0e-04
+    AA = 20.0
+
+    term = r / (AA * q)
+    rlast = r
+    for _ in range(500):
+        den = 1.0 + term * (rlast + 1.0) * (rlast * rlast + 1.0)
+        rnext = 0.5 * (rlast + 1.0 + r / den)
+        if rnext - rlast < ERR and rlast - rnext < ERR:
+            return rnext * tamb
+        rlast = rnext
+    return rlast * tamb
 
 
 # ---------------------------------------------------------------------------
 # Main simulation
 # ---------------------------------------------------------------------------
 def burnup(
-    particles: Sequence[FuelParticle],
-    fi: float,
-    ti: float,
-    u: float,
-    d: float,
-    tamb: float,
-    r0: float,
-    dr: float,
-    dt: float,
-    ntimes: int,
-    wdf: float = 0.0,
-    dfm: float = 2.0,
-    duff_pct_consumed: float = -1.0,
-    fint_switch: float = 15.0,
-    validate: bool = True,
-    hsf_consumed: float = 0.0,
-    brafol_consumed: float = 0.0,
+        particles: Sequence[FuelParticle],
+        fi: float,
+        ti: float,
+        u: float,
+        d: float,
+        tamb: float,
+        r0: float,
+        dr: float,
+        dt: float,
+        ntimes: int,
+        wdf: float = 0.0,
+        dfm: float = 2.0,
+        duff_pct_consumed: float = -1.0,
+        fint_switch: float = 15.0,
+        validate: bool = True,
+        hsf_consumed: float = 0.0,
+        brafol_consumed: float = 0.0,
 ) -> Tuple[List[BurnResult], List[BurnSummaryRow]]:
     """Run the complete BURNUP post-frontal combustion simulation.
 
@@ -986,6 +989,11 @@ def burnup(
         """Append a :class:`BurnResult` snapshot.
 
         :param time_val: Current simulation time (s).
+        :param fi_wl: Wood+litter fire intensity (kW/m²) for this snapshot.
+        :param fi_hs: Herb+shrub fire intensity (kW/m²) for this snapshot.
+        :return: None. Appends one :class:`BurnResult` to the enclosing
+            ``results`` list and zeroes the ``flaming``/``smoldering``
+            accumulators as a side effect.
         """
         wdf_val = float(wo.sum()) / wd0
         wt_flam = float(flaming.sum())
@@ -1024,7 +1032,8 @@ def burnup(
     def _hsf_fi(step_seconds: float) -> float:
         """Compute and consume herb+shrub fire intensity for this timestep.
 
-        Returns intensity contribution in kW/m².
+        :param step_seconds: Length of the current timestep (s).
+        :return: Herb+shrub fire-intensity contribution (kW/m²).
         """
         nonlocal _hsf_remaining
         amount = min(_HSF_RATE_SI * step_seconds, _hsf_remaining)
@@ -1036,7 +1045,8 @@ def burnup(
     def _brafol_fi(step_seconds: float) -> float:
         """Consume all branch+foliage fire intensity in one call.
 
-        Returns intensity contribution in kW/m².
+        :param step_seconds: Length of the current timestep (s).
+        :return: Branch+foliage fire-intensity contribution (kW/m²).
         """
         nonlocal _brafol_remaining
         amount = _brafol_remaining
@@ -1395,4 +1405,3 @@ def burnup(
             )
 
     return results, summary
-
