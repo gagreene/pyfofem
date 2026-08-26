@@ -35,6 +35,14 @@ These should be regenerated, not versioned as source:
 
 ## Suggested update workflow
 
+**Run `tests/prepare_cpp_reference.py` whenever `reference/fofem_cpp` is
+updated from the upstream C++ source.** It automates all three steps below
+— `python tests/prepare_cpp_reference.py --refresh --build` refreshes the
+checkout, reapplies this overlay, and rebuilds the harness in one call. Run
+it (at minimum without `--refresh`, to reapply the overlay) any time the
+submodule checkout has been touched by something other than this workflow,
+since nothing else keeps the overlay files in sync automatically.
+
 1. Refresh upstream code into `reference/fofem_cpp` from `fofem_wuinity.git`.
 2. Reapply the local overlay:
    - restore `FOF_UNIX/test_harness.cpp`
