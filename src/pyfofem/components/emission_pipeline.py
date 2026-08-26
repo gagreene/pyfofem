@@ -8,7 +8,7 @@ keep the top-level emissions driver smaller and easier to maintain.
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import numpy as np
 
@@ -84,7 +84,7 @@ def build_emissions_result(
         lay6_arr: np.ndarray,
         lay60d_arr: np.ndarray,
         lay275d_arr: np.ndarray,
-) -> Dict[str, np.ndarray]:
+) -> Dict[str, Union[float, int, np.ndarray]]:
     """
     Assemble the final run_fofem_emissions output dictionary.
 

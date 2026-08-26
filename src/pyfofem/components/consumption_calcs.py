@@ -115,36 +115,6 @@ FUEL_CATEGORY_CODES: Dict[int, str] = {
 }
 
 
-def _to_str_arr(
-        val: Union[str, int, np.ndarray],
-        lut: Dict[int, str],
-) -> np.ndarray:
-    """
-    Convert a categorical parameter to a 1-D numpy string array.
-
-    Accepts a plain string, an integer code (looked up in *lut*), or a
-    numpy array of strings or integer codes.  Scalar inputs return a
-    length-1 array; array inputs are returned as a 1-D string array.
-
-    :param val: Input value — ``str``, ``int``, or ``np.ndarray``.
-    :param lut: Integer → string lookup table (e.g. :data:`REGION_CODES`).
-    :return: 1-D ``np.ndarray`` of ``dtype=object`` (strings).
-    :raises KeyError: If an integer code is not present in *lut*.
-    """
-    if isinstance(val, np.ndarray):
-        flat = val.ravel()
-        out = np.empty(flat.shape, dtype=object)
-        for i, v in enumerate(flat):
-            if isinstance(v, (int, np.integer)):
-                out[i] = lut[int(v)]
-            else:
-                out[i] = str(v)
-        return out
-    if isinstance(val, (int, np.integer)):
-        return np.array([lut[int(val)]], dtype=object)
-    return np.array([str(val)], dtype=object)
-
-
 # ---------------------------------------------------------------------------
 # Functions
 # ---------------------------------------------------------------------------

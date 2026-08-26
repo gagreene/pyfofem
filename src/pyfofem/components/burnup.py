@@ -347,19 +347,24 @@ def _check_fire(
             f"({_FIRE_BOUNDS['fistart'][0]}, {_FIRE_BOUNDS['fistart'][1]}) kW/m²")
     if ti < _FIRE_BOUNDS['ti'][0] or ti > _FIRE_BOUNDS['ti'][1]:
         raise BurnupValidationError(
-            f"surface fire residence time = {ti} out of range (10, 200) s")
+            f"surface fire residence time = {ti} out of range "
+            f"({_FIRE_BOUNDS['ti'][0]}, {_FIRE_BOUNDS['ti'][1]}) s")
     if u < _FIRE_BOUNDS['u'][0] or u > _FIRE_BOUNDS['u'][1]:
         raise BurnupValidationError(
-            f"windspeed = {u} out of range (0, 5) m/s")
+            f"windspeed = {u} out of range "
+            f"({_FIRE_BOUNDS['u'][0]}, {_FIRE_BOUNDS['u'][1]}) m/s")
     if d < _FIRE_BOUNDS['d'][0] or d > _FIRE_BOUNDS['d'][1]:
         raise BurnupValidationError(
-            f"fuel bed depth = {d} out of range (0.1, 5) m")
+            f"fuel bed depth = {d} out of range "
+            f"({_FIRE_BOUNDS['d'][0]}, {_FIRE_BOUNDS['d'][1]}) m")
     if tamb_c < _FIRE_BOUNDS['tamb_c'][0] or tamb_c > _FIRE_BOUNDS['tamb_c'][1]:
         raise BurnupValidationError(
-            f"ambient temperature = {tamb_c} out of range (-40, 40) °C")
+            f"ambient temperature = {tamb_c} out of range "
+            f"({_FIRE_BOUNDS['tamb_c'][0]}, {_FIRE_BOUNDS['tamb_c'][1]}) °C")
     if wdf_load > 0.0 and (dfm < _FIRE_BOUNDS['dfm'][0] or dfm > _FIRE_BOUNDS['dfm'][1]):
         raise BurnupValidationError(
-            f"duff moisture = {dfm} out of range (0.1, 1.972)")
+            f"duff moisture = {dfm} out of range "
+            f"({_FIRE_BOUNDS['dfm'][0]}, {_FIRE_BOUNDS['dfm'][1]})")
 
     return fistart, ti
 
