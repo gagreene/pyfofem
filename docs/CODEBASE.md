@@ -38,18 +38,33 @@ pyfofem/
 |   |-- code/burnup/                   #    Standalone burnupw.cpp baseline
 |   `-- papers/                        #    Literature references
 |
-|-- tests/
+|-- tests/                             #    pytest package (`tests/__init__.py`); testpaths=["tests"]
+|   |-- __init__.py                    #    Package marker for `tests.*` qualified imports
+|   |-- _support.py                    #    Shared path constants; never inserts src/ onto sys.path
+|   |-- conftest.py                    #    Fixtures, marker registration, installed-only session hook
 |   |-- run_unified_tests.py           #    `--suite core|full`, `--installed-only` test runner
 |   |-- prepare_cpp_reference.py       #    Regenerates C++ reference fixtures
-|   |-- test_compare_cpp_python.py     #    Python-vs-C++ multi-case parity assertions
-|   |-- test_cpp_comparison.py         #    Python-vs-C++ parity vs. reference/fofem_cpp/load.txt, emis.txt
-|   |-- test_burnup_golden.py          #    Golden-value regression tests for burnup()
-|   |-- test_equations_golden.py       #    Golden-value regression tests for consumption equations
-|   |-- test_emission_equation_ids.py  #    Equation-ID output regression tests
-|   |-- test_run_fofem_emissions_output_keys.py  # Output-dict key/shape contract tests
-|   |-- test_soil_heating_cpp_parity.py          # Soil Lay* parity vs C++ soil.tmp
-|   |-- test_soil_heating_invalid_soil_family.py # Invalid soil_family error-handling tests
 |   |-- compare_cpp_python_soil_heating.py       # Scripted Lay* parity comparison driver
+|   |-- unit/                          #    Golden-CSV + non-C++-live unit tests
+|   |   |-- test_consumption_golden.py #    Golden-value regression tests for consumption equations
+|   |   |                                    (split from the pre-Phase-1 test_equations_golden.py;
+|   |   |                                    keeps the CSV-driven parametrized coverage)
+|   |   |-- test_burnup_golden.py      #    Golden-value regression tests for burnup()
+|   |   |-- test_equation_routing.py   #    Equation-ID output regression tests (was test_emission_equation_ids.py)
+|   |   `-- test_run_unified_tests_contract.py  # Phase 1: installed-only parent/child contract
+|   |-- integration/                   #    Full-pipeline (`run_fofem_emissions`) tests
+|   |   |-- test_run_fofem_emissions.py         # Output-dict key/shape contract tests
+|   |   |                                         (was test_run_fofem_emissions_output_keys.py)
+|   |   `-- test_soil_heating_pipeline.py       # Invalid soil_family error-handling tests
+|   |                                             (was test_soil_heating_invalid_soil_family.py)
+|   |-- regression/                    #    Named historical-bug regression tests
+|   |   |-- test_equations_golden_fixes.py      # Fix A-D classes (split from the pre-Phase-1
+|   |   |                                         test_equations_golden.py)
+|   |   `-- test_pr1_review_regressions.py
+|   |-- cpp_parity_live/               #    Tests requiring the compiled C++ reference
+|   |   |-- test_compare_cpp_python.py #    Python-vs-C++ multi-case parity assertions
+|   |   |-- test_cpp_comparison.py     #    Python-vs-C++ parity vs. reference/fofem_cpp/load.txt, emis.txt
+|   |   `-- test_soil_heating_cpp_parity.py     # Soil Lay* parity vs C++ soil.tmp
 |   `-- test_data/
 |       |-- test_inputs/
 |       `-- _results/
@@ -66,9 +81,9 @@ pyfofem/
 
 ### Current parity/testing additions
 
-- `tests/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions against `reference/fofem_cpp/load.txt` and `emis.txt`.
-- `tests/test_compare_cpp_python.py` runs scripted multi-case comparisons against the C++ CSV harness.
-- `tests/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
+- `tests/cpp_parity_live/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions against `reference/fofem_cpp/load.txt` and `emis.txt`.
+- `tests/cpp_parity_live/test_compare_cpp_python.py` runs scripted multi-case comparisons against the C++ CSV harness.
+- `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
 - `tests/run_unified_tests.py --suite core|full` is the current publish-oriented test runner (see `README.md`).
 - `examples/emissions_batch.py` (not under `tests/`) is the current emissions batch/example driver.
 - `reference/fofem_cpp/FOF_UNIX/test_harness.cpp` is the parameterized C++ CSV harness (`fofem_test`).
@@ -544,7 +559,7 @@ reproduced directly as `IndexError: too many indices for array: array is
 `np.ravel()`, which is behavior-identical for scalar/1D input (the only
 shapes any test or documented usage exercises) and only changes the
 previously-broken 2D+ case. Regression coverage:
-`tests/test_pr1_review_regressions.py`.
+`tests/regression/test_pr1_review_regressions.py`.
 
 ### 22. `_FIRE_BOUNDS['fistart']` minimum didn't match C++ — Fixed 2026-08-26
 
@@ -557,7 +572,7 @@ inline comment, the `_check_fire()` docstring's C++ bounds table, and
 docs, since all three could in principle have inherited the same original
 mistake. Fixed to `40.0`. No test used a value in the 10–40 kW/m² range
 that this affects. Regression coverage:
-`tests/test_pr1_review_regressions.py::test_fistart_min_matches_cpp_reference`.
+`tests/regression/test_pr1_review_regressions.py::test_fistart_min_matches_cpp_reference`.
 
 ### 23. `_check_fire()` is dead code — three different, inconsistent bounds-handling paths exist
 
@@ -655,7 +670,7 @@ Left open pending explicit decision, and coupled to #23 since
 | Moisture adjustments (0.02, 2.5 rotten) |  Done | See `run_fofem_emissions()`  Gotcha #1 resolved |
 | Zero-load guard (`1e-7` kg/m^2 in DW1) |  Done | See `run_fofem_emissions()`  Gotcha #2 resolved |
 | Batch processing driver/example |  Done (example) | `examples/emissions_batch.py` performs array/batch runs and writes CSV outputs |
-| C++ soil-heating parity checks |  Done | `tests/test_soil_heating_cpp_parity.py` + `tests/compare_cpp_python_soil_heating.py` |
+| C++ soil-heating parity checks |  Done | `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` + `tests/compare_cpp_python_soil_heating.py` |
 | Cover-type auto-lookup (SAF/NVCS/FCC) |  Not started | C++: `CVT_*.cpp` / `fof_fccs.csv` |
 | Weight distribution (1000-hr  size classes) |  Not started | C++: `cr_WD` in `d_CI` |
 | Duration units reconciliation (sec vs min) |  Done | `_burnup_durations()` and `run_fofem_emissions()` now return seconds  Gotcha #15 resolved |

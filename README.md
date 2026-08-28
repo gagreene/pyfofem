@@ -12,20 +12,20 @@ pyfofem/
 |   |-- __init__.py                     # Public API re-exports
 |   |-- pyfofem.py                      # Core orchestrators
 |   `-- components/                     # Specialized computation modules
-|-- tests/                              # Unit, golden, and parity tests
-|   |-- run_unified_tests.py
-|   |-- prepare_cpp_reference.py
-|   |-- test_equations_golden.py
-|   |-- test_burnup_golden.py
-|   |-- test_compare_cpp_python.py
-|   |-- test_cpp_comparison.py
-|   |-- test_emission_equation_ids.py
-|   |-- test_run_fofem_emissions_output_keys.py
-|   |-- test_soil_heating_cpp_parity.py
-|   |-- test_soil_heating_invalid_soil_family.py
-|   |-- compare_cpp_python_soil_heating.py
+|-- tests/                              # Unit, golden, and parity tests (pytest package)
+|   |-- __init__.py                     # Makes tests/ a package for qualified imports
+|   |-- _support.py                     # Shared path constants (no src/ sys.path insert)
+|   |-- conftest.py                     # Fixtures, markers, installed-only session check
+|   |-- run_unified_tests.py            # `--suite core|full`, `--installed-only` runner
+|   |-- prepare_cpp_reference.py        # Regenerates C++ reference fixtures
+|   |-- compare_cpp_python_soil_heating.py  # Scripted Lay* parity comparison driver
+|   |-- unit/                           # Golden-CSV + non-C++-live unit tests
+|   |-- integration/                    # Full-pipeline (`run_fofem_emissions`) tests
+|   |-- regression/                     # Named historical-bug regression tests
+|   |-- cpp_parity_live/                # Tests requiring the compiled C++ reference
 |   `-- test_data/                      # Input CSVs and expected outputs
 |-- examples/                           # Batch/array usage driver + example data
+|-- development/burnup_array/           # Experimental prototype, outside the test gate
 |-- reference/fofem_cpp/                # C++ FOFEM reference source
 |-- docs/reference/                     # Literature and reference docs
 |-- docs/CODEBASE.md                    # Architecture and model mapping
@@ -164,10 +164,13 @@ means codes `2`, `4`, and `6` occurred.
 
 ## Testing
 
-Run the full test suite:
+Run the full supported suite. `pyproject.toml` sets `testpaths = ["tests"]`,
+so plain `pytest` (or `python -m pytest`) collects only the supported
+package suite under `tests/` and does not touch the experimental prototype
+below:
 
 ```bash
-pytest tests/
+python -m pytest
 ```
 
 Run the unified publish-oriented suite (recommended for CI/package checks):
@@ -179,6 +182,29 @@ python tests/run_unified_tests.py --suite core
 # Extended suite with parity/comparison tests
 python tests/run_unified_tests.py --suite full
 ```
+
+### Experimental prototype: `development/burnup_array`
+
+`development/burnup_array` is a non-production, array-based burnup
+prototype. It is **outside the default/release test gate** — `testpaths`
+does not include it, `run_unified_tests.py` does not run it, and it is not
+part of `core` or `full`.
+
+Its explicit, separate diagnostic invocation:
+
+```bash
+python -m pytest development/burnup_array/tests -q
+```
+
+As of this writing that command **fails during collection**, not just an
+individual test: `test_consumption_calcs_array.py` imports
+`burnup_array_calcs` as a top-level module, but `burnup_array_calcs.py`
+itself uses a relative import (`from .burnup_array_kernel import ...`),
+raising `ImportError: attempted relative import with no known parent
+package`. This is a known, tracked failure — not a skip, and not silently
+part of the supported suite. The Phase 1 test-suite restructure does not
+fix the prototype; see
+`development/plans/2026-08-26-comprehensive-test-suite-plan.md`.
 
 For package-validation workflows where you want to ensure tests are running
 against the installed package (not local `src/`), use:
@@ -212,9 +238,9 @@ build and test commands.
 
 Key parity checks:
 
-- `tests/test_compare_cpp_python.py` compares Python outputs against C++ multi-case CSV harness results.
-- `tests/test_cpp_comparison.py` compares Python against `reference/fofem_cpp/load.txt` and `emis.txt`.
-- `tests/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` compare `Lay*` soil-heating outputs against C++ `reference/fofem_cpp/soil.tmp`.
+- `tests/cpp_parity_live/test_compare_cpp_python.py` compares Python outputs against C++ multi-case CSV harness results.
+- `tests/cpp_parity_live/test_cpp_comparison.py` compares Python against `reference/fofem_cpp/load.txt` and `emis.txt`.
+- `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` compare `Lay*` soil-heating outputs against C++ `reference/fofem_cpp/soil.tmp`.
 
 ## License
 

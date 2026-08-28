@@ -1,16 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import sys
-
 import numpy as np
-
-_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_TESTS_DIR)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, "src"))
+import pytest
 
 from pyfofem import run_fofem_emissions
+
+pytestmark = [pytest.mark.integration, pytest.mark.soil_solver]
 
 
 def _base_kwargs():

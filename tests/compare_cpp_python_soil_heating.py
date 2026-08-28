@@ -10,15 +10,11 @@ against values derived from `reference/fofem_cpp/soil.tmp`.
 """
 import os
 import re
-import sys
-
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from pyfofem import run_fofem_emissions
+from tests._support import CPP_REFERENCE_DIR
 
-
-SOIL_TMP = os.path.join(_REPO, "reference", "fofem_cpp", "soil.tmp")
+SOIL_TMP = os.path.join(CPP_REFERENCE_DIR, "soil.tmp")
 
 
 def _cpp_lay_values_from_soil_tmp(rows):

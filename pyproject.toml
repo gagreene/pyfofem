@@ -53,3 +53,16 @@ pyfofem = [
     "supporting_data/*.csv",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+markers = [
+    "slow: marks tests as slow-running (deselect with -m \"not slow\")",
+    "cpp_reference: marks tests that require the pinned C++ reference build/output",
+    "soil_solver: marks tests exercising the soil-heating ODE/PDE solvers",
+    "multiprocessing: marks tests exercising ProcessPoolExecutor / multiprocessing paths",
+    "installed_artifact: marks tests that validate installed-wheel/artifact behavior",
+    "integration: marks tests under tests/integration/ (full-pipeline coverage)",
+    "regression: marks tests under tests/regression/ (named historical-bug guards)",
+]
+

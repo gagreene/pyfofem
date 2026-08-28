@@ -10,17 +10,9 @@ This script replicates the exact same inputs in Python and compares results.
 """
 import os
 import re
-import sys
+
 import numpy as np
 import pytest
-
-# ---------------------------------------------------------------------------
-# Ensure pyfofem is importable
-# ---------------------------------------------------------------------------
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_SRC = os.path.join(_REPO, 'src')
-if _SRC not in sys.path:
-    sys.path.insert(0, _SRC)
 
 from pyfofem import run_fofem_emissions, run_burnup
 from pyfofem.components.burnup_calcs import (
@@ -33,11 +25,14 @@ from pyfofem.components.burnup_calcs import (
     _TCHAR,
     _HTVAL,
 )
+from tests._support import CPP_REFERENCE_DIR
+
+pytestmark = pytest.mark.cpp_reference
 
 # ---------------------------------------------------------------------------
 # Paths to C++ reference outputs
 # ---------------------------------------------------------------------------
-_CPP_DIR = os.path.join(_REPO, 'reference', 'fofem_cpp')
+_CPP_DIR = CPP_REFERENCE_DIR
 _LOAD_TXT = os.path.join(_CPP_DIR, 'load.txt')
 _EMIS_TXT = os.path.join(_CPP_DIR, 'emis.txt')
 

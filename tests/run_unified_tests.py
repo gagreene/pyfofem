@@ -27,20 +27,36 @@ from pathlib import Path
 from typing import List
 
 
+# Preserves the exact pre-restructure CORE/FULL membership, remapped onto
+# the Phase 1 destination paths (see the Directory Restructure section of
+# development/plans/2026-08-26-comprehensive-test-suite-plan.md). Membership
+# is NOT re-derived by directory: the 3 golden-CSV-driven files that used to
+# sit in FULL_EXTRA_TESTS's neighborhood remain CORE because they compare
+# against pre-committed golden CSVs and need no live C++ build, exactly as
+# before the move.
 CORE_TESTS: List[str] = [
-    "tests/test_equations_golden.py",
-    "tests/test_burnup_golden.py",
-    "tests/test_emission_equation_ids.py",
-    "tests/test_pr1_review_regressions.py",
-    "tests/test_run_fofem_emissions_output_keys.py",
-    "tests/test_soil_heating_invalid_soil_family.py",
+    "tests/unit/test_consumption_golden.py",   # was tests/test_equations_golden.py (split half 1)
+    "tests/regression/test_equations_golden_fixes.py",  # was tests/test_equations_golden.py (split half 2)
+    "tests/unit/test_burnup_golden.py",        # was tests/test_burnup_golden.py
+    "tests/unit/test_equation_routing.py",     # was tests/test_emission_equation_ids.py
+    "tests/regression/test_pr1_review_regressions.py",  # was tests/test_pr1_review_regressions.py
+    "tests/integration/test_run_fofem_emissions.py",    # was tests/test_run_fofem_emissions_output_keys.py
+    "tests/integration/test_soil_heating_pipeline.py",  # was tests/test_soil_heating_invalid_soil_family.py
+    # New Phase 1 runner/import-contract coverage (itemized, not pre-existing):
+    "tests/unit/test_run_unified_tests_contract.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
-    "tests/test_compare_cpp_python.py",
-    "tests/test_cpp_comparison.py",
-    "tests/test_soil_heating_cpp_parity.py",
+    "tests/cpp_parity_live/test_compare_cpp_python.py",     # was tests/test_compare_cpp_python.py
+    "tests/cpp_parity_live/test_cpp_comparison.py",          # was tests/test_cpp_comparison.py
+    "tests/cpp_parity_live/test_soil_heating_cpp_parity.py",  # was tests/test_soil_heating_cpp_parity.py
 ]
+
+#: Environment variable set on the pytest subprocess when ``--installed-only``
+#: is requested, so ``tests/conftest.py``'s ``pytest_sessionstart`` hook can
+#: verify the import origin *inside* the process that collects/runs tests.
+#: Must stay in sync with ``tests/conftest.py``.
+_INSTALLED_ONLY_ENV_VAR = "PYFOFEM_INSTALLED_ONLY"
 
 
 def _check_import(installed_only: bool) -> None:
@@ -73,12 +89,19 @@ def _discover_active_test_modules() -> List[str]:
     """
     Return active pytest modules under tests/ that should be accounted for.
 
-    :return: Sorted list of ``tests/test_*.py`` relative paths, excluding
+    Uses a recursive glob so modules under ``tests/unit/``,
+    ``tests/integration/``, ``tests/regression/``, and
+    ``tests/cpp_parity_live/`` are not silently dropped from suite-coverage
+    validation (the pre-Phase-1 non-recursive glob only ever saw the flat
+    ``tests/*.py`` layout and would return an empty list once tests moved
+    into subdirectories).
+
+    :return: Sorted list of ``tests/**/test_*.py`` relative paths, excluding
         this runner script itself.
     """
     tests_dir = Path(_repo_root()) / "tests"
     paths = []
-    for path in sorted(tests_dir.glob("test_*.py")):
+    for path in sorted(tests_dir.rglob("test_*.py")):
         rel = path.relative_to(_repo_root()).as_posix()
         if rel == "tests/run_unified_tests.py":
             continue
@@ -110,13 +133,24 @@ def _resolve_tests(suite: str) -> List[str]:
     return tests
 
 
-def _run_pytest(test_paths: List[str], verbosity: int) -> int:
+def _run_pytest(test_paths: List[str], verbosity: int, installed_only: bool) -> int:
     """
     Invoke pytest as a subprocess against the given test paths.
+
+    When *installed_only* is set, propagates :data:`_INSTALLED_ONLY_ENV_VAR`
+    into the pytest subprocess's environment so ``tests/conftest.py``'s
+    ``pytest_sessionstart`` hook can verify, from *inside* the process that
+    actually collects and runs the tests, that ``pyfofem`` does not resolve
+    beneath the checkout's ``src/`` tree. This is the child-process half of
+    the parent/child installed-only contract; :func:`_check_import`'s
+    parent-process check alone cannot see what a freshly spawned subprocess
+    will import.
 
     :param test_paths: Test file paths to run, relative to the repo root.
     :param verbosity: Pytest verbosity level (``<=0`` for ``-q``, ``>=2``
         for ``-vv``, otherwise pytest's default verbosity).
+    :param installed_only: If ``True``, set :data:`_INSTALLED_ONLY_ENV_VAR`
+        on the subprocess environment.
     :return: The pytest subprocess return code.
     """
     cmd = [sys.executable, "-m", "pytest", "-ra"]
@@ -126,8 +160,14 @@ def _run_pytest(test_paths: List[str], verbosity: int) -> int:
         cmd.append("-vv")
     cmd.extend(test_paths)
 
+    env = dict(os.environ)
+    if installed_only:
+        env[_INSTALLED_ONLY_ENV_VAR] = "1"
+    else:
+        env.pop(_INSTALLED_ONLY_ENV_VAR, None)
+
     print(f"[unified-tests] running: {' '.join(cmd)}")
-    proc = subprocess.run(cmd, cwd=_repo_root())
+    proc = subprocess.run(cmd, cwd=_repo_root(), env=env)
     return int(proc.returncode)
 
 
@@ -205,7 +245,11 @@ def main() -> int:
             print(f"  - {path}")
         return 2
 
-    return _run_pytest(test_paths=tests, verbosity=int(args.verbose))
+    return _run_pytest(
+        test_paths=tests,
+        verbosity=int(args.verbose),
+        installed_only=bool(args.installed_only),
+    )
 
 
 if __name__ == "__main__":

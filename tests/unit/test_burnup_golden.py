@@ -28,29 +28,19 @@ Tolerances
 """
 
 import os
-import sys
 
 import pandas as pd
 import pytest
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
-_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_TESTS_DIR)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, 'src'))
-
-from pyfofem import run_burnup  # noqa: E402
+from pyfofem import run_burnup
+from tests._support import TEST_GOLDEN_DIR, TEST_INPUTS_DIR
 
 # ---------------------------------------------------------------------------
 # File paths
 # ---------------------------------------------------------------------------
-_INPUTS_DIR = os.path.join(_TESTS_DIR, 'test_data', 'test_inputs')
-_GOLDEN_DIR = os.path.join(_TESTS_DIR, 'test_data', 'test_golden_output')
-
-_INPUT_CSV         = os.path.join(_INPUTS_DIR, 'burnup_input.csv')
-_LOAD_GOLDEN_CSV   = os.path.join(_GOLDEN_DIR, 'burnup_load_golden.csv')
-_TS_GOLDEN_CSV     = os.path.join(_GOLDEN_DIR, 'burnup_timeseries_golden.csv')
+_INPUT_CSV         = os.path.join(TEST_INPUTS_DIR, 'burnup_input.csv')
+_LOAD_GOLDEN_CSV   = os.path.join(TEST_GOLDEN_DIR, 'burnup_load_golden.csv')
+_TS_GOLDEN_CSV     = os.path.join(TEST_GOLDEN_DIR, 'burnup_timeseries_golden.csv')
 
 # ---------------------------------------------------------------------------
 # Tolerance constants
@@ -363,4 +353,3 @@ def test_burnup_runs_without_error():
     assert len(results) > 0
     assert len(summary) == len(fl)
     assert len(class_order) == len(fl)
-

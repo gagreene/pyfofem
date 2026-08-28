@@ -16,17 +16,13 @@ Regression tests for two bugs found and fixed during pyfofem PR #1 review
    used to index a 1D output array.
 """
 
-import os
-import sys
-
 import numpy as np
+import pytest
 
-_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_TESTS_DIR)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, 'src'))
+from pyfofem import consm_canopy, mort_crcabe
+from pyfofem.components.burnup import _FIRE_BOUNDS
 
-from pyfofem import consm_canopy, mort_crcabe  # noqa: E402
-from pyfofem.components.burnup import _FIRE_BOUNDS  # noqa: E402
+pytestmark = pytest.mark.regression
 
 
 def test_consm_canopy_accepts_2d_input():

@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import sys
+import pytest
 
+from pyfofem import EXPANDED_CONSUMPTION_VARS, run_fofem_emissions
 
-_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_TESTS_DIR)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, "src"))
-
-from pyfofem import run_fofem_emissions, EXPANDED_CONSUMPTION_VARS
+pytestmark = pytest.mark.integration
 
 
 def _base_kwargs():
@@ -66,6 +62,7 @@ def test_default_mode_excludes_expanded_and_soil_outputs():
         assert key not in out
 
 
+@pytest.mark.soil_solver
 def test_expanded_mode_with_soil_heating_includes_conditional_outputs():
     """
     Verify expanded em_mode with soil_heating on includes expanded/soil output keys.

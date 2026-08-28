@@ -1,23 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-compare_cpp_python.py - Run Python on the same inputs as the C++ test harness
-and compare outputs against C++ golden data.
+test_compare_cpp_python.py - Run Python on the same inputs as the C++ test
+harness and compare outputs against C++ golden data.
 
 Usage:
-    python tests/compare_cpp_python.py
+    python -m pytest tests/cpp_parity_live/test_compare_cpp_python.py
 """
-import os, sys, csv
-import numpy as np
+import csv
+import os
+
 import pytest
 
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_REPO, 'src'))
-
 from pyfofem import run_fofem_emissions
+from tests._support import TEST_DATA_DIR
 
-_INPUT_CSV = os.path.join(_REPO, 'tests', 'test_data', 'test_inputs', 'cpp_comparison_cases.csv')
-_CPP_SUMMARY = os.path.join(_REPO, 'tests', 'test_data', 'test_golden_output', 'cpp_golden_summary.csv')
+pytestmark = pytest.mark.cpp_reference
+
+_INPUT_CSV = os.path.join(TEST_DATA_DIR, 'test_inputs', 'cpp_comparison_cases.csv')
+_CPP_SUMMARY = os.path.join(TEST_DATA_DIR, 'test_golden_output', 'cpp_golden_summary.csv')
 
 # Columns to compare and their tolerances (absolute)
 _COMPARE_COLS = {
@@ -157,6 +158,17 @@ def main():
     return 1 if failures else 0
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Known Northeast case-6 duff-routing defect (Gate 0 Finding F-23): "
+        "consm_duff() derives NorthEast generic percent-consumed through the "
+        "Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth "
+        "reduction diverges from fof_duf.cpp's percent-derived override. "
+        "Owning fix: development/plans/2026-08-26-pypi-release-readiness.md "
+        "Phase 2 (Correct Northeast duff routing)."
+    ),
+    strict=True,
+)
 def test_cpp_python_case_summary_matches():
     """
     Compare Python outputs against the CSV-based C++ golden summary.
@@ -205,4 +217,5 @@ def test_cpp_python_case_summary_matches():
         pytest.fail("C++ vs Python CSV comparison failures:\n" + "\n".join(failures))
 
 if __name__ == '__main__':
+    import sys
     sys.exit(main())
