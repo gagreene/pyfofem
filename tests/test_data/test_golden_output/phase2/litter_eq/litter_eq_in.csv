@@ -1,0 +1,3 @@
+#fofem-harness,litter_eq,1
+case_id,expect_error,equ,load_tac,dw10_moist_pct
+c1,0,997,2.0,15

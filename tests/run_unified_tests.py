@@ -44,12 +44,28 @@ CORE_TESTS: List[str] = [
     "tests/integration/test_soil_heating_pipeline.py",  # was tests/test_soil_heating_invalid_soil_family.py
     # New Phase 1 runner/import-contract coverage (itemized, not pre-existing):
     "tests/unit/test_run_unified_tests_contract.py",
+    # Phase 2: manifest builder/validator logic only (file hashing + git
+    # rev-parse) — no live C++ build required, so this stays in CORE.
+    "tests/unit/test_golden_manifest_validator.py",
+    # Phase 2 correction pass: bounded subprocess helper (real process-tree
+    # kill on timeout) — pure psutil/subprocess, no live C++ build.
+    "tests/unit/test_proc.py",
+    # Phase 2 correction pass: tolerance_policy.json schema/completeness —
+    # pure JSON/static inspection, no live C++ build.
+    "tests/unit/test_tolerance_policy_completeness.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
     "tests/cpp_parity_live/test_compare_cpp_python.py",     # was tests/test_compare_cpp_python.py
     "tests/cpp_parity_live/test_cpp_comparison.py",          # was tests/test_cpp_comparison.py
     "tests/cpp_parity_live/test_soil_heating_cpp_parity.py",  # was tests/test_soil_heating_cpp_parity.py
+    # Phase 2: builds and drives the live fofem_test C++ harness binary
+    # directly (MSVC/CMake/Ninja required) — not a golden-CSV comparison.
+    "tests/cpp_parity_live/test_cpp_harness_contract.py",
+    # Phase 2: driver tests for the golden generator/promoter (wrong SHA,
+    # qualification failure, harness failure, staleness, corruption,
+    # manifest mismatch, determinism) — also needs the live build.
+    "tests/cpp_parity_live/test_generate_phase2_goldens.py",
 ]
 
 #: Environment variable set on the pytest subprocess when ``--installed-only``

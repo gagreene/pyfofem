@@ -1,0 +1,3 @@
+#fofem-harness,shrub_herb_eq,1
+case_id,expect_error,region,cover_group,season,fuel_cat,shrub_tac,herb_tac,litter_tac,duff_tac,duff_moist_pct,crown_fol_tac,crown_bra_tac,pct_crown_burn,force_shrub_equ
+c1,0,InteriorWest,GrassGroup,Summer,Natural,1.0,0.5,2.0,10.0,50,0.5,0.5,50,-1

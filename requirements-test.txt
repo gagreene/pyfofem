@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest>=7.0
+psutil>=5.9  # Phase 2: real process-tree termination for bounded subprocess calls (tests/cpp_parity_live/_proc.py)
 

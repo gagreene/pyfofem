@@ -14,24 +14,20 @@ import pytest
 
 from pyfofem import run_fofem_emissions
 from tests._support import TEST_DATA_DIR
+from tests.cpp_parity_live._golden_manifest import load_tolerance_policy
 
 pytestmark = pytest.mark.cpp_reference
 
 _INPUT_CSV = os.path.join(TEST_DATA_DIR, 'test_inputs', 'cpp_comparison_cases.csv')
 _CPP_SUMMARY = os.path.join(TEST_DATA_DIR, 'test_golden_output', 'cpp_golden_summary.csv')
 
-# Columns to compare and their tolerances (absolute)
+# Columns to compare and their absolute tolerances. tolerance_policy.json is
+# now the SINGLE source for these numbers (Phase 2 correction item 6) — this
+# used to be a hardcoded literal duplicating tolerance_policy.json's
+# "consume" section; every value below is identical to what the literal
+# held, so this reconciliation makes no tolerance change of any kind.
 _COMPARE_COLS = {
-    # Consumed amounts (T/ac)
-    'LitCon':     0.01,   'DW1Con':     0.01,
-    'DW10Con':    0.05,   'DW100Con':   0.05,
-    'SndDW1kCon': 0.02,   'RotDW1kCon': 0.02,
-    'DufCon':     0.05,
-    'HerCon':     0.01,   'ShrCon':     0.01,
-    'FolCon':     0.01,   'BraCon':     0.01,
-    'TotCon':     0.10,
-    # Durations (seconds)
-    'FlaDur':     30.0,   'SmoDur':     60.0,
+    key: entry["atol"] for key, entry in load_tolerance_policy()["consume"].items()
 }
 
 # Map CSV input column names to run_fofem_emissions kwargs
@@ -158,22 +154,19 @@ def main():
     return 1 if failures else 0
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Known Northeast case-6 duff-routing defect (Gate 0 Finding F-23): "
-        "consm_duff() derives NorthEast generic percent-consumed through the "
-        "Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth "
-        "reduction diverges from fof_duf.cpp's percent-derived override. "
-        "Owning fix: development/plans/2026-08-26-pypi-release-readiness.md "
-        "Phase 2 (Correct Northeast duff routing)."
-    ),
-    strict=True,
-)
-def test_cpp_python_case_summary_matches():
+def _compute_failing_case_fields():
     """
-    Compare Python outputs against the CSV-based C++ golden summary.
+    Run every case in ``cpp_comparison_cases.csv`` through the Python
+    pipeline and compare against the C++ golden summary, returning the
+    exact set of ``(case, field)`` pairs whose |diff| exceeds
+    ``_COMPARE_COLS``'s tolerance.
 
-    :return: None. Raises via ``pytest.fail`` on any mismatch.
+    Shared by both :func:`test_cpp_python_case_summary_matches` (the
+    scientific xfail) and :func:`test_case6_is_the_only_expected_divergent_case`
+    (the F-23 blast-radius regression guard) so the two tests can never
+    silently drift apart on what "the current failure set" actually is.
+
+    :return: List of ``(case, field, py_val, cpp_val, diff, tol)`` tuples.
     """
     with open(_INPUT_CSV) as f:
         inputs = list(csv.DictReader(f))
@@ -197,9 +190,7 @@ def test_cpp_python_case_summary_matches():
             cpp_val = float(cpp[cpp_key])
             diff = abs(py_val - cpp_val)
             if diff > tol:
-                failures.append(
-                    f'case {case} {cpp_key}: py={py_val:.4f} cpp={cpp_val:.4f} diff={diff:.4f} tol={tol:.4f}'
-                )
+                failures.append((case, cpp_key, py_val, cpp_val, diff, tol))
 
         py_tot = sum(float(py.get(k, 0.0)) for k in [
             'LitCon', 'DW1Con', 'DW10Con', 'DW100Con', 'DW1kSndCon', 'DW1kRotCon',
@@ -209,12 +200,76 @@ def test_cpp_python_case_summary_matches():
         diff = abs(py_tot - cpp_tot)
         tol = _COMPARE_COLS['TotCon']
         if diff > tol:
-            failures.append(
-                f'case {case} TotCon: py={py_tot:.4f} cpp={cpp_tot:.4f} diff={diff:.4f} tol={tol:.4f}'
-            )
+            failures.append((case, 'TotCon', py_tot, cpp_tot, diff, tol))
 
+    return failures
+
+
+#: The EXACT, currently-known blast radius of Gate 0 Finding F-23
+#: (Northeast case-6 duff-routing defect): all four fields are downstream
+#: consequences of the SAME wrong duff percent propagating through Burnup
+#: (gate0/04-findings.md, F-23 "Consequences" paragraph) — not four
+#: independent defects. If this set ever changes (a new case starts
+#: failing, a field stops failing, or an additional field starts failing),
+#: that is new scientific information requiring its own investigation
+#: before this constant is touched — see
+#: test_case6_is_the_only_expected_divergent_case.
+F23_EXPECTED_FAILING_CASE_FIELDS = frozenset({
+    (6, 'RotDW1kCon'),
+    (6, 'DufCon'),
+    (6, 'SmoDur'),
+    (6, 'TotCon'),
+})
+
+
+@pytest.mark.xfail(
+    reason=(
+        "Known Northeast case-6 duff-routing defect (Gate 0 Finding F-23): "
+        "consm_duff() derives NorthEast generic percent-consumed through the "
+        "Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth "
+        "reduction diverges from fof_duf.cpp's percent-derived override. "
+        "Owning fix: development/plans/2026-08-26-pypi-release-readiness.md "
+        "Phase 2 (Correct Northeast duff routing)."
+    ),
+    strict=True,
+)
+def test_cpp_python_case_summary_matches():
+    """
+    Compare Python outputs against the CSV-based C++ golden summary.
+
+    :return: None. Raises via ``pytest.fail`` on any mismatch.
+    """
+    failures = _compute_failing_case_fields()
     if failures:
-        pytest.fail("C++ vs Python CSV comparison failures:\n" + "\n".join(failures))
+        lines = [
+            f'case {case} {field}: py={py_val:.4f} cpp={cpp_val:.4f} diff={diff:.4f} tol={tol:.4f}'
+            for case, field, py_val, cpp_val, diff, tol in failures
+        ]
+        pytest.fail("C++ vs Python CSV comparison failures:\n" + "\n".join(lines))
+
+
+def test_case6_is_the_only_expected_divergent_case():
+    """
+    Regression/traceability guard for F-23's blast radius (Phase 2 round 4
+    correction item 2): the currently expected failing ``(case, field)``
+    set must be EXACTLY :data:`F23_EXPECTED_FAILING_CASE_FIELDS` — no
+    fewer (which would mean F-23 was fixed and the strict xfail above
+    should be removed) and no more (which would mean a NEW divergence
+    exists and must be investigated on its own evidence, not silently
+    folded into F-23 by assumption).
+
+    Deliberately NOT marked xfail: this test's OWN job is to fail loudly
+    the moment the failure set expands or changes shape.
+    """
+    actual = {(case, field) for case, field, *_ in _compute_failing_case_fields()}
+    assert actual == F23_EXPECTED_FAILING_CASE_FIELDS, (
+        f"failing (case, field) set changed: expected exactly "
+        f"{sorted(F23_EXPECTED_FAILING_CASE_FIELDS)}, got {sorted(actual)}. "
+        "A new/removed/expanded divergence needs its own root-cause "
+        "investigation before this expectation is updated — do not assume "
+        "it is F-23 without per-case/per-field C++/Python evidence."
+    )
+
 
 if __name__ == '__main__':
     import sys

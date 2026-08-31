@@ -1,0 +1,2 @@
+case_id,mode,schema_version,outcome,bark_thick_in,ret,err_text,input_sha256
+c1,bark_thick,1,ok,0.756000,1,,6cb2fe6a70e004a9476a8ecc311eb816b9b24ff634fd7e0b1dc2bde26de462c2

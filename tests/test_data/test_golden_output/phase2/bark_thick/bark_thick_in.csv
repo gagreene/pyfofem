@@ -1,0 +1,3 @@
+#fofem-harness,bark_thick,1
+case_id,expect_error,species,dbh_in
+c1,0,PSME,12

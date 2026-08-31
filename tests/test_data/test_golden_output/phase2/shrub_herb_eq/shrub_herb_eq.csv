@@ -1,0 +1,2 @@
+case_id,mode,schema_version,outcome,shrub_con_tac,shrub_post_tac,shrub_pct,shrub_equ,herb_con_tac,herb_post_tac,herb_pct,herb_equ,fol_con_tac,fol_post_tac,fol_pct,fol_equ,bra_con_tac,bra_post_tac,bra_pct,bra_equ,ret,err_text,input_sha256
+c1,shrub_herb_eq,1,ok,0.600000,0.400000,60.0000,23,0.500000,0.000000,100.0000,22,0.250000,0.250000,50.0000,37,0.125000,0.375000,25.0000,38,1,,14ec847b3ebe0e13269e1856a2ec26fb31406a094fe9c4a1e95f8ef4558924f6

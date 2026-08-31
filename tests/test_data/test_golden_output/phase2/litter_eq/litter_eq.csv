@@ -1,0 +1,2 @@
+case_id,mode,schema_version,outcome,con_tac,equ_num,ret,err_text,input_sha256
+c1,litter_eq,1,ok,1.913102,997,1,,ea96172466e196c6472c6702ec98b8322284433156062b13e589e4b1eb439196

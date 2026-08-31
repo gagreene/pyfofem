@@ -1,0 +1,52 @@
+{
+  "architecture": "AMD64",
+  "build_flags": "CMAKE_BUILD_TYPE=Debug CMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /W3 /GR /EHsc CMAKE_CXX_FLAGS_DEBUG=/MDd /Zi /Ob0 /Od /RTC1",
+  "build_type": "Debug",
+  "compiler_identity": "Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35728 for x64",
+  "documented_expected_divergences": [
+    "litter_eq.997: known_divergent_strict_xfail \u2014 PFW_Litter_Eq997 diverges from consm_litter on THREE independent axes: missing Mg/ha round-trip (F-07), missing pre-fire-load cap (F-08), and the wrong moisture variable passed \u2014 C++ uses 10-hour dead-wood moisture, not litter moisture (F-10). Combined sampled error +92%/-68%. No atol/rtol can honestly bound this until the Python side is fixed; any Python-vs-C++ comparison test for equ=997 MUST be a strict xfail citing these findings, not a loosened tolerance. (gate0/04-findings.md:F-07,F-08,F-10)"
+  ],
+  "generated_utc": "2026-08-31T16:28:45.507482+00:00",
+  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmp_q4bn5qa\\litter_eq\\litter_eq_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmp_q4bn5qa\\litter_eq\\litter_eq",
+  "generator_source_sha256": {
+    "tests/cpp_parity_live/_golden_manifest.py": "eccff7b7cef1b6ee135cda1b499a1ffb2c5ba2a91692d92bc4ee48b48eb0dba6",
+    "tests/cpp_parity_live/_harness_support.py": "d61e796c5b44ab7a34c43cfa3bdc8f2207e0e6ef112cb9e40680dfb595cedcfe",
+    "tests/cpp_parity_live/_output_contract.py": "ff4f98a3eae0d0b280a4eb331a3471e4f14b536e61ac0f7f028fd2bf0e45388c",
+    "tests/cpp_parity_live/_proc.py": "f8f9de5ecd3ae04464de545f94e26e54bda11f2b46bf0b8603ed667c425aea60",
+    "tests/cpp_parity_live/generate_phase2_goldens.py": "469498c96ae217627ba65f1e82bc242b8bb1055565943cbd72740fb30782b2ae",
+    "tests/cpp_parity_live/test_cpp_harness_contract.py": "d54dce9884a66b440b7245aa095608c8391d6062eb83ef9f15c4ba1d67942222",
+    "tests/cpp_parity_live/tolerance_policy.json": "a774c5f70d5d5aff29463adb46fb886cdf9a01a40c2461a238a370db967c5e73"
+  },
+  "generator_toolchain": "cmake=cmake version 4.2.3-msvc3; ninja=1.12.1",
+  "harness_mode": "litter_eq",
+  "input_csv_sha256": {
+    "litter_eq_in.csv": "08f636d0a10e32d9c6e43ab451719634a51ddba8cbd37737a8b56c2bf2aade3f"
+  },
+  "output_csv_sha256": {
+    "litter_eq.csv": "145ddef8fabb69e8031838260d6bf241cb73dcea24c0bbdaa443bbb0a0d5e71d"
+  },
+  "overlay_combined_digest": "78e005db7e60f28605c29312c3b26a3d0a22db15a3c675017acdaf22c15ddd73",
+  "overlay_file_digests": {
+    "README.md": "638c4c97e26d7de8f49bf823fe4f876c305c8547f0c74309ce01483a1338c8cd",
+    "patches/CMakeLists.remote_to_local.patch": "f303a803274f55617a1f4c789028feca50d6b764ba12a9af3a86c80a6080424f",
+    "source/CMakeLists.txt": "be7645b31d421b0f8508785b153d7357ddaa9bbc17c1c2ee6d6713ec49a35664",
+    "source/FOFEM_CPP_CODEBASE.md": "5bfe6f0c93b6720928a04fe47a301e2e34e47bc915b63c91cb5da2613aa311ed",
+    "source/FOF_UNIX/test_harness.cpp": "090e8fed77a07609b601b3f6a48de57fee692e8d55f7e07aecf2c255641dff46",
+    "source/compile_test.bat": "306e5b262d297f70ad4931b887f98050eafcbe8c3df5b7ee503235880f38b7e3"
+  },
+  "platform": "Windows-10-10.0.19044-SP0",
+  "pyfofem_commit": "3285a9076483724291bd0bdde20b87d51477f880",
+  "pyfofem_dirty": {
+    "dirty": true,
+    "porcelain": " M docs/CODEBASE.md\n M reference/fofem_cpp\n M reference/fofem_cpp_overlay/README.md\n M reference/fofem_cpp_overlay/patches/CMakeLists.remote_to_local.patch\n M reference/fofem_cpp_overlay/source/CMakeLists.txt\n M reference/fofem_cpp_overlay/source/FOF_UNIX/test_harness.cpp\n M requirements-test.txt\n M tests/cpp_parity_live/test_compare_cpp_python.py\n M tests/run_unified_tests.py\n?? AGENTS.md\n?? UsersggreeneAppDataLocalJetBrainsPyCharm2026.2aiaagentspyfofem-r3-runner-tempbase/\n?? compress-skill.md\n?? conda-recipe/\n?? \"docs/reference/papers/burnup/Albini 1994 - Program Burnup-Simulation Model of the Burning of Large Woody Natural Fuels.pdf\"\n?? \"docs/reference/papers/burnup/Albini and Reinhardt 1995 - Modeling Ignition and Burning Rate of Large Woody Natural Fuels.pdf\"\n?? \"docs/reference/papers/burnup/Albini and Reinhardt 1997 - Improved calibration of a large fuel burnout model.pdf\"\n?? \"docs/reference/papers/burnup/Albini et al. 1995 - Calibration of a large fuel burnout model.pdf\"\n?? \"docs/reference/papers/burnup/Lutes 2013 - Predicted down woody fuel consumption in the Burnup model- sensitivity to four user inputs.pdf\"\n?? \"docs/reference/papers/fofem/Andrews 2012 - Modeling wind adjustment factor and midflame wind speed for Rothermels surface fire spread model.pdf\"\n?? \"docs/reference/papers/fofem/Hood and Lutes 2017 - Predicting post-fire tree mortality for 12 western US conifers using FOFEM.pdf\"\n?? \"docs/reference/papers/fofem/Hood et al. 2007 - Evaluation of a post-fire tree mortality model for western USA conifers.pdf\"\n?? \"docs/reference/papers/fofem/Hood et al. 2018 - Fire and tree death- undertanding and improving modeling of fire-induced tree mortality.pdf\"\n?? \"docs/reference/papers/fofem/Keyser 2018 - Short-term mortality of 10 deciduous broadleaved species following prescribed burning in upland forest of the Southern US.pdf\"\n?? \"docs/reference/papers/fofem/Lutes 2020 - FOFEM 6-7 User Guide.pdf\"\n?? \"docs/reference/papers/fofem/Nelson 2002 - An effective wind speed for models of fire spread.pdf\"\n?? \"docs/reference/papers/fofem/Papers_to_Consider_for_FOFEM/Alexander 1982 - Calculating and interpreting forest fire intensities.pdf\"\n?? \"docs/reference/papers/fofem/Papers_to_Consider_for_FOFEM/Alexander and Cruz 2021 - Interdependencies between flame length and fireline intensity in predicting crown fire initiation and crown scorch height.pdf\"\n?? \"docs/reference/papers/fofem/Papers_to_Consider_for_FOFEM/Alexander et al. 2019 - Crown scorch height.pdf\"\n?? \"docs/reference/papers/fofem/Papers_to_Consider_for_FOFEM/Byram 1959 - Combustion of forest fuels.pdf\"\n?? \"docs/reference/papers/fofem/Papers_to_Consider_for_FOFEM/Van Wagner 1973 - Height of crown scorch in forest fires.pdf\"\n?? \"docs/reference/papers/fofem/Reardon et al. 2007 - Factors affecting sustained smouldering in organic soils from pocosin and pond pine woodland wetlands.pdf\"\n?? \"docs/reference/papers/fofem/Reinhardt and Crookston 2003 - The Fire and Fuels Extension to the Forest Vegetation Simulator.pdf\"\n?? \"docs/reference/papers/fofem/Reinhardt et al. 1997 - FOFEM 4 Users Guide.pdf\"\n?? \"docs/reference/papers/fofem/Ryan and Amman 1994 - Interactions between fire-injured trees and insects in the greater Yellowstone area.pdf\"\n?? \"docs/reference/papers/fofem/Ryan and Reinhardt 1988 - Predicting postfire mortality of seven western conifers.pdf\"\n?? \"docs/reference/papers/fofem/Wang et al. 2007 - Modify FOFEM for use in the Coastal Plain Region of the Southeastern US.pdf\"\n?? \"docs/reference/papers/fofem/Wright 2013 - Fuel consumption models for pine flatwoods fuel types in Southeastern US.pdf\"\n?? preserve-skill.md\n?? resume-skill.md\n?? tests/cpp_parity_live/_golden_manifest.py\n?? tests/cpp_parity_live/_harness_support.py\n?? tests/cpp_parity_live/_output_contract.py\n?? tests/cpp_parity_live/_proc.py\n?? tests/cpp_parity_live/generate_phase2_goldens.py\n?? tests/cpp_parity_live/test_cpp_harness_contract.py\n?? tests/cpp_parity_live/test_generate_phase2_goldens.py\n?? tests/cpp_parity_live/tolerance_policy.json\n?? tests/test_data/test_golden_output/phase2/\n?? tests/unit/test_golden_manifest_validator.py\n?? tests/unit/test_proc.py\n?? tests/unit/test_tolerance_policy_completeness.py\n",
+    "staged": false,
+    "unstaged": true,
+    "untracked": true
+  },
+  "schema_version": "1",
+  "side_file_sha256": {},
+  "tolerance_policy_reference": [
+    "litter_eq.997"
+  ],
+  "upstream_cpp_sha": "78f97f093ee7d1c77b3cd2622b2bd7248036c1e4"
+}

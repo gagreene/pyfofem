@@ -1,0 +1,958 @@
+{
+  "NOTE": "This file is the Phase 2 centralized tolerance-policy source for the six harness modes, and IS the single source for consume's numeric tolerances: test_compare_cpp_python.py's _COMPARE_COLS loads from here at import time. Round 4 correction pass (2026-08-29) expanded consume from 14 to 76 keys so every one of consume_summary.csv's 66 real scientific columns, plus the 10 component-only percent-consumed quantities consume_components.csv exposes that consume_summary.csv does not (see _output_contract.py), has an explicit classification -- most newly added are honestly unverified (no comparison exists), not invented tolerances. Round 4 ALSO corrected a round-3 mistake: RotDW1kCon and SmoDur were wrongly described as newly-discovered, apparently-unrelated divergences; Gate 0's own F-23 Consequences paragraph (gate0/04-findings.md) already named all four case-6 fields (DufCon, RotDW1kCon, SmoDur, TotCon) together as consequences of the SAME Northeast duff-routing defect -- corrected, no new finding ID created. Every non-consume mode's entries now also carry an explicit covers_columns (and column_group where the same output column is legitimately classified by more than one equation-route entry) so coverage is machine-checked, not asserted. See tests/unit/test_tolerance_policy_completeness.py for the schema/coverage tests and tests/cpp_parity_live/_output_contract.py for the metadata/scientific column contract and the component-field resolution rule.",
+  "bark_thick": {
+    "all": {
+      "atol": null,
+      "covers_columns": [
+        "bark_thick_in"
+      ],
+      "justification": "calc_bark_thickness() always raises KeyError('FOFEM_BrkThck_Vsp') \u2014 the bundled species_codes_lut.csv lacks that column entirely (F-19). No Python-vs-C++ numeric comparison is possible until this is fixed. The C++ oracle path itself (this Phase 2 golden) is unaffected and fully functional; SMT_CalcBarkThick's own unit conversion (inches vs Python's cm) is unit-consistent per the crosswalk once the Python side is restored.",
+      "rtol": null,
+      "status": "python_side_unreachable",
+      "traceability": "gate0/04-findings.md:F-19; gate0/03-cpp-crosswalk.md (Row 1 calc_bark_thickness)"
+    }
+  },
+  "canopy_cover": {
+    "all": {
+      "atol": null,
+      "covers_columns": [
+        "crown_area_ft2",
+        "total_area_ft2",
+        "pct_cover"
+      ],
+      "justification": "Three independent divergences identified in the Gate 0 crosswalk: (a) C++ zeroes a tree's contribution when f_Hgt<=0 OR f_Dia<=0; Python excludes only dbh<=0/NaN and still credits crown area to a zero/negative-height tree; (b) Python's species-to-equation mapping depends on a caller-supplied tree_code_dict \u2014 with the default None, every tree is assigned equation 39 ('Other'), which does not match C++'s per-species FVS index lookup; (c) Python assumes one tree per acre per record while C++ callers supply an explicit per-acre count. None of these are numeric-tolerance-bridgeable; each requires a Python-side fix or an explicit input-contract change before any atol/rtol is meaningful.",
+      "rtol": null,
+      "status": "known_divergent",
+      "traceability": "gate0/03-cpp-crosswalk.md (Row 2 calc_canopy_cover, 'Known differences')"
+    }
+  },
+  "consume": {
+    "BraCon": {
+      "atol": 0.01,
+      "covers_columns": [
+        "BraCon"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01.",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "BraPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "BraPos": {
+      "atol": null,
+      "covers_columns": [
+        "BraPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "BraPre": {
+      "atol": null,
+      "covers_columns": [
+        "BraPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "CH4F": {
+      "atol": null,
+      "covers_columns": [
+        "CH4F"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "CH4S": {
+      "atol": null,
+      "covers_columns": [
+        "CH4S"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "CH4S_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "CH4S_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "CO2F": {
+      "atol": null,
+      "covers_columns": [
+        "CO2F"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "CO2S": {
+      "atol": null,
+      "covers_columns": [
+        "CO2S"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "CO2S_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "CO2S_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "COF": {
+      "atol": null,
+      "covers_columns": [
+        "COF"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "COS": {
+      "atol": null,
+      "covers_columns": [
+        "COS"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "COS_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "COS_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "DW100Con": {
+      "atol": 0.05,
+      "covers_columns": [
+        "DW100Con"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.007246, within tol=0.05 (margin 0.0428).",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "DW100Per": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "DW100Pos": {
+      "atol": null,
+      "covers_columns": [
+        "DW100Pos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DW100Pre": {
+      "atol": null,
+      "covers_columns": [
+        "DW100Pre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DW10Con": {
+      "atol": 0.05,
+      "covers_columns": [
+        "DW10Con"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000103, within tol=0.05 (margin 0.0499).",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "DW10Per": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "DW10Pos": {
+      "atol": null,
+      "covers_columns": [
+        "DW10Pos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DW10Pre": {
+      "atol": null,
+      "covers_columns": [
+        "DW10Pre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DW1Con": {
+      "atol": 0.01,
+      "covers_columns": [
+        "DW1Con"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, well within tol=0.01.",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "DW1Per": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "DW1Pos": {
+      "atol": null,
+      "covers_columns": [
+        "DW1Pos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DW1Pre": {
+      "atol": null,
+      "covers_columns": [
+        "DW1Pre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DufCon": {
+      "atol": 0.05,
+      "covers_columns": [
+        "DufCon"
+      ],
+      "justification": "Northeast case-6 duff routing is a KNOWN divergence (F-23): consm_duff() derives NorthEast generic percent-consumed through the Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth reduction diverges from fof_duf.cpp's percent-derived override -- this tolerance does not bound that scenario. Gate 0's F-23 \"Consequences\" paragraph explicitly names DufCon, RotDW1kCon, SmoDur, and TotCon TOGETHER as the four fields affected in case 6 of the 8-case comparison dataset (gate0/04-findings.md). Measured (n=8, case 6 only): |diff|=0.1696, exceeding tol=0.05. No case outside case 6 diverges for this field -- see test_case6_is_the_only_expected_divergent_case.",
+      "rtol": 0.0,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-23 (Consequences paragraph names DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "DufDepCon": {
+      "atol": null,
+      "covers_columns": [
+        "DufDepCon"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "in"
+    },
+    "DufDepPos": {
+      "atol": null,
+      "covers_columns": [
+        "DufDepPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "in"
+    },
+    "DufDepPre": {
+      "atol": null,
+      "covers_columns": [
+        "DufDepPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "in"
+    },
+    "DufPer": {
+      "atol": null,
+      "covers_columns": [
+        "DufPer"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "DufPos": {
+      "atol": null,
+      "covers_columns": [
+        "DufPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "DufPre": {
+      "atol": null,
+      "covers_columns": [
+        "DufPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "FlaCon": {
+      "atol": null,
+      "covers_columns": [
+        "FlaCon"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "FlaDur": {
+      "atol": 30.0,
+      "covers_columns": [
+        "FlaDur"
+      ],
+      "justification": "Legacy tolerance retained unchanged. Measured (n=8): max |diff|=15.0, within tol=30.0 (margin 15.0).",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "s"
+    },
+    "FolCon": {
+      "atol": 0.01,
+      "covers_columns": [
+        "FolCon"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01.",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "FolPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "FolPos": {
+      "atol": null,
+      "covers_columns": [
+        "FolPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "FolPre": {
+      "atol": null,
+      "covers_columns": [
+        "FolPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "HerCon": {
+      "atol": 0.01,
+      "covers_columns": [
+        "HerCon"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01. NOTE consm_herb has a known routing-precedence defect (F-11) for the Pine Flatwoods cover group specifically, not exercised by this sample \u2014 do not apply this 'verified' status to a Pine Flatwoods scenario without re-verifying against F-11.",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-11; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "HerPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "HerPos": {
+      "atol": null,
+      "covers_columns": [
+        "HerPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "HerPre": {
+      "atol": null,
+      "covers_columns": [
+        "HerPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "LitCon": {
+      "atol": 0.01,
+      "covers_columns": [
+        "LitCon"
+      ],
+      "justification": "Legacy tolerance retained unchanged from the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict (this file now the sole source \u2014 see NOTE). Measured evidence (Phase 2 correction pass, n=8 cases from tests/test_data/test_inputs/cpp_comparison_cases.csv): max |diff|=0.000000, well within tol=0.01.",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "LitPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "LitPos": {
+      "atol": null,
+      "covers_columns": [
+        "LitPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "LitPre": {
+      "atol": null,
+      "covers_columns": [
+        "LitPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "MSE": {
+      "atol": null,
+      "covers_columns": [
+        "MSE"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "NOXF": {
+      "atol": null,
+      "covers_columns": [
+        "NOXF"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "NOXS": {
+      "atol": null,
+      "covers_columns": [
+        "NOXS"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "NOXS_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "NOXS_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "PM10F": {
+      "atol": null,
+      "covers_columns": [
+        "PM10F"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "PM10S": {
+      "atol": null,
+      "covers_columns": [
+        "PM10S"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "PM10S_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "PM10S_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "PM25F": {
+      "atol": null,
+      "covers_columns": [
+        "PM25F"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "PM25S": {
+      "atol": null,
+      "covers_columns": [
+        "PM25S"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "PM25S_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "PM25S_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "RotDW1kCon": {
+      "atol": 0.02,
+      "covers_columns": [
+        "RotDW1kCon"
+      ],
+      "justification": "Downstream consequence of the SAME Northeast case-6 duff-routing defect as DufCon (F-23) -- Gate 0's F-23 \"Consequences\" paragraph explicitly names RotDW1kCon (alongside DufCon/SmoDur/TotCon) as a field affected by the wrong duff percent propagating into Burnup's duff coupling for rotten-1000-hr fuels (gate0/04-findings.md). NOT an independent or newly-discovered divergence -- a prior round of this correction pass incorrectly described it that way without checking Gate 0's own F-23 write-up first; corrected here per direct evidence. Measured (n=8, case 6 only): |diff|=0.0250, exceeding tol=0.02. No case outside case 6 diverges for this field -- see test_case6_is_the_only_expected_divergent_case.",
+      "rtol": 0.0,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-23 (Consequences paragraph names DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "RotDW1kPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "RotDW1kPos": {
+      "atol": null,
+      "covers_columns": [
+        "RotDW1kPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "RotDW1kPre": {
+      "atol": null,
+      "covers_columns": [
+        "RotDW1kPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "SO2F": {
+      "atol": null,
+      "covers_columns": [
+        "SO2F"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "SO2S": {
+      "atol": null,
+      "covers_columns": [
+        "SO2S"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "SO2S_Duff": {
+      "atol": null,
+      "covers_columns": [
+        "SO2S_Duff"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "lb/ac"
+    },
+    "ShrCon": {
+      "atol": 0.01,
+      "covers_columns": [
+        "ShrCon"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01. NOTE consm_shrub has THREE known defects (F-13/F-14/F-15/F-16) for specific cover groups/equations not exercised by this sample \u2014 do not apply this 'verified' status to those scenarios.",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-13,F-14,F-15,F-16; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "ShrPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "ShrPos": {
+      "atol": null,
+      "covers_columns": [
+        "ShrPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "ShrPre": {
+      "atol": null,
+      "covers_columns": [
+        "ShrPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "SmoCon": {
+      "atol": null,
+      "covers_columns": [
+        "SmoCon"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "SmoDur": {
+      "atol": 60.0,
+      "covers_columns": [
+        "SmoDur"
+      ],
+      "justification": "Downstream consequence of the SAME Northeast case-6 duff-routing defect as DufCon (F-23) -- Gate 0's F-23 \"Consequences\" paragraph explicitly names SmoDur (alongside DufCon/RotDW1kCon/TotCon) as a field affected by the wrong duff percent propagating into Burnup's smouldering-duration coupling (gate0/04-findings.md). NOT an independent or newly-discovered divergence -- a prior round of this correction pass incorrectly described it that way without checking Gate 0's own F-23 write-up first; corrected here per direct evidence. Measured (n=8, case 6 only): |diff|=90.0, exceeding tol=60.0. No case outside case 6 diverges for this field -- see test_case6_is_the_only_expected_divergent_case.",
+      "rtol": 0.0,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-23 (Consequences paragraph names DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "s"
+    },
+    "SndDW1kCon": {
+      "atol": 0.02,
+      "covers_columns": [
+        "SndDW1kCon"
+      ],
+      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000627, within tol=0.02 (margin 0.0194).",
+      "rtol": 0.0,
+      "status": "verified",
+      "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "SndDW1kPer": {
+      "atol": null,
+      "covers_columns": [],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed. This key has no consume_summary.csv counterpart (only DufPer does) -- it exists solely to classify consume_components.csv's generic pct_con column for this component, via _output_contract.component_field_policy_key().",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "pct"
+    },
+    "SndDW1kPos": {
+      "atol": null,
+      "covers_columns": [
+        "SndDW1kPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "SndDW1kPre": {
+      "atol": null,
+      "covers_columns": [
+        "SndDW1kPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "TotCon": {
+      "atol": 0.1,
+      "covers_columns": [
+        "TotCon"
+      ],
+      "justification": "Sum of the above component tolerances. Downstream consequence of the SAME F-23 Northeast case-6 duff-routing defect -- DufCon feeds directly into TotCon's sum, and Gate 0's F-23 \"Consequences\" paragraph names TotCon directly as one of the four affected fields (gate0/04-findings.md), not an independently-diagnosed defect. Measured (n=8, case 6 only): |diff|=0.1946, exceeding tol=0.10. No case outside case 6 diverges for this field -- see test_case6_is_the_only_expected_divergent_case.",
+      "rtol": 0.0,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-23 (Consequences paragraph names DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "unit": "T/ac"
+    },
+    "TotPos": {
+      "atol": null,
+      "covers_columns": [
+        "TotPos"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    },
+    "TotPre": {
+      "atol": null,
+      "covers_columns": [
+        "TotPre"
+      ],
+      "justification": "No Python-vs-C++ numeric comparison exists for this output as of the Phase 2 round 4 correction pass (tolerance-policy/manifest coverage completeness item). tolerance_policy.json is the single source of truth for consume's numeric tolerances (test_compare_cpp_python.py's _COMPARE_COLS loads from here); that dict does not check this field. Do not assign a tolerance until a real comparison is performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (consume row); no 04-findings.md entry as of Phase 2; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches (_COMPARE_COLS omits this field)",
+      "unit": "T/ac"
+    }
+  },
+  "litter_eq": {
+    "997": {
+      "atol": null,
+      "column_group": "litter_eq_con_tac_by_equation_route",
+      "covers_columns": [
+        "con_tac"
+      ],
+      "justification": "PFW_Litter_Eq997 diverges from consm_litter on THREE independent axes: missing Mg/ha round-trip (F-07), missing pre-fire-load cap (F-08), and the wrong moisture variable passed \u2014 C++ uses 10-hour dead-wood moisture, not litter moisture (F-10). Combined sampled error +92%/-68%. No atol/rtol can honestly bound this until the Python side is fixed; any Python-vs-C++ comparison test for equ=997 MUST be a strict xfail citing these findings, not a loosened tolerance.",
+      "rtol": null,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-07,F-08,F-10"
+    },
+    "998": {
+      "atol": null,
+      "column_group": "litter_eq_con_tac_by_equation_route",
+      "covers_columns": [
+        "con_tac"
+      ],
+      "justification": "No Gate 0 finding directly evaluates LitterSouthEast (equ=998) against its Python counterpart; not yet established as either matching or divergent. Do not assign a tolerance until that comparison is actually performed.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (LitterSouthEast row); no 04-findings.md entry as of Phase 2"
+    }
+  },
+  "mortality": {
+    "BolCha": {
+      "atol": null,
+      "column_group": "mortality_prob_by_equation_route",
+      "covers_columns": [
+        "prob"
+      ],
+      "justification": "mort_bolchar prints to stdout instead of raising/warning on an invalid input, and returns NaN where C++ returns -1 (a real error sentinel) \u2014 these are different error-signaling conventions entirely, not a numeric tolerance question.",
+      "rtol": null,
+      "status": "known_divergent",
+      "traceability": "gate0/04-findings.md:F-21"
+    },
+    "CroDam": {
+      "atol": null,
+      "column_group": "mortality_prob_by_equation_route",
+      "covers_columns": [
+        "prob"
+      ],
+      "justification": "No Gate 0 finding directly evaluates the CroDam (PFI_Calc) path against its Python counterpart yet.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/03-cpp-crosswalk.md (PFI_Calc row); no 04-findings.md entry as of Phase 2"
+    },
+    "CroSco": {
+      "atol": null,
+      "column_group": "mortality_prob_by_equation_route",
+      "covers_columns": [
+        "prob"
+      ],
+      "justification": "mort_crnsch() (and run_fofem_mortality('crnsch', ...)) cannot be called without an explicit bark_thickness argument: the default derivation path calls calc_bark_thickness(), which always raises KeyError (F-19/F-20). No Python-vs-C++ numeric comparison is possible for this equation type until F-19 is fixed on the Python side. The C++ oracle path itself (this Phase 2 golden) is unaffected and fully functional.",
+      "rtol": null,
+      "status": "python_side_unreachable",
+      "traceability": "gate0/04-findings.md:F-19,F-20"
+    }
+  },
+  "shrub_herb_eq": {
+    "crown_branch": {
+      "atol": 0.01,
+      "covers_columns": [
+        "bra_con_tac",
+        "bra_post_tac",
+        "bra_pct"
+      ],
+      "justification": "same verification as crown_foliage",
+      "rtol": 0.0,
+      "status": "verified_equivalent",
+      "traceability": "gate0/03-cpp-crosswalk.md (Row: consm_canopy / calc_crown_branch)",
+      "unit": "T/ac"
+    },
+    "crown_foliage": {
+      "atol": 0.01,
+      "covers_columns": [
+        "fol_con_tac",
+        "fol_post_tac",
+        "fol_pct"
+      ],
+      "justification": "Gate 0 crosswalk: Calc_CrownFoliage verified equivalent to consm_canopy's foliage path; only differences are C++'s zero-load short-circuit and a no-op unit round-trip in Python.",
+      "rtol": 0.0,
+      "status": "verified_equivalent",
+      "traceability": "gate0/03-cpp-crosswalk.md (Row: consm_canopy / calc_crown_foliage)",
+      "unit": "T/ac"
+    },
+    "herb": {
+      "atol": null,
+      "covers_columns": [
+        "herb_con_tac",
+        "herb_post_tac",
+        "herb_pct"
+      ],
+      "justification": "Calc_Herb routing precedence is inverted for the Pine Flatwoods cover group specifically (F-11): C++ tests Pine Flatwoods first, then region SouthEast; Python's np.select lists them in the opposite order. Scenarios NOT using Pine Flatwoods are not established as divergent by this finding alone.",
+      "rtol": null,
+      "status": "known_divergent_for_pine_flatwoods",
+      "traceability": "gate0/04-findings.md:F-11"
+    },
+    "shrub": {
+      "atol": null,
+      "covers_columns": [
+        "shrub_con_tac",
+        "shrub_post_tac",
+        "shrub_pct"
+      ],
+      "justification": "consm_shrub has three independent defects: routing precedence inverted for three cover groups (F-13/F-14), Eq 236 off by 1-2 orders of magnitude from a missing exp() plus a unit round-trip bug (F-15), and silent NaN instead of an error for out-of-domain inputs (F-16). No atol/rtol can honestly bound this until the Python side is fixed.",
+      "rtol": null,
+      "status": "known_divergent",
+      "traceability": "gate0/04-findings.md:F-13,F-14,F-15,F-16"
+    }
+  }
+}

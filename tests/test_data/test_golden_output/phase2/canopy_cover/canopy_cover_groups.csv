@@ -1,0 +1,2 @@
+stand_id,mode,schema_version,n_members,n_ok,n_expected_model_error,n_unexpected_failure,aggregate_emitted,suppression_reason,group_sha256
+s1,canopy_cover,1,1,1,0,0,1,none,b6b26dccdc3a969c9f66edd63415f1a28cdaeca219852ade4f028f4aab83b492

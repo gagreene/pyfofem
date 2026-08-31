@@ -1,0 +1,3 @@
+#fofem-harness,canopy_cover,1
+case_id,expect_error,stand_id,species,dbh_in,ht_ft
+c1,0,s1,PSME,12,60

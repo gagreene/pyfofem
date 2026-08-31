@@ -82,13 +82,91 @@ pyfofem/
 ### Current parity/testing additions
 
 - `tests/cpp_parity_live/test_cpp_comparison.py` provides direct Python-vs-C++ parity assertions against `reference/fofem_cpp/load.txt` and `emis.txt`.
-- `tests/cpp_parity_live/test_compare_cpp_python.py` runs scripted multi-case comparisons against the C++ CSV harness.
+- `tests/cpp_parity_live/test_compare_cpp_python.py` runs scripted multi-case comparisons against the (pre-Phase-2) C++ CSV harness output.
 - `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
 - `tests/run_unified_tests.py --suite core|full` is the current publish-oriented test runner (see `README.md`).
 - `examples/emissions_batch.py` (not under `tests/`) is the current emissions batch/example driver.
-- `reference/fofem_cpp/FOF_UNIX/test_harness.cpp` is the parameterized C++ CSV harness (`fofem_test`).
+- `reference/fofem_cpp_overlay/source/FOF_UNIX/test_harness.cpp` (applied onto `reference/fofem_cpp/FOF_UNIX/test_harness.cpp`, never committed inside the submodule) is the **Phase 2** C++ oracle harness (`fofem_test`), superseding the old single-mode ("consume" only) harness this section previously described. It implements six modes — `consume`, `litter_eq`, `shrub_herb_eq`, `mortality`, `bark_thick`, `canopy_cover` — per `development/plans/gate0/05-harness-contract.md`; `soil_campbell` is Phase 5's. `mortality`/`bark_thick`/`canopy_cover` require an explicit `--species-csv <path>` (real production loader `MRT_LoadSpe()`, not `MRT_InitST()` — see that file's own header comment and the Gate 0 correction recorded in `03-cpp-crosswalk.md`/`05-harness-contract.md`).
+- `tests/cpp_parity_live/_harness_support.py` locates the MSVC/CMake/Ninja toolchain (via `vswhere.exe`), builds `fofem_test.exe`, and drives it from Python.
+- `tests/cpp_parity_live/_golden_manifest.py` builds/validates the provenance manifest every Phase 2 golden dataset carries (upstream SHA, overlay digests, compiler/toolchain identity, input/output/side-file hashes, generation timestamp, pyfofem commit, and exact scenario-applicable tolerance-policy references/divergences). Validation fails closed on omitted/cross-mode policy keys and re-derives the expected divergence list from the canonical route contract. Validated by `tests/unit/test_golden_manifest_validator.py` (no live build needed).
+- `tests/cpp_parity_live/test_cpp_harness_contract.py` implements the full 19-row + 11a-11g self-test matrix from `gate0/05-harness-contract.md` §10 against the live compiled binary (192 tests as of Phase 2 final approval; requires the MSVC toolchain, skips cleanly if absent).
+- `tests/cpp_parity_live/generate_phase2_goldens.py` generates the one qualifying golden dataset per mode under `tests/test_data/test_golden_output/phase2/<mode>/`, each with a `<mode>.manifest.json`. `--verify-only` proves deterministic regeneration without overwriting.
+
+#### Legacy/unverified golden audit (Phase 2, 2026-08-28)
+
+None of the pre-Phase-2 golden files below carry a provenance manifest; do
+not treat them as equivalent in rigor to the manifested `phase2/` goldens
+above, and do not retroactively fabricate provenance for them:
+
+| File | Status | Used by |
+|---|---|---|
+| `cpp_golden_summary.csv`, `cpp_golden_components.csv` | legacy/unverified — produced by the pre-Phase-2 single-mode harness | `test_compare_cpp_python.py` |
+| `burnup_load_golden.csv`, `burnup_timeseries_golden.csv` | legacy/unverified | `test_burnup_golden.py` |
+| `equation_unit_tests_golden.csv` | legacy/unverified | `test_consumption_golden.py` |
+| `Emis.txt`, `Emission-Short-Default-Pound.csv`, `Emission-Summary-Default-Pound.csv`, `emissions_test_fromGUI_golden.csv` | legacy/unverified, and **orphaned** — not referenced by any currently active test module | none found |
 
 > Note: as of this review, `MISSING_COMPONENTS.md` no longer exists in the repo root, and several test filenames previously documented here (`example_fofem_emissions_batch.py`, `compare_cpp_python.py`, `test_soil_cpp_parity.py`, `compare_cpp_python_soil.py`) have been renamed or moved — the listing above reflects the actual current filenames, verified 2026-08-26.
+
+#### Phase 2 harness diagnostic builds (2026-08-28, round 3 correction pass) — tracked, reproducible record
+
+Two builds are distinct, per the harness contract (`gate0/05-harness-contract.md` §11): the **golden/release build** (`reference/fofem_cpp/build/`, plain `cmake --build build --target fofem_test`, CMake's own `Debug` defaults — this is what `_harness_support.ensure_built()` produces and what every self-test/golden run uses) and the **diagnostic build** below (a separate directory, never used to generate an accepted golden). Toolchain: MSVC `cl.exe` 19.50.35728 (VS Build Tools 2026/18.4), MSVC toolset `14.50.35717`, CMake 4.2.3-msvc3, Ninja 1.12.1, all bundled inside the VS install and located via `vswhere.exe` (see `tests/cpp_parity_live/_harness_support.py`) — no hardcoded personal path, though the concrete install path below is THIS machine's actual discovered path (from `vswhere.exe`), substitute your own if it differs. Host: Windows 10 (10.0.19044), x86_64.
+
+Every command below is genuine PowerShell (Windows PowerShell 5.1), tested end-to-end during this pass — no POSIX `\` line continuations, no mixed cmd.exe/PowerShell syntax. Run as ONE PowerShell invocation (sourcing `vcvars64.bat`'s environment does not persist across separate invocations/processes):
+
+```powershell
+$vsInstall = "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools"
+$vcvars = Join-Path $vsInstall "VC\Auxiliary\Build\vcvars64.bat"
+$envLines = cmd.exe /c "call `"$vcvars`" >nul && set"
+foreach ($line in $envLines) {
+    if ($line -match "^([^=]+)=(.*)$") { Set-Item -Path "env:$($matches[1])" -Value $matches[2] }
+}
+
+# Golden/release build (CMake Debug defaults: /DWIN32 /D_WINDOWS /W3 /GR /EHsc,
+# plus /MDd /Zi /Ob0 /Od /RTC1 from CMAKE_CXX_FLAGS_DEBUG)
+cmake -S reference/fofem_cpp -B reference/fofem_cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build reference/fofem_cpp/build --target fofem_test
+
+# Diagnostic build: /W4 (stricter warnings) + /EHsc + MSVC AddressSanitizer,
+# in a SEPARATE directory
+cmake -S reference/fofem_cpp -B reference/fofem_cpp/build_diag -G Ninja `
+      -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_CXX_FLAGS=/W4 /EHsc /fsanitize=address"
+cmake --build reference/fofem_cpp/build_diag --target fofem_test
+
+# ASan's runtime DLL is not on PATH by default and must be copied next to
+# the built exe (this machine's actual discovered MSVC toolset path):
+$toolset = "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.50.35717"
+Copy-Item "$toolset\bin\Hostx64\x64\clang_rt.asan_dynamic-x86_64.dll" reference\fofem_cpp\build_diag\
+
+# /analyze static analysis, scoped to the harness's own file only (NOT the
+# pinned FOF_UNIX/*.cpp sources, which are not ours to silence or fix)
+$outDir = "$env:TEMP\analyze_out"
+New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+Push-Location reference/fofem_cpp/FOF_UNIX
+cl /nologo /c /EHsc /W4 /analyze test_harness.cpp "/Fo:$outDir\test_harness.obj"
+Pop-Location
+```
+
+Selecting the diagnostic binary for a harness/pytest run uses the same, tested `FOFEM_TEST_HARNESS_EXE` override the Phase 2 test suite itself validates (`_harness_support.resolve_harness_exe()`, `test_cpp_harness_contract.py::test_harness_exe_override_rejects_a_nonexistent_path`/`test_harness_exe_override_is_used_when_valid`/`test_harness_exe_override_unset_resolves_to_default`) — it raises `HarnessConfigError` rather than silently falling back if the path does not exist:
+
+```powershell
+$env:FOFEM_TEST_HARNESS_EXE = "$(Get-Location)\reference\fofem_cpp\build_diag\fofem_test.exe"
+python -m pytest tests/cpp_parity_live/test_cpp_harness_contract.py -q
+```
+
+**Results (2026-08-29, round 4 correction pass, against the harness as of this pass):**
+
+- Golden/release build: 0 errors. Own file (`test_harness.cpp`) compiles with **zero warnings** even at `/W4` (stricter than the release build's own `/W3`). Warnings remain only in the pinned, untouched `FOF_UNIX/*.cpp` upstream sources (C4244/C4305/C4996/C4459/C4101/C4267 — narrowing conversions, deprecated CRT calls, shadowing, unused locals, size_t truncation) — pre-existing, not introduced by Phase 2, and out of scope to fix (pinned source).
+- Full `test_cpp_harness_contract.py` matrix (192 tests) run against the NORMAL golden/release binary: **192 passed, 0 failed**.
+- The SAME full 192-test matrix run against the ASan diagnostic binary via `FOFEM_TEST_HARNESS_EXE`, exactly as shown above: **192 passed, 0 failed** — a prior round's `test_harness_exe_override_unset_resolves_to_default` unconditionally asserted the override was unset, which was false whenever `FOFEM_TEST_HARNESS_EXE` was exported for the whole run (correctly reported then as "1 failed by design", but a diagnostic qualification gate may not contain an intentional failure); it now explicitly removes the override for its own scope via `monkeypatch.delenv`, so both runs are genuinely, completely green. 0 sanitizer findings across the full matrix in either run, including the malformed-input/fault-injection paths (unknown species, overlong fields at every distinct buffer-size class, malformed numeric syntax, malformed headers, non-contiguous groups, the `SMT_CalcCrnCov` unresolved-species guard path) and the real out-of-bounds read `SMT_CalcCrnCov` has for an unresolved species (`fof_mrt.cpp:1611-1640`, no `iX<0` check), which the harness's own guard prevents from ever executing — confirmed clean under ASan, not just by code inspection.
+- `/analyze`: **0 findings** (previously one, fixed in round 3: `C6262`, "Function uses ~248 KB of stack", in `run_consume()`).
+
+**`C6262` reconciliation (item 9 of the round 3 correction pass) — the prior round's attribution to `/RTC1` was WRONG, corrected here:**
+
+The documented `/analyze` command above never included `/RTC1` — it is a bare `cl /c /EHsc /W4 /analyze` invocation, and `/RTC1` (a *runtime*-check flag) has no effect on `/analyze`'s *static* stack-usage estimate in the first place. Re-running the exact command with `/RTC1` absent still reproduced `C6262` at effectively the same size (248364 bytes) as before, disproving the earlier claim outright. The REAL cause, measured directly (a standalone `sizeof(d_CI)`/`sizeof(d_CO)` probe compiled against the same headers): `sizeof(d_CI) == 2900`, `sizeof(d_CO) == 240632`, combined `243532` bytes — accounting for essentially all of `run_consume()`'s ~248 KB frame (the remaining ~4.8 KB is ordinary per-function overhead: other locals, saved registers, alignment). `d_CI ci; d_CO co;` were plain stack locals inside `run_consume()`'s per-row loop (`test_harness.cpp:760-761`, harness-owned code, not pinned scientific source).
+
+**Fix applied** (preferred option per the correction instructions, over merely re-documenting a stack-margin argument): `ci`/`co` are now heap-allocated via `std::unique_ptr<d_CI>`/`std::unique_ptr<d_CO>` with `d_CI&`/`d_CO&` references bound to them, so every existing `ci.`/`co.` access in the function body is unchanged. This is a harness-local, test-tooling-only change — no pinned `FOF_UNIX/*.cpp` source was touched, and `CI_Init`/`CO_Init`/the scientific call sequence are identical. Re-running `/analyze` after the fix confirms **0 findings** (verified directly above, not assumed); the full `test_cpp_harness_contract.py` matrix (192 tests, both the normal build and the ASan diagnostic build) was re-run afterward and passes identically to before the fix, confirming no functional/behavioral change.
+
+`/RTC1` (Runtime Checks — uninitialized-variable and stack-frame-corruption detection) is CMake's own `CMAKE_CXX_FLAGS_DEBUG` default and is therefore already active on every golden/release build and every one of the hundreds of harness invocations across the self-test suite and golden generation this session — zero RTC aborts observed.
 
 ## Architecture Overview
 
@@ -674,7 +752,6 @@ Left open pending explicit decision, and coupled to #23 since
 | Cover-type auto-lookup (SAF/NVCS/FCC) |  Not started | C++: `CVT_*.cpp` / `fof_fccs.csv` |
 | Weight distribution (1000-hr  size classes) |  Not started | C++: `cr_WD` in `d_CI` |
 | Duration units reconciliation (sec vs min) |  Done | `_burnup_durations()` and `run_fofem_emissions()` now return seconds  Gotcha #15 resolved |
-
 
 
 
