@@ -53,6 +53,15 @@ CORE_TESTS: List[str] = [
     # Phase 2 correction pass: tolerance_policy.json schema/completeness —
     # pure JSON/static inspection, no live C++ build.
     "tests/unit/test_tolerance_policy_completeness.py",
+    # Phase 3: Python-only, data, and relation-level public contracts.
+    # None of these builds or runs C++ — they are equation/contract tests
+    # and hand-derived source-relation cross-checks — so all six are CORE.
+    "tests/unit/test_burnup_component_api.py",
+    "tests/unit/test_public_constants.py",
+    "tests/unit/test_runtime_data_resources.py",
+    "tests/unit/test_tree_flame_contracts.py",
+    "tests/unit/test_tree_flame_source_relations.py",
+    "tests/unit/test_utility_contracts.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [

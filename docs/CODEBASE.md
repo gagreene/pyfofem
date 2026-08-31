@@ -25,8 +25,9 @@ pyfofem/
 |   |   |-- tree_flame_calcs.py        #    Fire behavior + geometry helpers
 |   |   `-- soil_heating.py            #    Campbell + Massman HMV soil models
 |   `-- supporting_data/
-|       |-- species_codes_lut.csv      #    Species <-> FOFEM-code mapping
-|       `-- FOFEM6.7/                  #    Bundled FOFEM data files
+|       |-- species_codes_lut.csv      #    Species <-> FOFEM-code mapping (runtime table, in the wheel)
+|       |-- emissions_factors.csv      #    Emission-factor groups (runtime table, in the wheel)
+|       `-- FOFEM6.7/                  #    Bundled FOFEM data files (NOT in the wheel)
 |
 |-- reference/fofem_cpp/               # <- Official C++ FOFEM reference source
 |   |-- FOF_UNIX/                      #    Portable core science code
@@ -51,7 +52,18 @@ pyfofem/
 |   |   |                                    keeps the CSV-driven parametrized coverage)
 |   |   |-- test_burnup_golden.py      #    Golden-value regression tests for burnup()
 |   |   |-- test_equation_routing.py   #    Equation-ID output regression tests (was test_emission_equation_ids.py)
-|   |   `-- test_run_unified_tests_contract.py  # Phase 1: installed-only parent/child contract
+|   |   |-- test_run_unified_tests_contract.py  # Phase 1: installed-only parent/child contract
+|   |   |-- test_golden_manifest_validator.py   # Phase 2: manifest builder/validator (no live build)
+|   |   |-- test_proc.py               #    Phase 2: bounded subprocess + process-tree kill helper
+|   |   |-- test_tolerance_policy_completeness.py  # Phase 2: tolerance_policy.json schema/coverage
+|   |   |-- test_tree_flame_contracts.py        # Phase 3: calc_scorch_ht / calc_flame_length contracts
+|   |   |-- test_tree_flame_source_relations.py # Phase 3: calc_char_ht / calc_crown_length_vol_scorched
+|   |   |                                         hand-derived vs pinned fof_mrt.cpp (no live parity)
+|   |   |-- test_utility_contracts.py  #    Phase 3: calc_carbon + get_moisture_regime
+|   |   |-- test_public_constants.py   #    Phase 3: all 11 exported constants/data objects
+|   |   |-- test_runtime_data_resources.py      # Phase 3: both runtime CSVs (schema/provenance/resource)
+|   |   `-- test_burnup_component_api.py        # Phase 3: FuelParticle/BurnResult/BurnSummaryRow/
+|   |                                             BurnupValidationError/burnup
 |   |-- integration/                   #    Full-pipeline (`run_fofem_emissions`) tests
 |   |   |-- test_run_fofem_emissions.py         # Output-dict key/shape contract tests
 |   |   |                                         (was test_run_fofem_emissions_output_keys.py)
@@ -91,6 +103,124 @@ pyfofem/
 - `tests/cpp_parity_live/_golden_manifest.py` builds/validates the provenance manifest every Phase 2 golden dataset carries (upstream SHA, overlay digests, compiler/toolchain identity, input/output/side-file hashes, generation timestamp, pyfofem commit, and exact scenario-applicable tolerance-policy references/divergences). Validation fails closed on omitted/cross-mode policy keys and re-derives the expected divergence list from the canonical route contract. Validated by `tests/unit/test_golden_manifest_validator.py` (no live build needed).
 - `tests/cpp_parity_live/test_cpp_harness_contract.py` implements the full 19-row + 11a-11g self-test matrix from `gate0/05-harness-contract.md` §10 against the live compiled binary (192 tests as of Phase 2 final approval; requires the MSVC toolchain, skips cleanly if absent).
 - `tests/cpp_parity_live/generate_phase2_goldens.py` generates the one qualifying golden dataset per mode under `tests/test_data/test_golden_output/phase2/<mode>/`, each with a `<mode>.manifest.json`. `--verify-only` proves deterministic regeneration without overwriting.
+
+#### Phase 3 test architecture (2026-08-31) — Python-only, data, and relation-level contracts
+
+Phase 3 adds six `tests/unit/` modules, all registered in `CORE_TESTS`
+(`tests/run_unified_tests.py`). None builds or runs C++. Each module's
+docstring classifies every test it contains as one of three categories,
+and that classification is the durable convention for this suite:
+
+- **(a) Python contract/equation test** — asserts documented equations, or
+  explicitly identified current Python behaviour including known contract
+  defects pinned for visibility, against hand-derived expected values. Makes
+  no C++ parity claim, and does not endorse defective behaviour as desired
+  API design.
+- **(b) Source-relation cross-check** — hand-derived against a pinned C++
+  expression that cannot be executed in isolation. Cites the exact
+  pinned file:line. **Makes no executable-parity claim.**
+- **(c) Executable C++ parity** — compares against output from a live
+  pinned-C++ run. Phase 3 contains **none**; that lives in
+  `tests/cpp_parity_live/` and the manifested `phase2/` goldens.
+
+| Module | Covers | Category mix |
+|---|---|---|
+| `unit/test_tree_flame_contracts.py` | `calc_scorch_ht` (eq 8/9/10), `calc_flame_length` (Byram/Butler/Thomas/char-height) | all (a) |
+| `unit/test_tree_flame_source_relations.py` | `calc_char_ht`, `calc_crown_length_vol_scorched` | (b) value tests, (a) shape/clamp/warning tests |
+| `unit/test_utility_contracts.py` | `calc_carbon`, `get_moisture_regime` | (b) carbon factors, (a) everything else |
+| `unit/test_public_constants.py` | all 11 exported constants/data objects | all (a) |
+| `unit/test_runtime_data_resources.py` | both runtime CSVs + packaging/resource resolution | (a), plus one (b) provenance digest |
+| `unit/test_burnup_component_api.py` | `FuelParticle`, `BurnResult`, `BurnSummaryRow`, `BurnupValidationError`, `burnup` | all (a) |
+
+**Why `calc_scorch_ht`/`calc_flame_length` are never compared to C++.**
+`fof_util.cpp:95-102` `Calc_Scorch` converts *flame length to scorch
+height* and `fof_util.cpp:111-118` `Calc_Flame` converts *scorch height
+back to flame length*; Python takes fire intensity (plus optional
+ambient temperature and in-stand wind) and uses Byram/Butler/Thomas.
+Different APIs — not parity oracles (Gate 0 `03-cpp-crosswalk.md` rows
+6-7). `calc_char_ht` and `calc_crown_length_vol_scorched` have pinned
+C++ expressions (`fof_mrt.cpp:396-397` and `:315-327`) whose
+intermediates `f_Fl`/`f_CK`/`f_CSL` are `MRT_Calc` **locals** absent
+from `d_MO` (finding F-30), so they get source-relation tests only.
+
+**Runtime-resource-loading pattern (verified, not assumed).** Neither
+loader uses `importlib.resources`. Both build a path from the defining
+module's own `__file__`:
+
+- `components/tree_flame_calcs.py` — `os.path.join(os.path.dirname(__file__),
+  '..', 'supporting_data', 'species_codes_lut.csv')`, read **eagerly at
+  import time** into `SPP_CODES`.
+- `components/emission_calcs.py` — `_EF_CSV_DEFAULT`, same construction,
+  read lazily and cached by `_load_ef_csv()`.
+
+That is *package*-relative, not repo-relative, so it resolves correctly
+from an installed wheel and is independent of the process's working
+directory. `unit/test_runtime_data_resources.py` asserts both properties,
+including a real child-process probe launched from an unrelated working
+directory with `PYTHONPATH` cleared (bounded and process-tree-cleaned via
+`tests/cpp_parity_live/_proc.run_bounded`). The one case the `__file__`
+approach does **not** cover is a zipimported package, where
+`importlib.resources` would be required; pyfofem ships a plain wheel, so
+this is recorded as a known limitation, not a defect.
+
+**Wheel-isolation mechanism.** Two layers, both required:
+
+1. In-suite: `tests/run_unified_tests.py --installed-only` sets
+   `PYFOFEM_INSTALLED_ONLY=1` on the pytest subprocess and
+   `tests/conftest.py::pytest_sessionstart` aborts the session if
+   `pyfofem` resolves beneath the checkout's `src/` (Phase 1 contract,
+   covered by `unit/test_run_unified_tests_contract.py`). No test module
+   anywhere inserts `src/` onto `sys.path`.
+2. Out-of-checkout proof (run per phase, not part of the suite): build a
+   wheel with `python -m build --wheel`, create a throwaway virtualenv
+   **outside** the checkout, install only the wheel plus `pytest`/`psutil`,
+   then run `--suite core --installed-only` and `--suite full
+   --installed-only` with that interpreter. The wheel's contents are also
+   asserted to be exactly the two runtime CSVs with no `.exe`/`.dll`/
+   `.pdf`/`.ico`/`.lnk`/`.bat` — the packaging-config half of that
+   assertion is in-suite
+   (`unit/test_runtime_data_resources.py::test_packaging_config_ships_both_runtime_csvs_and_no_vendor_binaries`),
+   which converts Gate 0 `06-runtime-tables.md` §3's *accidental*
+   exclusion of `supporting_data/FOFEM6.7/` into an asserted contract.
+
+**Version-brittleness note from that proof.** The isolated venv resolves
+the newest dependency wheels (observed 2026-08-31: numpy 2.5.2, pandas
+3.0.5, scipy 1.18.1, pytest 9.1.1), which caught one brittle assertion:
+pandas 3.0 infers `StringDtype` where 1.x/2.x inferred `object`, so
+text-column checks assert *value types* (`isinstance(value, str)`), never
+dtype identity. This is an observation from one executed lane, **not** a
+claim that pandas 3.x is a supported floor — the dependency support
+matrix remains the release-readiness plan's Phase 3 work.
+
+**Evidence-reconciliation pass (2026-08-31).** A follow-up
+documentation-only pass corrected three claims that the Phase 3 tests had
+already disproved by execution, and recorded two behaviours the tests pin
+that were not previously written down anywhere durable. It changed no test
+code, no production code, and no expected value:
+
+- The char-height relation in the pinned mortality source is at
+  `fof_mrt.cpp:396-397`, not `:394-395`. Every active citation was
+  corrected; the earlier value survives only inside dated historical
+  change records.
+- `calc_scorch_ht`'s missing-input guard is **not** dead code. It fires
+  for `None` and for object-dtype arrays containing `None`, and is inert
+  only for a float array carrying `NaN`, so the real defect is a coverage
+  gap rather than unreachable code. The separate `amb_t == 60`
+  divide-by-zero is unaffected and still real.
+- `calc_crown_length_vol_scorched(8.0, 10.0, 0.0)` returns
+  `(0.0, nan, nan)` with two NumPy `RuntimeWarning`s, not `inf`/`nan`:
+  `crown_length_scorched` is clipped to `[0, crown_depth]` before either
+  division, so both divisions are `0/0`. C++ still returns `-1` with
+  "Mortality Calculaton is attempting to Divide by 0"
+  (`fof_mrt.cpp:329-333`), so the error-semantics divergence stands.
+- Two dispatch behaviours are now recorded as findings rather than only in
+  test comments: `calc_scorch_ht` selects its equation from `amb_t` alone,
+  so an `instand_ws` supplied without an `amb_t` is silently discarded and
+  equation 8 is used; and `calc_flame_length` gives `fire_intensity`
+  undocumented precedence over `char_ht` when both are supplied. Both are
+  **Python contract observations with no C++ oracle comparison**, and the
+  tests that cover them pin *current* behaviour for visibility only — they
+  are not an endorsement of either rule as correct API design.
 
 #### Legacy/unverified golden audit (Phase 2, 2026-08-28)
 
@@ -527,6 +657,18 @@ through without conversion.**
 accumulated during that recording interval.  To get consumed mass, multiply
 by the timestep `dt`.  `_extract_burnup_consumption()` handles this.
 
+The field's own docstring in `components/burnup.py` still says "cumulative
+mass consumed (kg/m2)", which is wrong.  **Phase 3 pinned the real (rate)
+semantics** in
+`tests/unit/test_burnup_component_api.py::test_burn_result_component_fields_are_rates_not_cumulative_mass`
+using a dimensional discriminator rather than either wording: summing
+`value * interval` over a real simulation's records reconstructs the mass
+the summary row reports as consumed (measured 1.04x), while summing the raw
+values — the reading the docstring implies — lands at 0.037x, more than an
+order of magnitude low.  The docstring fix therefore cannot silently become
+a behaviour change.  The docstring itself is **not** fixed by Phase 3
+(test-only phase).
+
 ### 10. Emissions mode selection matters for parity
 
 In C++, emissions can be calculated with:
@@ -692,6 +834,67 @@ all — `_check_fire()`'s `wdf_load` parameter is only used to gate the
 `dfm` (duff moisture) check, never validated against its own magnitude.
 Left open pending explicit decision, and coupled to #23 since
 `_check_fire()` isn't currently called regardless.
+
+### 25. `BurnupValidationError` carries two different meanings and cannot be told apart structurally
+
+`BurnupValidationError(ValueError)` (`components/burnup.py:262`) is documented
+as "Raised when input parameters fall outside physically valid ranges", but it
+is actually raised for two categorically different situations:
+
+1. **Structural / range input validation** — `_check_fire()` and
+   `_check_fuel()` (`burnup.py:309-370` and `:372-386`) reject out-of-range fire-environment
+   and fuel-particle values, and `burnup()` itself rejects `ntimes <= 0` and an
+   empty particle list (`burnup.py:745-747`). These are caller-input errors,
+   detectable before the simulation starts.
+2. **Runtime simulation outcomes** — after the simulation is already under way,
+   `burnup()` raises the same exception type for
+   `"Igniting fire cannot dry fuel"` (`burnup.py:860`, when the first
+   fire-temperature estimate is too low to reach the drying temperature) and
+   `"No fuel ignited"` (`burnup.py:900`, when no fuel component ignited within
+   the simulated period). These are legitimate physical outcomes of valid
+   inputs, not input-validation failures.
+
+The pipeline's own worker copes with this: `_run_burnup_cell()`
+(`components/burnup_calcs.py:261-291`) catches `BurnupValidationError` and
+recovers the distinction by lowercasing the message and substring-matching it
+into a numeric `BurnupError` code — `'cannot dry fuel'` becomes 15,
+`'no fuel ignited'` becomes 16, and the input-validation cases map to 10-14,
+20-29 and 91. See gotcha #17 for why that message-text matching is itself
+fragile.
+
+**The limitation is for direct callers of the public API.** A caller that does
+`except BurnupValidationError` has no structural way to tell "your inputs were
+invalid" from "your inputs were fine and nothing ignited" — the exception class
+is the same, and it exposes no error-code attribute, no category attribute and
+no subclass hierarchy. The only available discriminator is inspecting
+`str(exc)`, which is exactly the fragile mechanism gotcha #17 warns about, and
+which the exception's own docstring gives no contract for.
+
+**`run_burnup()` does not resolve this.** `run_burnup()`
+(`components/burnup_calcs.py:375-538`) calls `burnup()` directly — imported as
+`_burnup` at `burnup_calcs.py:13` — outside any `try`/`except`, returns the
+3-tuple `(results, summary, class_order)` (`:538`), and therefore **propagates**
+`BurnupValidationError` to its caller exactly as `burnup()` does. It never
+returns, exposes or computes a numeric `BurnupError` code. The numeric code
+exists only inside the **private** worker `_run_burnup_cell()`
+(`components/burnup_calcs.py:124-293`), which catches the exception and returns
+a dict carrying `'burnup_error'`. That value reaches a public surface only
+through the high-level pipeline: `run_fofem_emissions()` calls
+`_run_burnup_cell()` per cell (`pyfofem.py:621` serially, `:628` through the
+process pool), collects each cell's code into `burnup_err_arr`
+(`pyfofem.py:637`), and `build_emissions_result()` emits it as the
+`"BurnupError"` output key (`components/emission_pipeline.py:203`).
+
+A caller that needs a structured numeric distinction must therefore use
+`run_fofem_emissions()` and read its `"BurnupError"` output. Direct callers of
+`burnup()` or `run_burnup()` have no structural discriminator at all, and must
+inspect the exception message text if they need to tell the two meanings apart.
+
+Documented as a known API ambiguity; the exception's behaviour is deliberately
+unchanged. Resolving it properly (a category or code attribute, or distinct
+subclasses for the two runtime outcomes) is a public-API change and needs
+explicit sign-off, and it would also let gotcha #17's substring table be
+replaced by a structural lookup.
 
 ---
 
