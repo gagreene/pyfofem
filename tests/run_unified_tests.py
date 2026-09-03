@@ -62,6 +62,23 @@ CORE_TESTS: List[str] = [
     "tests/unit/test_tree_flame_contracts.py",
     "tests/unit/test_tree_flame_source_relations.py",
     "tests/unit/test_utility_contracts.py",
+    # Phase 4: Tier-2 consumption/mortality/tree-structure/emissions parity
+    # against the PRE-GENERATED, committed Phase 4 golden dataset. These
+    # read committed CSVs and never build or invoke C++, so they are CORE -
+    # the same rule that puts the other golden-CSV-driven modules here.
+    "tests/unit/test_phase4_consumption_parity.py",
+    "tests/unit/test_phase4_emissions_parity.py",
+    "tests/unit/test_phase4_mortality_parity.py",
+    "tests/unit/test_phase4_tree_structure_parity.py",
+    # Phase 4 correction pass: AST-based meta-test that no Phase 4 test
+    # module contains an imperative pytest.xfail() call and every
+    # pytest.mark.xfail(...) marker is strict=True. Pure source-file
+    # static analysis - no live C++ build, no golden data read.
+    "tests/unit/test_phase4_contract_hygiene.py",
+    # Phase 4 correction pass: fail-closed golden-tree completeness plus
+    # git-trackability proof (check-ignore, dry-run add, stale/extra file
+    # audit). Filesystem/git-plumbing only - no live C++ build.
+    "tests/unit/test_phase4_golden_tracking.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
@@ -75,6 +92,11 @@ FULL_EXTRA_TESTS: List[str] = [
     # qualification failure, harness failure, staleness, corruption,
     # manifest mismatch, determinism) — also needs the live build.
     "tests/cpp_parity_live/test_generate_phase2_goldens.py",
+    # Phase 4: driver tests for the Phase 4 golden generator (pinned-SHA
+    # gate, determinism, corrupted/missing/extra/mismatched committed files,
+    # dataset field, and proof the Phase 2 tree is never touched). Needs the
+    # live build.
+    "tests/cpp_parity_live/test_generate_phase4_goldens.py",
 ]
 
 #: Environment variable set on the pytest subprocess when ``--installed-only``

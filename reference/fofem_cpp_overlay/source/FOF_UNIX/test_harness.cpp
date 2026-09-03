@@ -17,6 +17,9 @@
  *
  * Input file format (every mode):
  *   line 1: #fofem-harness,<mode>,<schema_version>
+ *           <schema_version> is PER MODE (see the MODES[] table near
+ *           main()): "1" for consume/litter_eq/shrub_herb_eq/
+ *           bark_thick/canopy_cover, "2" for mortality.
  *   line 2: exact column header for that mode
  *   line 3+: data rows, comma-separated, case_id first, expect_error second
  *
@@ -1420,10 +1423,20 @@ static bool load_species_table(const std::string &path, std::string *err) {
 // Mode: mortality  (gate0/05-harness-contract.md §5)
 // ===========================================================================
 
+// Schema v2 (gate0/05-harness-contract.md section 5). Two changes from v1:
+//   * "ckr_pct" renamed to "ckr_rating". The field fills d_MIS.f_CKR,
+//     which the pinned source documents as the cambium kill RATING 0-4
+//     (fof_mrt.cpp:1937 "a_MIS->f_CKR....cambium kill ratio 0-4") and
+//     validates as 0-4 (fof_mrt.cpp:1849-1851), not as a percent. The
+//     v1 name was a misnomer.
+//   * "density_tpa" ADDED, wired to d_MIS.f_Den. ValidInput requires
+//     1 <= f_Den <= 20000 (fof_mrt.cpp:1854-1856) for every CroDam
+//     (PFI_Calc) row; v1 had no such column, so f_Den stayed 0 from
+//     this mode's own memset and every CroDam row failed validation.
 static const std::vector<std::string> MORTALITY_HEADER = {
     "case_id", "expect_error", "species", "equ_type", "dbh_in", "ht_ft",
     "crown_ratio_x10", "fs_value_ft", "fs_kind", "bole_char_ft",
-    "fire_severity", "ckr_pct", "cvk_pct", "beetles"};
+    "fire_severity", "ckr_rating", "cvk_pct", "beetles", "density_tpa"};
 
 static int run_mortality(const InputFile &in, const std::string &prefix) {
   // Species table is loaded and qualified once in main() before dispatch
@@ -1511,7 +1524,7 @@ static int run_mortality(const InputFile &in, const std::string &prefix) {
 
     if (!parse_strict_double(f[11], &dv, &row_err)) {
       std::cerr << "[fofem_test] FATAL row " << r + 1
-                << " field 'ckr_pct': " << row_err << "\n";
+                << " field 'ckr_rating': " << row_err << "\n";
       return 1;
     }
     mis.f_CKR = (float)dv;
@@ -1531,12 +1544,34 @@ static int run_mortality(const InputFile &in, const std::string &prefix) {
     }
     safe_copy_literal(mis.cr_BeeDam, std::string(beetles_raw == "1" ? e_BtlYes : e_BtlNo));
 
+    // density_tpa -> d_MIS.f_Den (schema v2). Only PFI_Calc's ValidInput
+    // reads it for validation (fof_mrt.cpp:1854-1856); MRT_Calc and
+    // BC_Calc use it solely through MRT_Total's stand accumulators
+    // (fof_mrt.cpp:818-875), none of which this mode emits. The harness
+    // deliberately does NOT pre-validate the range: the whole point of
+    // the column is to let the pinned C++ validator make that decision
+    // and report it through cr_ErrMes.
+    if (!parse_strict_double(f[14], &dv, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'density_tpa': " << row_err << "\n";
+      return 1;
+    }
+    mis.f_Den = (float)dv;
+
     d_MO mo;
     MO_Init(&mo);
     char err_buf[3000];
     err_buf[0] = '\0';
     float prob = MRT_CalcMngr(&mis, &mo, err_buf);
-    bool model_errored = (prob < 0.0f);
+    // Schema v2 error rule. v1 tested `prob < 0` alone, which is the
+    // sentinel MRT_Calc/BC_Calc/MRT_CalcMngr use - but NOT the one
+    // PFI_Calc uses: on a ValidInput rejection PFI_Calc returns 0 with a
+    // NONEMPTY cr_ErrMes (fof_mrt.cpp:1800-1801, 1868-1870), and 0 is
+    // also a perfectly ordinary successful probability. MRT_Calc's own
+    // header block says so explicitly ("Check for an Error by checking
+    // the cr_ErrMes, it will be "" if no errors occured",
+    // fof_mrt.cpp:270-271). Either signal is therefore a model error.
+    bool model_errored = (prob < 0.0f) || (err_buf[0] != '\0');
     int ret = model_errored ? -1 : 1;
 
     Outcome oc = classify(expect_error, model_errored);
@@ -1547,6 +1582,18 @@ static int run_mortality(const InputFile &in, const std::string &prefix) {
       std::cerr << "[fofem_test] FATAL row " << r + 1
                 << ": mortality produced a non-finite probability on a "
                    "successful row\n";
+      return 1;
+    }
+    // A row declared successful must ALSO carry a value that really is
+    // a probability. Combined with the empty-err_text requirement above,
+    // "ok" now means both: no error text AND a finite prob in [0, 1].
+    // Fails closed rather than writing an out-of-domain number that a
+    // downstream comparison would consume as a scientific result.
+    if (oc == Outcome::OK && !(std::isfinite((double)prob) &&
+                               prob >= 0.0f && prob <= 1.0f)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": mortality declared a successful row whose "
+                   "probability is not finite and within [0, 1]\n";
       return 1;
     }
     out.row({f[0], "mortality", in.schema_version, outcome_str(oc),
@@ -1877,19 +1924,27 @@ static int run_canopy_cover(const InputFile &in, const std::string &prefix) {
 // Mode dispatch table
 // ===========================================================================
 
+// `schema_version` is PER MODE, not global. gate0/05-harness-contract.md
+// declares each mode's schema independently (section 2 "Mode consume
+// (schema v1)", section 5 "Mode mortality (schema v2)", ...), so a
+// revision to one mode must not silently redefine what an archived CSV
+// of another mode's v1 means. main() validates the magic line's version
+// against the SELECTED mode's declared version, and every run_* function
+// echoes the input file's own version into its output rows.
 struct ModeSpec {
   const char *name;
+  const char *schema_version;
   const std::vector<std::string> *header;
   int (*run)(const InputFile &, const std::string &);
 };
 
 static const ModeSpec MODES[] = {
-    {"consume", &CONSUME_HEADER, run_consume},
-    {"litter_eq", &LITTER_EQ_HEADER, run_litter_eq},
-    {"shrub_herb_eq", &SHRUB_HERB_EQ_HEADER, run_shrub_herb_eq},
-    {"mortality", &MORTALITY_HEADER, run_mortality},
-    {"bark_thick", &BARK_THICK_HEADER, run_bark_thick},
-    {"canopy_cover", &CANOPY_COVER_HEADER, run_canopy_cover},
+    {"consume", "1", &CONSUME_HEADER, run_consume},
+    {"litter_eq", "1", &LITTER_EQ_HEADER, run_litter_eq},
+    {"shrub_herb_eq", "1", &SHRUB_HERB_EQ_HEADER, run_shrub_herb_eq},
+    {"mortality", "2", &MORTALITY_HEADER, run_mortality},
+    {"bark_thick", "1", &BARK_THICK_HEADER, run_bark_thick},
+    {"canopy_cover", "1", &CANOPY_COVER_HEADER, run_canopy_cover},
 };
 
 int main(int argc, char **argv) {
@@ -1968,18 +2023,22 @@ int main(int argc, char **argv) {
     return 1;
   }
   std::string mode = magic_fields[1];
-  if (magic_fields[2] != "1") {
-    std::cerr << "[fofem_test] FATAL: unsupported schema_version '"
-              << magic_fields[2] << "' (only '1' is defined)\n";
-    return 1;
-  }
 
+  // Resolve the mode FIRST: the accepted schema version is a property
+  // of the mode, so it cannot be checked before the mode is known.
   const ModeSpec *spec = nullptr;
   for (const auto &m : MODES) {
     if (mode == m.name) { spec = &m; break; }
   }
   if (!spec) {
     std::cerr << "[fofem_test] FATAL: unknown mode '" << mode << "'\n";
+    return 1;
+  }
+  if (magic_fields[2] != spec->schema_version) {
+    std::cerr << "[fofem_test] FATAL: unsupported schema_version '"
+              << magic_fields[2] << "' for mode '" << mode
+              << "' (only '" << spec->schema_version
+              << "' is defined for this mode)\n";
     return 1;
   }
 

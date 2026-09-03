@@ -1,5 +1,5 @@
 {
-  "NOTE": "This file is the Phase 2 centralized tolerance-policy source for the six harness modes, and IS the single source for consume's numeric tolerances: test_compare_cpp_python.py's _COMPARE_COLS loads from here at import time. Round 4 correction pass (2026-08-29) expanded consume from 14 to 76 keys so every one of consume_summary.csv's 66 real scientific columns, plus the 10 component-only percent-consumed quantities consume_components.csv exposes that consume_summary.csv does not (see _output_contract.py), has an explicit classification -- most newly added are honestly unverified (no comparison exists), not invented tolerances. Round 4 ALSO corrected a round-3 mistake: RotDW1kCon and SmoDur were wrongly described as newly-discovered, apparently-unrelated divergences; Gate 0's own F-23 Consequences paragraph (gate0/04-findings.md) already named all four case-6 fields (DufCon, RotDW1kCon, SmoDur, TotCon) together as consequences of the SAME Northeast duff-routing defect -- corrected, no new finding ID created. Every non-consume mode's entries now also carry an explicit covers_columns (and column_group where the same output column is legitimately classified by more than one equation-route entry) so coverage is machine-checked, not asserted. See tests/unit/test_tolerance_policy_completeness.py for the schema/coverage tests and tests/cpp_parity_live/_output_contract.py for the metadata/scientific column contract and the component-field resolution rule.",
+  "NOTE": "This file is the Phase 2 centralized tolerance-policy source for the six harness modes, and IS the single source for consume's numeric tolerances: test_compare_cpp_python.py's _COMPARE_COLS loads from here at import time. Round 4 correction pass (2026-08-29) expanded consume from 14 to 76 keys so every one of consume_summary.csv's 66 real scientific columns, plus the 10 component-only percent-consumed quantities consume_components.csv exposes that consume_summary.csv does not (see _output_contract.py), has an explicit classification -- most newly added are honestly unverified (no comparison exists), not invented tolerances. Round 4 ALSO corrected a round-3 mistake: RotDW1kCon and SmoDur were wrongly described as newly-discovered, apparently-unrelated divergences; Gate 0's own F-23 Consequences paragraph (gate0/04-findings.md) already named all four case-6 fields (DufCon, RotDW1kCon, SmoDur, TotCon) together as consequences of the SAME Northeast duff-routing defect -- corrected, no new finding ID created. Every non-consume mode's entries now also carry an explicit covers_columns (and column_group where the same output column is legitimately classified by more than one equation-route entry) so coverage is machine-checked, not asserted. See tests/unit/test_tolerance_policy_completeness.py for the schema/coverage tests and tests/cpp_parity_live/_output_contract.py for the metadata/scientific column contract and the component-field resolution rule. PHASE 4 ADDITION (2026-08-31): six new '<mode>_p4' sections carry the Tier-2 scenario-matrix dataset's per-output evidence. They are a SEPARATE namespace on purpose: the committed Phase 2 manifests cite their mode's key set verbatim, so adding a key to a bare '<mode>' section would silently redefine an already-accepted manifest. Phase 4 manifests carry a 'dataset': 'phase4' field and cite only '<mode>_p4' keys; a manifest with no 'dataset' field is a Phase 2 manifest (see tests/cpp_parity_live/_golden_manifest.py's DEFAULT_DATASET and tests/cpp_parity_live/_phase4_contract.py). Statuses used by Phase 4 and their meanings: 'verified' (every scenario on this route agreed, with the measured maximum difference recorded in the justification); 'known_divergent_scenario_scoped' (some scenarios agreed and some reproduce a named finding, with BOTH the agreeing maximum and the smallest divergence recorded so it is provable the tolerance absorbs no divergence); 'known_divergent_strict_xfail' (every scenario diverges); 'oracle_unavailable' (the harness cannot produce a valid oracle for this route at all - see F-45); 'python_side_unreachable' (the Python function cannot be called - see F-19); 'unverified' (no comparison was performed, so no tolerance is assigned). Every non-null atol/rtol below is justified either by the harness's own output resolution (fmt(v, 6) or fmt(v, 4)) or by a named C++ constant difference, never by tuning until green. PHASE 4 CORRECTION PASS PART 2 (2026-09-01): (a) every Phase 4 parity test now RETRIEVES its tolerance from this file through _phase4_contract.phase4_tolerance(mode, route) - the six duplicated atol/rtol literals that previously lived in the four tests/unit/test_phase4_*_parity.py modules were deleted, and no value was changed or loosened in the move; a route that records no bound of its own resolves the single sibling entry sharing its column_group, and anything else fails closed. Class-(a) PYTHON-SIDE epsilons (which bound Python-vs-Python or Python-vs-transcribed-constant comparisons and make no C++ parity claim) are deliberately NOT recorded here; they live in _phase4_contract.PYTHON_CONTRACT_EPSILONS behind python_contract_epsilon(name), so the two categories can never be confused. (b) consume_p4.litter_cp is new: it closes BR-LIT-CP's EXPECT-INVESTIGATE status with a real executed comparison. (c) bark_thick_p4.all now records the golden's own output resolution as an atol so its strict-xfail desired-behaviour assertion has a central bound; that number is explicitly not a measured agreement bound and says so in its justification.",
   "bark_thick": {
     "all": {
       "atol": null,
@@ -10,6 +10,19 @@
       "rtol": null,
       "status": "python_side_unreachable",
       "traceability": "gate0/04-findings.md:F-19; gate0/03-cpp-crosswalk.md (Row 1 calc_bark_thickness)"
+    }
+  },
+  "bark_thick_p4": {
+    "all": {
+      "atol": 1e-06,
+      "covers_columns": [
+        "bark_thick_in"
+      ],
+      "justification": "calc_bark_thickness always raises KeyError('FOFEM_BrkThck_Vsp') - the bundled species_codes_lut.csv has no such column (F-19) - so no Python-vs-C++ bark-thickness value has ever been measured on this route. The C++ oracle itself is fully functional and IS used in Phase 4: the 35-row bark_thick golden spans 10 distinct i_BrkEqu ladder entries, the i_BrkEqu == 100 zero-bark species, a zero-DBH and a large-DBH boundary, an unknown-species expected error, and 21 cross-reference rows that supply mort_crnsch's bark thickness. The recorded atol is NOT a measured agreement bound and must not be read as one: it is the golden's own output resolution (bark_thick_in is written through fmt(v, 6), i.e. six decimals), recorded so that the DESIRED-behaviour parity assertion in test_phase4_tree_structure_parity.py::test_bark_thickness_matches_cpp - a strict xfail that currently fails with the KeyError above - has a centrally recorded bound instead of a literal in the test module. The moment F-19 is fixed that test XPASSes strictly and this entry must be replaced with real measured evidence.",
+      "rtol": null,
+      "status": "python_side_unreachable",
+      "traceability": "gate0/04-findings.md:F-19; gate0/07-branch-traceability.csv BR-BRK-ALL; tests/unit/test_phase4_tree_structure_parity.py::test_bark_thickness_matches_cpp",
+      "unit": "in"
     }
   },
   "canopy_cover": {
@@ -24,6 +37,21 @@
       "rtol": null,
       "status": "known_divergent",
       "traceability": "gate0/03-cpp-crosswalk.md (Row 2 calc_canopy_cover, 'Known differences')"
+    }
+  },
+  "canopy_cover_p4": {
+    "all": {
+      "atol": 0.0001,
+      "covers_columns": [
+        "crown_area_ft2",
+        "total_area_ft2",
+        "pct_cover"
+      ],
+      "justification": "calc_canopy_cover vs the manifested canopy_cover golden, with the per-species crown-width equation supplied explicitly from the tracked FOF_SPP.CSV. 12 of the 14 successful per-tree scenarios agree and 4 of the 5 emitted stand aggregates agree: measured maximum relative difference 1.02e-06 and maximum |diff| 8.32e-04 ft2. The rtol 2e-06 is evidence-based, not tuned: C++ SMT_CalcCrnCov uses the literal 3.14159 (fof_mrt.cpp:1634) where Python uses numpy.pi, a fixed relative difference of 8.4e-07 in an expression linear in that constant, plus the C++ side's float32 arithmetic. The atol 1e-04 is the golden's own output resolution (crown areas and percentages are written through fmt(v, 4)). The 2 diverging trees and 1 diverging stand are strict xfails under F-02: C++ returns 0 crown area as soon as f_Hgt <= 0, while Python excludes a tree only for dbh <= 0, so it credits a zero- or negative-height tree 30.229674 ft2. Python's DEFAULT species mapping (equation 39 for every species) is a separate, larger divergence characterised separately and never relied upon: measured 40 % to 70 % relative error against the real per-species equations.",
+      "rtol": 2e-06,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-02; gate0/07-branch-traceability.csv BR-CCV-LRG, BR-CCV-SML, BR-CCV-ZERO, BR-CCV-OVL; tests/unit/test_phase4_tree_structure_parity.py::test_canopy_cover_per_tree_area_matches_cpp, ::test_canopy_cover_stand_percent_matches_cpp, ::test_canopy_cover_default_equation_mapping_matches_cpp",
+      "unit": "ft2 (crown_area_ft2, total_area_ft2) / pct (pct_cover)"
     }
   },
   "consume": {
@@ -844,6 +872,227 @@
       "unit": "T/ac"
     }
   },
+  "consume_p4": {
+    "canopy": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "FolPre",
+        "FolCon",
+        "FolPos",
+        "BraPre",
+        "BraCon",
+        "BraPos"
+      ],
+      "justification": "consm_canopy vs the full-pipeline consume golden's FolCon/BraCon across all 32 Phase 4 consume scenarios, including the zero-crown-burn, full-crown-burn and zero-crown-load boundaries. Measured maximum |diff| = 0.0 exactly (both foliage and branch). The recorded atol is the harness's own output resolution (every scientific value is written through fmt(v, 6), i.e. six decimals), not a tuned value: no difference smaller than 1e-06 is observable in the golden at all.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/07-branch-traceability.csv BR-CAN-37, BR-CAN-38; tests/unit/test_phase4_consumption_parity.py::test_consume_canopy_foliage_consumption_matches_cpp, ::test_consume_canopy_branch_consumption_matches_cpp",
+      "unit": "T/ac"
+    },
+    "duff_depth": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "DufDepPre",
+        "DufDepCon",
+        "DufDepPos"
+      ],
+      "justification": "consm_duff's ddc/rdd vs DufDepCon/DufDepPos. 9 of 32 scenarios agree, measured maximum |diff| among them = 2.89e-07 in (below the golden's six-decimal output resolution, hence the 1e-05 atol). The remaining 23 diverge and are strict xfails: 21 reproduce F-23's depth-override defect (C++ DUF_Mngr overwrites the depth unconditionally at fof_duf.cpp:395 with f_DufDep*(f_Per/100), discarding Eqs 5/6/7/15, while Python returns the raw regression depth), measured |diff| 0.006 to 1.0791 in; 2 (ne-wph-entire-m050, se-cp-entire-m050) diverge because their percent already diverges under F-39. The tolerance applies ONLY to the agreeing scenarios and absorbs none of the divergence - the smallest divergence is 0.006 in, 600x the atol.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-23, F-39; gate0/07-branch-traceability.csv BR-DUF-DEPTH-OVERRIDE; tests/unit/test_phase4_consumption_parity.py::DUFF_DEPTH_XFAIL",
+      "unit": "in"
+    },
+    "duff_percent": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "DufPre",
+        "DufCon",
+        "DufPos",
+        "DufPer"
+      ],
+      "justification": "consm_duff's pdc vs DufPer. 28 of 32 scenarios agree, measured maximum |diff| among them = 6.0e-06 percentage points (the golden's six-decimal output resolution, hence the 1e-05 atol). Four diverge and are strict xfails: ne-gen-entire-m020 (F-23, 75.180000 vs 55.550000), ne-wph-entire-m050 (F-39, 62.400000 vs 49.550000), se-cp-entire-m050 (F-39, 28.871900 vs 38.623500) and iw-nat-entire-zero-duff (F-40, 0.0 vs 62.400000). The smallest divergence is 9.75 percentage points, roughly 1e6 times the atol, so the tolerance cannot mask any of them.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-23, F-39, F-40; gate0/07-branch-traceability.csv BR-DUF-IW, BR-DUF-PW, BR-DUF-SE, BR-DUF-NE-GEN, BR-DUF-NE-WPH, BR-DUF-NE-RJP-E, BR-DUF-NE-RJP-L, BR-DUF-NE-BAL-L, BR-DUF-NE-BAL-E, BR-DUF-POCO, BR-DUF-CHAP, BR-DUF-PILE, BR-DUF-CP; tests/unit/test_phase4_consumption_parity.py::DUFF_PERCENT_XFAIL",
+      "unit": "pct"
+    },
+    "durations": {
+      "atol": null,
+      "covers_columns": [
+        "FlaDur",
+        "SmoDur"
+      ],
+      "justification": "FlaDur and SmoDur are whole-model Burnup outputs (ES_FlaDur/ES_SmoDur accumulated across time steps). Phase 4 covers Tier-2 consumption and emissions functions and performed no Python-vs-C++ comparison for these two columns; run_burnup's own coverage is Phase 7 scope. No tolerance is assigned because no comparison was made.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "development/plans/2026-08-26-comprehensive-test-suite-plan.md Phase 4 scope (burnup primitives explicitly excluded); gate0/07-branch-traceability.csv BR-BRN-NOMINAL"
+    },
+    "emissions_expanded": {
+      "atol": null,
+      "column_group": "consume_p4_emission_totals_by_dispatch_path",
+      "covers_columns": [
+        "PM25F",
+        "PM25S",
+        "PM10F",
+        "PM10S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S",
+        "PM25S_Duff",
+        "PM10S_Duff",
+        "CH4S_Duff",
+        "COS_Duff",
+        "CO2S_Duff",
+        "NOXS_Duff",
+        "SO2S_Duff"
+      ],
+      "justification": "calc_smoke_emissions(mode='expanded') fed the golden row's own FlaCon/SmoCon/DufCon, compared against the same row's 21 d_CO totals, with each side first divided by ITS OWN imperial multiplier per F-32 (C++ (4046.86/453.592)/4.46 = 2.00040501817599; Python a flat 2.0). The 14 flaming/smoldering totals agree across both expanded scenarios (ef groups 2/5/8 and 3/7/8): measured maximum relative difference 1.89e-07, consistent with C++'s float32 d_CO storage plus six-decimal output formatting; the recorded rtol 5e-07 sits just above that. The 7 duff-only totals are a strict xfail under F-42: ES_Calc_NEW never writes them (bur_brn.cpp:2478-2484 adds gf_d* * d_Duff into dN_*S and into no *_Duff field), so C++ reports 0.0 where Python reports up to 17110.1 lb/ac - a divergence roughly 1e10 times the rtol, which therefore absorbs none of it.",
+      "rtol": 5e-07,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-32, F-42; gate0/07-branch-traceability.csv BR-EMI-EXPANDED; tests/unit/test_phase4_emissions_parity.py::test_expanded_flaming_smoldering_totals_match_cpp, ::test_expanded_duff_only_totals_match_cpp",
+      "unit": "dimensionless (relative difference, after the F-32 SI normalisation)"
+    },
+    "emissions_legacy": {
+      "atol": null,
+      "column_group": "consume_p4_emission_totals_by_dispatch_path",
+      "covers_columns": [
+        "PM25F",
+        "PM25S",
+        "PM10F",
+        "PM10S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S",
+        "PM25S_Duff",
+        "PM10S_Duff",
+        "CH4S_Duff",
+        "COS_Duff",
+        "CO2S_Duff",
+        "NOXS_Duff",
+        "SO2S_Duff"
+      ],
+      "justification": "calc_smoke_emissions(mode='legacy') fed the golden row's own FlaCon/SmoCon/DufCon, compared against the same row's 21 d_CO totals, each side first divided by its own imperial multiplier per F-32. All 21 totals agree across both legacy scenarios (InteriorWest and SouthEast): measured maximum relative difference 1.78e-07. NOXS and NOXS_Duff are exactly 0.0 on both sides by design (C++ d_noxs = 0, bur_brn.cpp:125; Python nox_s = 0.0) and are asserted as exact zeros rather than through the relative bound, which is undefined at 0. This is a FULL-PIPELINE comparison, not isolated ES_Calc parity.",
+      "rtol": 5e-07,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-32; gate0/07-branch-traceability.csv BR-EMI-LEGACY; tests/unit/test_phase4_emissions_parity.py::test_legacy_all_totals_match_cpp",
+      "unit": "dimensionless (relative difference, after the F-32 SI normalisation)"
+    },
+    "herb": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "HerPre",
+        "HerCon",
+        "HerPos"
+      ],
+      "justification": "consm_herb vs the full-pipeline consume golden's HerCon across all 32 Phase 4 consume scenarios. Measured maximum |diff| = 5.55e-17 T/ac (double-precision round-off). None of the consume scenarios routes to herb equation 221 or 223, so the F-35 and F-11 divergences do not arise here; both are exercised and xfailed against the direct Calc_Herb oracle under shrub_herb_eq_p4.herb instead. The recorded atol is the golden's six-decimal output resolution.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/07-branch-traceability.csv BR-HRB-22, BR-HRB-222; tests/unit/test_phase4_consumption_parity.py (consume herb rows)",
+      "unit": "T/ac"
+    },
+    "litter": {
+      "atol": null,
+      "column_group": "consume_p4_litter_by_route",
+      "covers_columns": [
+        "LitPre",
+        "LitCon",
+        "LitPos"
+      ],
+      "justification": "In the consume pipeline litter is consumed inside Burnup for every ordinary row (e_BurEqu 999, fof_hsf.cpp:83-84), so LitCon is a Burnup result rather than a consm_litter counterpart, and Phase 4 performed no consume-mode comparison for those rows. The one consume-mode row where C++ does NOT route litter through Burnup - the Coastal Plain row, where HSF_Mngr calls _CalcCP_Lit (fof_hsf.cpp:83-85, :107-127) - is classified separately by consume_p4.litter_cp, which shares this entry's column_group. Everything else on this route stays honestly unverified: consm_litter is compared against the DIRECT PFW_Litter_Eq997 / LitterSouthEast oracle instead (see litter_eq_p4). No tolerance is assigned here because no comparison was made for the Burnup-driven rows.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/04-findings.md:F-06; gate0/07-branch-traceability.csv BR-LIT-999 (CONTRACT-ONLY), BR-LIT-CP"
+    },
+    "litter_cp": {
+      "atol": 1e-05,
+      "column_group": "consume_p4_litter_by_route",
+      "covers_columns": [
+        "LitPre",
+        "LitCon",
+        "LitPos"
+      ],
+      "justification": "consm_litter vs the ONE consume-mode row whose litter C++ does not route through Burnup: se-cp-entire-m050, the Coastal Plain scenario, where HSF_Mngr dispatches _CalcCP_Lit (fof_hsf.cpp:83-85, :107-127) because DUF_Mngr set i_LitEqu == e_CP_PerEq. Executed 2026-09-01 as part of closing BR-LIT-CP's EXPECT-INVESTIGATE status. C++ reports LitCon 2.000000 T/ac from a 2.000000 T/ac pre-fire load (f_PerLit 100 %); consm_litter has no Coastal Plain route at all - CVR_GRP_CODES contains no CoastPlain token - so the closest representable Python call (reg='SouthEast', the region the scenario really carries, with the unrecognised 'CoastPlain' cover group) falls into the SouthEast equation-998 branch and returns 1.600000 T/ac. Measured |diff| 0.400000 T/ac, i.e. 20 % of the pre-fire load. This is F-39's Coastal Plain routing gap on the litter side, so the whole route is a strict xfail. The recorded atol is NOT a measured agreement bound - none exists on this route - it is the golden's own output resolution (LitCon is written through fmt(v, 6)), recorded so the desired-behaviour assertion has a centrally held bound; it is 40000x smaller than the divergence and therefore absorbs none of it.",
+      "rtol": null,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-39; gate0/07-branch-traceability.csv BR-LIT-CP; tests/unit/test_phase4_consumption_parity.py::test_consume_coastal_plain_litter_matches_cpp",
+      "unit": "T/ac"
+    },
+    "mineral_soil": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "MSE"
+      ],
+      "justification": "consm_mineral_soil vs the full-pipeline consume golden's MSE. 20 of 32 scenarios agree, measured maximum |diff| among them = 2.84e-06 percentage points (the golden's six-decimal output resolution, hence the 1e-05 atol). Twelve diverge and are strict xfails: 2 under F-26 (missing 0-floor, |diff| 4.9 and 18.8), 1 under F-27a (missing division by e_Adj = 1.4, |diff| 28.4), 6 under F-41 (no NorthEast/SouthEast Equ_14_MSE routing; 4 give the wrong equation with |diff| 30.96 to 69.59 and 2 return NaN outright), 2 under F-39 (no Chaparral Equ_19_MSE and no Coastal Plain route, |diff| 38.78 and 56.22) and 1 under F-40 (no zero-duff-load rule, |diff| 56.22). The smallest divergence is 4.9 percentage points, so the tolerance masks none of them.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-26, F-27a, F-39, F-40, F-41; gate0/07-branch-traceability.csv BR-MSE-9, BR-MSE-10, BR-MSE-11, BR-MSE-12, BR-MSE-13, BR-MSE-202, BR-MSE-PILE; tests/unit/test_phase4_consumption_parity.py::MSE_XFAIL",
+      "unit": "pct"
+    },
+    "shrub": {
+      "atol": null,
+      "covers_columns": [
+        "ShrPre",
+        "ShrCon",
+        "ShrPos"
+      ],
+      "justification": "The consume golden's ShrCon is a LOAD (T/ac) while consm_shrub returns a PERCENT, so the two are not directly comparable and converting one into the other would require re-implementing C++'s clamp order (Calc_Shrub clamps the consumed load to [0, f_Shrub] BEFORE deriving the percent, fof_hsf.cpp:177-186). Phase 4 therefore compares consm_shrub against the direct Calc_Shrub oracle's own shrub_pct column instead (see shrub_herb_eq_p4.shrub) and performed no consume-mode shrub comparison.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/07-branch-traceability.csv BR-SHR-23 and the other BR-SHR-* rows, all routed through shrub_herb_eq"
+    },
+    "totals": {
+      "atol": null,
+      "covers_columns": [
+        "TotPre",
+        "TotCon",
+        "TotPos",
+        "FlaCon",
+        "SmoCon"
+      ],
+      "justification": "TotPre/TotCon/TotPos are whole-stand pipeline aggregates and FlaCon/SmoCon are Burnup's accumulated flaming/smoldering consumption. Phase 4 CONSUMES FlaCon/SmoCon as INPUTS to the emissions comparison (see consume_p4.emissions_legacy/_expanded) but performs no Python-vs-C++ comparison OF them; run_burnup and run_fofem_emissions coverage is Phase 7/8 scope.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "development/plans/2026-08-26-comprehensive-test-suite-plan.md Phase 4/7/8 scope split; gate0/07-branch-traceability.csv BR-BRN-NOMINAL, BR-PIPE-*"
+    },
+    "woody": {
+      "atol": null,
+      "covers_columns": [
+        "DW1Pre",
+        "DW1Con",
+        "DW1Pos",
+        "DW10Pre",
+        "DW10Con",
+        "DW10Pos",
+        "DW100Pre",
+        "DW100Con",
+        "DW100Pos",
+        "SndDW1kPre",
+        "SndDW1kCon",
+        "SndDW1kPos",
+        "RotDW1kPre",
+        "RotDW1kCon",
+        "RotDW1kPos"
+      ],
+      "justification": "The 15 down-woody columns (DW1/DW10/DW100/SndDW1k/RotDW1k, Pre/Con/Pos) are Burnup outputs with no Tier-2 Python counterpart in Phase 4's function list. Gate 0 did not demonstrate that Burnup's particle physics is separable, so per-primitive coverage stays at the run_burnup level in Phase 7. No comparison was made and no tolerance is assigned.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "development/plans/2026-08-26-comprehensive-test-suite-plan.md Risks section (burnup separability resolved as NOT demonstrated); gate0/07-branch-traceability.csv BR-BRN-NOMINAL"
+    }
+  },
   "litter_eq": {
     "997": {
       "atol": null,
@@ -868,6 +1117,31 @@
       "traceability": "gate0/03-cpp-crosswalk.md (LitterSouthEast row); no 04-findings.md entry as of Phase 2"
     }
   },
+  "litter_eq_p4": {
+    "997": {
+      "atol": null,
+      "column_group": "litter_eq_p4_con_tac_by_equation_route",
+      "covers_columns": [
+        "con_tac"
+      ],
+      "justification": "consm_litter vs the direct PFW_Litter_Eq997 oracle across 8 scenarios spanning loads 0.0 to 10.0 T/ac and 10-hour moistures 5 to 60 %. Every scenario diverges: measured maximum |diff| 0.555994 T/ac and maximum relative difference 0.924324 (+92 %), with the sign of the error reversing across the domain. Three independent structural causes (F-07 missing Mg/ha round-trip, F-08 missing pre-fire-load cap, F-10 wrong moisture variable), so no atol or rtol can honestly bound it; every scenario is a strict xfail instead.",
+      "rtol": null,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-07,F-08,F-10; gate0/07-branch-traceability.csv BR-LIT-997; tests/unit/test_phase4_consumption_parity.py::test_litter_equation_matches_cpp"
+    },
+    "998": {
+      "atol": 1e-05,
+      "column_group": "litter_eq_p4_con_tac_by_equation_route",
+      "covers_columns": [
+        "con_tac"
+      ],
+      "justification": "consm_litter vs the direct LitterSouthEast oracle across 4 scenarios (loads 0.0, 0.5, 2.0 and 10.0 T/ac). Measured maximum |diff| = 0.0 exactly - the equation is a plain load*0.8 on both sides with no unit round-trip. The recorded atol is the golden's own six-decimal output resolution, not a tuned value. This closes the previously 'unverified' Phase 2 classification of the same equation route with a real, executed comparison.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/07-branch-traceability.csv BR-LIT-998; tests/unit/test_phase4_consumption_parity.py::test_litter_equation_matches_cpp",
+      "unit": "T/ac"
+    }
+  },
   "mortality": {
     "BolCha": {
       "atol": null,
@@ -886,10 +1160,10 @@
       "covers_columns": [
         "prob"
       ],
-      "justification": "No Gate 0 finding directly evaluates the CroDam (PFI_Calc) path against its Python counterpart yet.",
+      "justification": "The Phase 2 canonical mortality golden exercises the CroSco route only (one row), so no CroDam value is present in it and this entry assigns no tolerance. The CroDam route itself is no longer oracle-blocked: schema v2's density_tpa column satisfies ValidInput's 1 <= f_Den <= 20000 requirement (fof_mrt.cpp:1854-1856) and the Phase 4 mortality dataset measures all eleven PFI equations against mort_crcabe - see the mortality_p4.CroDam entry.",
       "rtol": null,
       "status": "unverified",
-      "traceability": "gate0/03-cpp-crosswalk.md (PFI_Calc row); no 04-findings.md entry as of Phase 2"
+      "traceability": "gate0/04-findings.md:F-45 (resolved), F-50; gate0/05-harness-contract.md section 5 (schema v2)"
     },
     "CroSco": {
       "atol": null,
@@ -901,6 +1175,44 @@
       "rtol": null,
       "status": "python_side_unreachable",
       "traceability": "gate0/04-findings.md:F-19,F-20"
+    }
+  },
+  "mortality_p4": {
+    "BolCha": {
+      "atol": 1e-06,
+      "column_group": "mortality_p4_prob_by_equation_route",
+      "covers_columns": [
+        "prob"
+      ],
+      "justification": "mort_bolchar vs the manifested mortality golden's prob across 12 scenarios covering all ten sr_BCT equations plus a zero-bole-char boundary. 8 agree, measured maximum |diff| among them = 5.00e-07 (below the golden's six-decimal fmt(prob, 6) resolution, which is why the atol is 1e-06). Four diverge and are strict xfails: 3 under F-36 (equation 100's intercept 2.3017 vs 2.3014, |diff| 5.97e-05; equation 102's intercept sign inverted, |diff| 4.38e-05; equation 109 reusing equation 104's coefficients, |diff| 0.108057) and 1 under F-37 (QUMO4, the only species the tracked table assigns equation 107, is unrecognised and returns NaN). The equation-100 coefficient defect is additionally pinned unconditionally by a source-relation coefficient test, because at one of its two scenarios the probability is small enough (0.001836) that the divergence falls below the golden's own output resolution.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-36, F-37; gate0/07-branch-traceability.csv BR-MRT-BC-100 .. BR-MRT-BC-109; tests/unit/test_phase4_mortality_parity.py::BOLCHAR_XFAIL, ::test_bolchar_coefficients_match_sr_bct_source_relation",
+      "unit": "probability (0-1)"
+    },
+    "CroDam": {
+      "atol": 1e-06,
+      "column_group": "mortality_p4_prob_by_equation_route",
+      "covers_columns": [
+        "prob"
+      ],
+      "justification": "mort_crcabe vs the manifested mortality golden's prob across 29 CroDam scenarios covering all eleven sr_EFR PFI equations (fof_mrt.cpp:78-91) at both crown-damage endpoints, plus beetle on/off, a zero cambium-kill rating, and ValidInput's four density boundary rows. The oracle became available when schema v2 added the density_tpa column that ValidInput requires (F-45, resolved). Eight equations agree - SF, WL, IC, ES, RF, SP, PP, PK - with a measured maximum |diff| of 4.51e-07 among them, below the golden's six-decimal fmt(prob, 6) resolution, which is why the atol is 1e-06. Three diverge and are strict xfails under F-50 (WF, WP, DF): each is an equation with a DBH term whose Python coefficient is a ROUNDED centimetre conversion of the pinned per-inch value (0.0483/2.54 = 0.019016 vs 0.019; -0.1232/2.54 = -0.048504 vs -0.0485; -0.0788/2.54 = -0.031024 vs -0.031 and 0.1251/2.54 = 0.049252 vs 0.0492). Measured |diff| 1.43e-06 to 2.08e-04. The smallest divergence, 1.43e-06, is 1.4x the atol and 3.2x the largest agreement, so the atol separates the two populations without absorbing any defect. Same defect class as F-47 on the crown-scorch side.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-45 (resolved), F-50; gate0/07-branch-traceability.csv BR-MRT-CD-WF .. BR-MRT-CD-DF, BR-MRT-CD-VAL; tests/unit/test_phase4_mortality_parity.py::CRODAM_XFAIL, ::test_crcabe_probability_matches_cpp",
+      "unit": "probability (0-1)"
+    },
+    "CroSco": {
+      "atol": 1e-06,
+      "column_group": "mortality_p4_prob_by_equation_route",
+      "covers_columns": [
+        "prob"
+      ],
+      "justification": "mort_crnsch vs the manifested mortality golden's prob across 23 scenarios covering MRT_Calc cases 1, 3, 4, 5, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20 and 21, with the bark thickness for each call taken from the SAME manifested dataset's bark_thick golden (SMT_CalcBarkThick) rather than from Python's F-19-broken calc_bark_thickness. 14 agree, measured maximum |diff| among them = 5.43e-07 (below the golden's six-decimal resolution). That set now includes cs03-piab-floor08, the scenario added by the Phase 4 correction pass to reach case 3's 0.8 floor (fof_mrt.cpp:391-392): the C++ oracle returns exactly 0.800000 and Python returns exactly 0.8, |diff| 0.0. Nine diverge and are strict xfails: 1 under F-48 (the case-1-vs-case-3 DBH boundary: C++ case 3 uses `f_DBH > 1` where Python uses `>= 1`, so at DBH exactly 1 C++ returns 1.000000 and Python 0.999049, |diff| 9.51e-04, while the DBH 1.1 and 12 partners agree and isolate the boundary as the cause), 1 under F-49 (equation 5 divides crown scorch by 100 instead of C++'s 10 and uses 14.429 instead of 14.492; 0.994231 vs 9.57e-13), 2 under F-47 (equations 14 and 17 apply rounded centimetre conversions of C++'s per-inch DBH coefficients, |diff| 3.17e-04 and 4.57e-06) and 5 under F-46 (cases 4 and 21 are flame-length driven and mort_crnsch raises for a flame-length-only call). The smallest divergence, 4.57e-06, is 4.6x the atol.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-46, F-47, F-48, F-49; gate0/07-branch-traceability.csv BR-MRT-CS-01, BR-MRT-CS-03, BR-MRT-CS-04, BR-MRT-CS-05, BR-MRT-CS-10 .. BR-MRT-CS-21; tests/unit/test_phase4_mortality_parity.py::CROSCO_XFAIL",
+      "unit": "probability (0-1)"
     }
   },
   "shrub_herb_eq": {
@@ -953,6 +1265,60 @@
       "rtol": null,
       "status": "known_divergent",
       "traceability": "gate0/04-findings.md:F-13,F-14,F-15,F-16"
+    }
+  },
+  "shrub_herb_eq_p4": {
+    "crown_branch": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "bra_con_tac",
+        "bra_post_tac",
+        "bra_pct"
+      ],
+      "justification": "consm_canopy's blc vs the direct Calc_CrownBranch oracle across all 17 shrub_herb_eq scenarios, including 0 %, 50 % and 100 % crown burn and a zero-crown-load row. Measured maximum |diff| = 0.0 exactly. Recorded atol is the golden's six-decimal output resolution.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/07-branch-traceability.csv BR-CAN-38; tests/unit/test_phase4_consumption_parity.py::test_shrub_herb_crown_branch_matches_cpp",
+      "unit": "T/ac"
+    },
+    "crown_foliage": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "fol_con_tac",
+        "fol_post_tac",
+        "fol_pct"
+      ],
+      "justification": "consm_canopy's flc vs the direct Calc_CrownFoliage oracle across all 17 shrub_herb_eq scenarios. Measured maximum |diff| = 0.0 exactly. Recorded atol is the golden's six-decimal output resolution.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/07-branch-traceability.csv BR-CAN-37; tests/unit/test_phase4_consumption_parity.py::test_shrub_herb_crown_foliage_matches_cpp",
+      "unit": "T/ac"
+    },
+    "herb": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "herb_con_tac",
+        "herb_post_tac",
+        "herb_pct"
+      ],
+      "justification": "consm_herb vs the direct Calc_Herb oracle across 17 scenarios. 12 agree, measured maximum |diff| among them = 5.55e-17 T/ac. Five diverge and are strict xfails: 1 under F-35 (equation 221 consumes 90 % in C++ Herb_Eq221 but 10 % in Python; 0.450000 vs 0.050000 T/ac), 2 under F-11 (Pine Flatwoods equation 223 is shadowed by Python's SouthEast branch; 0.497200 vs 0.407500) and 2 under F-12 (C++'s [0, f_Herb] output clamp is absent in Python, exercised in both directions). The smallest divergence is 0.0897 T/ac, roughly 9000x the atol.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-11, F-12, F-35; gate0/07-branch-traceability.csv BR-HRB-22, BR-HRB-221, BR-HRB-222, BR-HRB-223; tests/unit/test_phase4_consumption_parity.py::HERB_XFAIL",
+      "unit": "T/ac"
+    },
+    "shrub": {
+      "atol": 1e-05,
+      "covers_columns": [
+        "shrub_con_tac",
+        "shrub_post_tac",
+        "shrub_pct"
+      ],
+      "justification": "consm_shrub vs the direct Calc_Shrub oracle's shrub_pct across 17 scenarios. 10 agree, measured maximum |diff| among them = 0.0 exactly (equations 23, 231, 232 and 233 are fixed percentages on both sides, and both Pocosin seasonal routes agree). Seven diverge and are strict xfails: 4 under F-13/F-14 (SouthEast Eq 234 - C++ multiplies a FRACTION by the shrub load and clamps the consumed amount before deriving the percent, Python scales the same expression by 100 with no clamp and reports 730.8 to 1004.23 %), 2 under F-13/F-15 (Pine Flatwoods Eq 236, which Python's SouthEast branch shadows entirely so the Eq-236 code is never reached) and 1 under F-38 (zero pre-fire shrub load: C++ returns 0, Python returns the Eq-23 60.0 %). The smallest divergence is 60 percentage points.",
+      "rtol": null,
+      "status": "known_divergent_scenario_scoped",
+      "traceability": "gate0/04-findings.md:F-13, F-14, F-15, F-16, F-38; gate0/07-branch-traceability.csv BR-SHR-23, BR-SHR-231, BR-SHR-232, BR-SHR-233A, BR-SHR-233B, BR-SHR-234, BR-SHR-235, BR-SHR-236; tests/unit/test_phase4_consumption_parity.py::SHRUB_XFAIL",
+      "unit": "pct"
     }
   }
 }

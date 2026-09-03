@@ -38,6 +38,12 @@ from tests.cpp_parity_live._output_contract import (
     read_real_header,
     real_distinct_components,
 )
+from tests.cpp_parity_live._phase4_contract import (
+    GOLDEN_ROOT as PHASE4_GOLDEN_ROOT,
+    PHASE4_MODES,
+    PHASE4_ROUTE_KEYS,
+    phase4_policy_keys,
+)
 from tests.cpp_parity_live.generate_phase2_goldens import GOLDEN_ROOT, GOLDEN_TOLERANCE_KEYS
 
 _REQUIRED_FIELDS = frozenset({"status", "atol", "rtol", "justification", "traceability"})
@@ -47,6 +53,12 @@ _REQUIRED_FIELDS = frozenset({"status", "atol", "rtol", "justification", "tracea
 #: counterpart exists". No entry in the current policy uses this status
 #: yet, but the completeness rule below is written to allow it.
 _CONTRACT_ONLY_STATUSES = frozenset({"contract_only"})
+
+#: Phase 4 policy-section name to the harness mode whose real output columns
+#: it classifies. Phase 4 reuses the six qualified Phase 2 modes unchanged, so
+#: a ``<mode>_p4`` entry's ``covers_columns`` must name real columns of
+#: ``<mode>`` exactly as a bare ``<mode>`` entry must.
+_PHASE4_SECTION_TO_MODE = {f"{mode}_p4": mode for mode in PHASE4_MODES}
 
 #: (mode, suffix) pairs whose real header is read from a per-mode-only
 #: (not per-file) generated golden, i.e. every declared output file of
@@ -77,6 +89,34 @@ def _all_entries():
 
 def _golden_csv_path(mode: str, suffix: str) -> str:
     return os.path.join(GOLDEN_ROOT, mode, f"{mode}{suffix}.csv")
+
+
+def _phase4_golden_csv_path(mode: str, suffix: str) -> str:
+    return os.path.join(PHASE4_GOLDEN_ROOT, mode, f"{mode}{suffix}.csv")
+
+
+def _require_phase4_golden_present(mode: str, suffix: str) -> str:
+    path = _phase4_golden_csv_path(mode, suffix)
+    if not os.path.isfile(path):
+        pytest.skip(
+            f"Phase 4 golden {path!r} does not exist - run "
+            "tests/cpp_parity_live/generate_phase4_goldens.py at least once "
+            "before this column-coverage check can run (see docs/CODEBASE.md)."
+        )
+    return path
+
+
+def _phase4_real_scientific_columns_by_mode():
+    """Return ``{mode: set(real scientific column names)}`` derived from the
+    actual generated PHASE 4 golden CSVs - the ground truth every ``*_p4``
+    policy entry's ``covers_columns`` is checked against."""
+    out = {}
+    for mode, suffix in _WIDE_FORMAT_OUTPUT_FILES:
+        path = _require_phase4_golden_present(mode, suffix)
+        header = read_real_header(path)
+        _metadata, scientific = classify_columns(mode, suffix, header)
+        out.setdefault(mode, set()).update(scientific)
+    return out
 
 
 def _require_golden_present(mode: str, suffix: str) -> str:
@@ -302,4 +342,100 @@ def test_unverified_entries_have_no_invented_tolerance():
             entry["atol"] is not None or entry["rtol"] is not None
         ):
             bad.append(f"{mode}.{scenario}: atol={entry['atol']} rtol={entry['rtol']}")
+    assert not bad, bad
+
+
+def test_phase4_every_golden_reference_covers_its_real_scientific_columns():
+    """Every real scientific column of every Phase 4 output file must be
+    covered by the exact key set that mode's Phase 4 manifest cites - not
+    merely resolve somewhere in the global policy."""
+    policy = load_tolerance_policy()
+    real_by_mode = _phase4_real_scientific_columns_by_mode()
+    missing = []
+    for mode, real_columns in real_by_mode.items():
+        covered = set()
+        for dotted_key in phase4_policy_keys(mode):
+            section, _, route = dotted_key.partition(".")
+            covered.update(policy[section][route].get("covers_columns", []))
+        uncovered = real_columns - covered
+        if uncovered:
+            missing.append(
+                f"{mode}: Phase 4 manifest keys do not cover {sorted(uncovered)}"
+            )
+    assert not missing, missing
+
+
+def test_phase4_every_route_key_resolves_in_policy():
+    """Every dotted key a Phase 4 manifest cites must exist in the policy."""
+    policy = load_tolerance_policy()
+    unresolved = []
+    for mode in PHASE4_MODES:
+        for key in phase4_policy_keys(mode):
+            section, _, route = key.partition(".")
+            if section not in policy or route not in policy.get(section, {}):
+                unresolved.append(key)
+    assert not unresolved, unresolved
+
+
+def test_phase4_route_keys_match_the_policy_sections_exactly():
+    """A ``*_p4`` section must contain exactly the routes the Phase 4
+    contract declares - an orphaned entry is as dangerous as a missing one."""
+    policy = load_tolerance_policy()
+    mismatched = []
+    for section, mode in _PHASE4_SECTION_TO_MODE.items():
+        assert section in policy, f"missing policy section {section!r}"
+        declared = set(PHASE4_ROUTE_KEYS[mode])
+        present = set(policy[section])
+        if declared != present:
+            mismatched.append(
+                f"{section}: declared {sorted(declared)}, present "
+                f"{sorted(present)}"
+            )
+    assert not mismatched, mismatched
+
+
+def test_phase4_sections_cover_no_nonexistent_column():
+    """A ``*_p4`` entry's ``covers_columns`` must name real columns of its
+    mode's Phase 4 output files."""
+    policy = load_tolerance_policy()
+    real_by_mode = _phase4_real_scientific_columns_by_mode()
+    bad = []
+    for section, mode in _PHASE4_SECTION_TO_MODE.items():
+        real_columns = real_by_mode.get(mode, set())
+        for route, entry in policy[section].items():
+            extra = set(entry.get("covers_columns", [])) - real_columns
+            if extra:
+                bad.append(
+                    f"{section}.{route}: covers_columns has nonexistent "
+                    f"column(s) {sorted(extra)}"
+                )
+    assert not bad, bad
+
+
+def test_phase4_sections_exist_for_every_phase4_mode():
+    """Every Phase 4 mode must have its own ``<mode>_p4`` policy section, so
+    a new mode cannot silently inherit the frozen Phase 2 evidence."""
+    policy = load_tolerance_policy()
+    missing = [s for s in _PHASE4_SECTION_TO_MODE if s not in policy]
+    assert not missing, missing
+
+
+def test_phase4_scenario_scoped_entries_record_a_measured_maximum():
+    """A ``known_divergent_scenario_scoped`` entry carries a real tolerance,
+    so its justification MUST state the measured maximum among the agreeing
+    scenarios - otherwise the tolerance is unevidenced."""
+    policy = load_tolerance_policy()
+    bad = []
+    for section in _PHASE4_SECTION_TO_MODE:
+        for route, entry in policy[section].items():
+            if entry["status"] != "known_divergent_scenario_scoped":
+                continue
+            justification = entry["justification"]
+            if "measured maximum" not in justification:
+                bad.append(f"{section}.{route}: no measured maximum recorded")
+            if entry["atol"] is None and entry["rtol"] is None:
+                bad.append(
+                    f"{section}.{route}: scenario-scoped status but no "
+                    "tolerance recorded for the agreeing scenarios"
+                )
     assert not bad, bad

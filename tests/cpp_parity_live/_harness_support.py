@@ -51,7 +51,11 @@ import tempfile
 from typing import Dict, List, Optional, Tuple
 
 from tests._support import CPP_REFERENCE_DIR, PROJECT_ROOT
-from tests.cpp_parity_live._golden_manifest import ProvenanceError, check_pinned_sha
+from tests.cpp_parity_live._golden_manifest import (
+    MODE_SCHEMA_VERSIONS,
+    ProvenanceError,
+    check_pinned_sha,
+)
 from tests.cpp_parity_live._proc import ProcTimeout, run_bounded
 
 FOF_UNIX_DIR = os.path.join(CPP_REFERENCE_DIR, "FOF_UNIX")
@@ -306,7 +310,7 @@ def run_harness(
         header: List[str],
         rows: List[List[str]],
         out_prefix: str,
-        schema_version: str = "1",
+        schema_version: Optional[str] = None,
         species_csv: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
         output_suffixes: Tuple[str, ...] = ("",),
@@ -332,7 +336,13 @@ def run_harness(
         (deliberately not CSV-quoted — the contract's input format has no
         quoting, so a malformed-input self-test can inject raw commas).
     :param out_prefix: Absolute output-prefix path passed to the harness.
-    :param schema_version: Value written on the magic line.
+    :param schema_version: Value written on the magic line. Defaults to
+        *mode*'s own declared version from
+        :data:`~tests.cpp_parity_live._golden_manifest.MODE_SCHEMA_VERSIONS`
+        (the version is per mode, not global), or ``"1"`` for a mode
+        name the registry does not know — deliberately, so the
+        unknown-mode self-tests still reach the harness. Pass an
+        explicit value only to test version rejection.
     :param species_csv: If given, appended as ``--species-csv <path>``.
     :param extra_args: Additional raw CLI arguments appended after
         ``--species-csv`` (if any) — used by CLI self-tests.
@@ -351,6 +361,8 @@ def run_harness(
         and any partial output removed before this is raised.
     :raises HarnessConfigError: Via :func:`resolve_harness_exe`.
     """
+    if schema_version is None:
+        schema_version = MODE_SCHEMA_VERSIONS.get(mode, "1")
     in_path = out_prefix + "_in.csv"
     lines = []
     lines.append(magic_override if magic_override is not None

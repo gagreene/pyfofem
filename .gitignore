@@ -56,6 +56,14 @@ credentials.json
 !fuel_analyst/supporting_data/plant_photoload.csv
 !fuel_analyst/supporting_data/tree_parameters.csv
 
+# Phase 4 committed C++-oracle golden dataset (scientific input/output CSVs
+# only - manifests are .json and were never matched by the *.csv rule
+# above). Narrow negation, not a blanket golden-tree exception: Phase 2's
+# own goldens under test_golden_output/phase2/ stay force-tracked exactly
+# as they already are (git add -f, see .gitattributes) and are
+# deliberately NOT touched by this rule.
+!tests/test_data/test_golden_output/phase4/**/*.csv
+
 # Testing data (keep sample data in supporting_data only)
 src/pyfofem/reference_docs/
 

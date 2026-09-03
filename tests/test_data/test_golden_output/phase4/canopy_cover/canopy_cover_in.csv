@@ -1,0 +1,17 @@
+#fofem-harness,canopy_cover,1
+case_id,expect_error,stand_id,species,dbh_in,ht_ft
+ccv-p4s1-psme,0,p4s1,PSME,12,60
+ccv-p4s1-pial,0,p4s1,PIAL,18,70
+ccv-p4s1-abba,0,p4s1,ABBA,8,40
+ccv-p4s2-psme-ht46,0,p4s2,PSME,3,4.6
+ccv-p4s2-psme-ht45,0,p4s2,PSME,3,4.5
+ccv-p4s2-psme-ht44,0,p4s2,PSME,3,4.4
+ccv-p4s3-quru,0,p4s3,QURU,20,80
+ccv-p4s4-psme-ht0,0,p4s4,PSME,12,0
+ccv-p4s4-psme-htneg,0,p4s4,PSME,12,-5
+ccv-p4s4-psme-dbh0,0,p4s4,PSME,0,60
+ccv-p4s5-pico-a,0,p4s5,PICO,24,90
+ccv-p4s5-pico-b,0,p4s5,PICO,24,90
+ccv-p4s5-pico-c,0,p4s5,PICO,24,90
+ccv-p4s5-pico-d,0,p4s5,PICO,24,90
+ccv-p4s6-unknown,1,p4s6,ZZZZ,12,60

@@ -34,6 +34,7 @@ import tempfile
 import pytest
 
 from tests._support import PROJECT_ROOT
+from tests.cpp_parity_live._golden_manifest import MODE_SCHEMA_VERSIONS
 from tests.cpp_parity_live._harness_support import (
     FOF_UNIX_DIR,
     HARNESS_EXE,
@@ -92,14 +93,19 @@ SHRUB_HERB_EQ_ROW_OK = [
     "1.0", "0.5", "2.0", "10.0", "50", "0.5", "0.5", "50", "-1",
 ]
 
+#: Mortality is the one mode at schema v2 (see MODE_SCHEMA_VERSIONS and
+#: test_harness.cpp's MODES[] table). v2 renamed v1's misnamed `ckr_pct`
+#: to `ckr_rating` (d_MIS.f_CKR is the 0-4 cambium kill RATING,
+#: fof_mrt.cpp:1849-1851/1937) and appended `density_tpa` (d_MIS.f_Den,
+#: which ValidInput requires in [1, 20000], fof_mrt.cpp:1854-1856).
 MORTALITY_HEADER = [
     "case_id", "expect_error", "species", "equ_type", "dbh_in", "ht_ft",
     "crown_ratio_x10", "fs_value_ft", "fs_kind", "bole_char_ft",
-    "fire_severity", "ckr_pct", "cvk_pct", "beetles",
+    "fire_severity", "ckr_rating", "cvk_pct", "beetles", "density_tpa",
 ]
 MORTALITY_ROW_OK = [
     "c1", "0", "PSME", "CroSco", "12", "60", "50", "4", "Flame", "0",
-    "NA", "0", "0", "0",
+    "NA", "0", "0", "0", "100",
 ]
 
 BARK_THICK_HEADER = ["case_id", "expect_error", "species", "dbh_in"]
@@ -171,7 +177,7 @@ SECOND_ROW_OK = {
     ],
     "mortality": [
         "c2", "0", "PIPO", "CroSco", "18", "70", "60", "6", "Scorch", "0",
-        "NA", "0", "0", "0",
+        "NA", "0", "0", "0", "250",
     ],
     "bark_thick": ["c2", "0", "PIPO", "18"],
     "canopy_cover": ["c2", "0", "s1", "PIPO", "18", "70"],
@@ -247,13 +253,60 @@ def test_row2_missing_magic_line(mode, tmp_path):
 
 # ===========================================================================
 # Row 3 — wrong schema version
+#
+# The accepted version is declared PER MODE (contract §2/§5 headings,
+# test_harness.cpp's MODES[] table, MODE_SCHEMA_VERSIONS). A literal "2"
+# is therefore no longer a universally-wrong version — it is mortality's
+# CORRECT one — so the generic rejection test uses a version no mode
+# declares, and the per-mode cross-rejection is asserted separately
+# below.
 # ===========================================================================
+
+#: A schema version no mode declares, used by the generic row-3 test.
+UNDECLARED_SCHEMA_VERSION = "99"
+
 
 @pytest.mark.parametrize("mode", ALL_MODE_NAMES)
 def test_row3_wrong_schema_version(mode, tmp_path):
+    assert UNDECLARED_SCHEMA_VERSION not in set(MODE_SCHEMA_VERSIONS.values())
     m = MODES[mode]
-    res = _run(mode, [m["row"]], tmp_path, schema_version="2")
+    res = _run(mode, [m["row"]], tmp_path,
+               schema_version=UNDECLARED_SCHEMA_VERSION)
     assert res.returncode != 0
+    assert "schema_version" in res.stderr
+
+
+@pytest.mark.parametrize("mode", ALL_MODE_NAMES)
+def test_row3_declared_schema_version_is_accepted(mode, tmp_path):
+    """The version this mode declares is accepted, and is echoed verbatim
+    into every output row — so an archived CSV always says which schema
+    produced it."""
+    m = MODES[mode]
+    declared = MODE_SCHEMA_VERSIONS[mode]
+    res = _run(mode, [m["row"]], tmp_path, schema_version=declared)
+    assert res.returncode == 0, res.stderr
+    primary = res.rows(m["primary_suffix"])
+    assert primary and primary[0]["schema_version"] == declared
+
+
+@pytest.mark.parametrize("mode", ALL_MODE_NAMES)
+def test_row3_other_modes_schema_version_is_rejected(mode, tmp_path):
+    """A version another mode declares is still rejected here.
+
+    This is what makes mortality's v2 a genuine per-mode revision rather
+    than a silent redefinition of "v1": mortality rejects "1", and every
+    v1 mode rejects "2".
+    """
+    m = MODES[mode]
+    declared = MODE_SCHEMA_VERSIONS[mode]
+    others = sorted(set(MODE_SCHEMA_VERSIONS.values()) - {declared})
+    assert others, "expected at least one other declared schema version"
+    for other in others:
+        res = _run(mode, [m["row"]], tmp_path, name=f"case_v{other}",
+                   schema_version=other)
+        assert res.returncode != 0, (
+            f"mode {mode!r} (declares v{declared}) accepted v{other}"
+        )
 
 
 # ===========================================================================
@@ -1015,3 +1068,139 @@ def test_normalized_whitespace_species_still_rejects_when_actually_unknown(tmp_p
     res = _run("mortality", [row], tmp_path)
     assert res.returncode == 0
     assert res.rows()[0]["outcome"] == "expected_model_error"
+
+
+# ===========================================================================
+# Mortality schema v2 — `density_tpa` boundaries and the corrected error rule
+#
+# Contract rows 5/6/7/8 for the NEW column, plus the error-signal change the
+# column exists to expose. `density_tpa` fills d_MIS.f_Den, which ValidInput
+# checks with `f_Den < 1.0 || f_Den > 20000` (fof_mrt.cpp:1854-1856), so 1
+# and 20000 are the inclusive valid boundaries and 0 / 20001 are the first
+# invalid values on each side.
+#
+# Only the CroDam (PFI_Calc) route validates density at all: MRT_CalcMngr
+# (fof_mrt.cpp:157-187) sends CroSco to MRT_Calc and BolCha to BC_Calc,
+# neither of which calls ValidInput. These tests therefore drive CroDam
+# rows, and the CroSco insensitivity is asserted explicitly rather than
+# assumed.
+# ===========================================================================
+
+#: Index of the mortality mode's `density_tpa` column.
+DENSITY_INDEX = MORTALITY_HEADER.index("density_tpa")
+
+#: A CroDam row that routes through PFI_Calc -> ValidInput. ABCO's `Mort`
+#: entry in the tracked FOF_SPP.CSV selects equation WF (Eq_WhiteFir_WF,
+#: fof_mrt.cpp:1911-1942), whose required fields are "dbh len ckr btl".
+MORTALITY_CRODAM_ROW = [
+    "d1", "0", "ABCO", "CroDam", "12", "60", "50", "0", "Scorch", "0",
+    "NA", "3", "100", "0", "100",
+]
+
+
+def _crodam_row(case_id, density, expect_error="0"):
+    row = list(MORTALITY_CRODAM_ROW)
+    row[0] = case_id
+    row[1] = expect_error
+    row[DENSITY_INDEX] = density
+    return row
+
+
+@pytest.mark.parametrize("density", ["1", "20000", "100"])
+def test_mortality_density_within_bounds_is_accepted(density, tmp_path):
+    """1 and 20000 are ValidInput's inclusive boundaries; a mid-range value
+    is included as the control."""
+    res = _run("mortality", [_crodam_row("d_ok", density)], tmp_path,
+               name=f"case_d{density}")
+    assert res.returncode == 0, res.stderr
+    row = res.rows("")[0]
+    assert row["outcome"] == "ok"
+    assert row["err_text"].strip() == ""
+    assert 0.0 <= float(row["prob"]) <= 1.0
+
+
+@pytest.mark.parametrize("density", ["0", "0.999", "20001"])
+def test_mortality_density_out_of_bounds_is_a_model_error(density, tmp_path):
+    """0 and 20001 are the first invalid values on each side; 0.999 pins that
+    the lower bound is a real `< 1.0` float comparison, not an integer one.
+
+    The row declares expect_error=1, so the two-sided rule requires the
+    harness to actually observe the error — a silently-successful row would
+    be an `unexpected_failure` and a nonzero exit.
+    """
+    res = _run("mortality",
+               [_crodam_row("d_bad", density, expect_error="1")], tmp_path,
+               name=f"case_d{density}")
+    assert res.returncode == 0, res.stderr
+    row = res.rows("")[0]
+    assert row["outcome"] == "expected_model_error"
+    assert "Invalid input: Density" in row["err_text"]
+    assert row["ret"] == "-1"
+    assert row["prob"] == "NA"
+
+
+@pytest.mark.parametrize("density", ["0", "20001"])
+def test_mortality_out_of_bounds_density_without_expect_error_fails(
+        density, tmp_path):
+    """The same rejection with expect_error=0 must exit nonzero and be
+    recorded `unexpected_failure`.
+
+    This is the regression guard for the schema-v1 defect: under the old
+    `prob < 0` error rule the row was written `ok` with `prob=0.000000`
+    despite carrying ValidInput's error text, and the process exited 0.
+    """
+    res = _run("mortality", [_crodam_row("d_bad", density)], tmp_path,
+               name=f"case_dnx{density}")
+    assert res.returncode != 0
+    row = res.rows("")[0]
+    assert row["outcome"] == "unexpected_failure"
+    assert "Invalid input: Density" in row["err_text"]
+
+
+@pytest.mark.parametrize("bad", ["", "abc", "1.2.3", "1e", "0x10"])
+def test_mortality_density_parsing_is_strict(bad, tmp_path):
+    """Rows 5/6 for `density_tpa`: blank and non-numeric are hard errors,
+    never a silent 0.0 (which is exactly the value that made the schema-v1
+    defect invisible)."""
+    res = _run("mortality", [_crodam_row("d_parse", bad)], tmp_path,
+               name=f"case_dp{bad!r}")
+    assert res.returncode != 0
+    assert "density_tpa" in res.stderr
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "1e999", "-1e999"])
+def test_mortality_density_nonfinite_is_rejected(bad, tmp_path):
+    """Row 7 for `density_tpa`."""
+    res = _run("mortality", [_crodam_row("d_nf", bad)], tmp_path,
+               name=f"case_dnf{bad!r}")
+    assert res.returncode != 0
+    assert "density_tpa" in res.stderr
+
+
+@pytest.mark.parametrize("density", ["1", "20000"])
+def test_mortality_crosco_probability_is_independent_of_density(
+        density, tmp_path):
+    """CroSco routes to MRT_Calc, which never calls ValidInput; density only
+    reaches MRT_Total's stand accumulators (fof_mrt.cpp:818-875), which this
+    mode does not emit. Asserted, not assumed — it is what makes the Phase 2
+    CroSco golden's `prob` unchanged by the v2 column."""
+    row = list(MODES["mortality"]["row"])
+    row[DENSITY_INDEX] = density
+    res = _run("mortality", [row], tmp_path, name=f"case_cs{density}")
+    assert res.returncode == 0, res.stderr
+    assert res.rows("")[0]["prob"] == "0.976129"
+
+
+def test_mortality_error_text_alone_marks_a_model_error(tmp_path):
+    """The v2 error rule's other half: an error signalled ONLY through
+    cr_ErrMes (no negative return) is a model error.
+
+    PFI_Calc returns 0 — a perfectly ordinary probability — on a ValidInput
+    rejection (fof_mrt.cpp:1800-1801), so `prob < 0` alone cannot see it.
+    """
+    res = _run("mortality",
+               [_crodam_row("d_errtext", "0", expect_error="1")], tmp_path)
+    assert res.returncode == 0, res.stderr
+    row = res.rows("")[0]
+    assert row["outcome"] == "expected_model_error"
+    assert row["err_text"].strip() != ""

@@ -66,6 +66,7 @@ from tests.cpp_parity_live._golden_manifest import (
     check_pinned_sha,
     load_tolerance_policy,
     MODE_OUTPUT_SUFFIXES,
+    MODE_SCHEMA_VERSIONS,
     sha256_file,
     validate_manifest,
     write_manifest,
@@ -192,7 +193,7 @@ def _generate_one(mode: str, out_dir: str) -> str:
 
     manifest = build_manifest(
         harness_mode=mode,
-        schema_version="1",
+        schema_version=MODE_SCHEMA_VERSIONS[mode],
         compiler_identity=_compiler_identity(),
         generator_toolchain=_generator_toolchain_identity(),
         platform=platform.platform(),

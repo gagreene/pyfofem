@@ -1,8 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-_golden_manifest.py - Provenance manifest builder/validator for Phase 2
+_golden_manifest.py - Provenance manifest builder/validator for the
 C++-oracle golden datasets.
+
+Two datasets exist (see :data:`VALID_DATASETS`): ``phase2``, the frozen
+canonical one-row-per-mode dataset, and ``phase4``, the Tier-2 scenario
+matrix. Both use the same six qualified harness modes, the same manifest
+schema, and the same fail-closed checks; they differ only in which
+tolerance-policy routes and generator-source files they cite. A manifest
+with no ``dataset`` field is a ``phase2`` manifest — that field was added by
+Phase 4 and is deliberately omitted for ``phase2`` so the already-committed
+Phase 2 manifests remain byte-identical.
 
 Every accepted golden dataset carries a manifest recording: the pinned
 upstream C++ SHA (checked against a hardcoded constant, not merely
@@ -22,9 +31,10 @@ merely recording them.
 Nothing here computes provenance from stale README prose — every field is
 recomputed directly from the live checkout at generation/validation time.
 
-Function order: top-level functions are alphabetized, private-then-public,
-per AGENTS.md (none in this module are underscore-prefixed, so they form
-one alphabetized group).
+Function order: private helpers first (``_dataset_of``,
+``_is_safe_repo_relative_path``, ``_run_git``, alphabetized without their
+leading underscore), then public top-level functions, alphabetized, per
+AGENTS.md.
 """
 from __future__ import annotations
 
@@ -63,9 +73,29 @@ REQUIRED_OVERLAY_FILES = frozenset({
     "source/compile_test.bat",
 })
 
+#: Dataset a manifest belongs to when it carries no ``dataset`` field. The
+#: committed Phase 2 manifests predate the field and must stay byte-identical,
+#: so their dataset is inferred rather than recorded (Phase 4 addition).
+DEFAULT_DATASET = "phase2"
+
+#: Every golden dataset this module knows how to build/validate a manifest
+#: for. ``phase2`` is the frozen canonical single-row-per-mode dataset;
+#: ``phase4`` is the Tier-2 scenario-matrix dataset (see
+#: ``_phase4_contract.py``). Both use the same six qualified harness modes.
+VALID_DATASETS = frozenset({"phase2", "phase4"})
+
+#: Human-readable label per dataset, used in error text only. Kept
+#: separate from the dataset key so the Phase 2 wording that existing
+#: approved tests assert on ("canonical Phase 2 scenario contract")
+#: stays byte-stable while Phase 4 gets its own label.
+DATASET_LABELS = {"phase2": "Phase 2", "phase4": "Phase 4"}
+
 #: This module's own generation-time dependencies. Hashed into a manifest
 #: whenever the parent repo is dirty (uncommitted), since a dirty-tree
 #: generation cannot point at a stable commit for its own generator logic.
+#: This list is the ``phase2`` dataset's list and is deliberately FROZEN:
+#: the committed Phase 2 manifests cite it verbatim. Phase 4 declares its
+#: own, larger list (see :func:`generator_source_files_for_dataset`).
 GENERATOR_SOURCE_FILES = [
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "_golden_manifest.py"),
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "_harness_support.py"),
@@ -83,7 +113,34 @@ TOLERANCE_POLICY_PATH = os.path.join(
 VALID_HARNESS_MODES = frozenset({
     "consume", "litter_eq", "shrub_herb_eq", "mortality", "bark_thick", "canopy_cover",
 })
-VALID_SCHEMA_VERSIONS = frozenset({"1"})
+
+#: The input/output schema version each harness mode declares. This is
+#: PER MODE, not global: ``gate0/05-harness-contract.md`` declares each
+#: mode's schema independently (§2 "Mode ``consume`` (schema v1)",
+#: §5 "Mode ``mortality`` (schema v2)", ...), and revising one mode
+#: must not silently redefine what an archived CSV of another mode's
+#: v1 means. Mirrors ``test_harness.cpp``'s own ``MODES[]`` table,
+#: whose ``schema_version`` field main() validates the magic line
+#: against; ``test_cpp_harness_contract.py`` proves the two agree by
+#: running the real binary, so this is not a silently-drifting copy.
+#:
+#: ``mortality`` is at v2 because Phase 4's correction pass added a
+#: ``density_tpa`` column (``d_MIS.f_Den``, required by ``ValidInput``
+#: at ``fof_mrt.cpp:1854-1856`` for every CroDam row) and renamed the
+#: misnamed ``ckr_pct`` to ``ckr_rating``.
+MODE_SCHEMA_VERSIONS = {
+    "consume": "1",
+    "litter_eq": "1",
+    "shrub_herb_eq": "1",
+    "mortality": "2",
+    "bark_thick": "1",
+    "canopy_cover": "1",
+}
+
+#: Every schema version any mode declares. Used only for the coarse
+#: "is this a version string we know at all" check; the binding check
+#: is the exact per-mode equality against :data:`MODE_SCHEMA_VERSIONS`.
+VALID_SCHEMA_VERSIONS = frozenset(MODE_SCHEMA_VERSIONS.values())
 
 #: Exact required output-file suffixes per mode for the ONE canonical
 #: all-ok scenario Phase 2 actually generates (see
@@ -146,6 +203,45 @@ class ProvenanceError(RuntimeError):
     """Raised when a fail-closed provenance precondition is violated."""
 
 
+def _dataset_of(manifest: Dict[str, Any]) -> str:
+    """
+    Return the dataset a manifest belongs to.
+
+    :param manifest: A manifest dict.
+    :returns: The recorded ``dataset`` field, or :data:`DEFAULT_DATASET` when
+        the field is absent (the frozen Phase 2 manifests predate it).
+    """
+    return str(manifest.get("dataset", DEFAULT_DATASET))
+
+
+def _is_safe_repo_relative_path(rel_path: str) -> bool:
+    """
+    Return ``True`` iff *rel_path* is a plain, forward-slash repo-relative
+    path that resolves inside :data:`~tests._support.PROJECT_ROOT` with no
+    ``..`` traversal — rejects e.g. ``"../../etc/passwd"`` or an absolute
+    path smuggled in as a "repo-relative" manifest field.
+    """
+    if not rel_path or os.path.isabs(rel_path):
+        return False
+    if "\\" in rel_path:
+        return False
+    normalized = os.path.normpath(os.path.join(PROJECT_ROOT, rel_path))
+    root = os.path.normpath(PROJECT_ROOT)
+    return normalized == root or normalized.startswith(root + os.sep)
+
+
+def _run_git(args: List[str]) -> str:
+    """Run a git command via the bounded/tree-killing subprocess helper and
+    return its stdout, raising like ``subprocess.check_output`` would on a
+    nonzero exit (``run_bounded`` itself does not raise on nonzero exit)."""
+    result = run_bounded(["git"] + args, timeout=TIMEOUT_GIT_S)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"git {' '.join(args)} failed (exit {result.returncode}): {result.stderr}"
+        )
+    return result.stdout
+
+
 def build_manifest(
         *,
         harness_mode: str,
@@ -162,6 +258,7 @@ def build_manifest(
         tolerance_policy_keys: List[str],
         side_files: Optional[Dict[str, str]] = None,
         now_utc_iso: Optional[str] = None,
+        dataset: str = DEFAULT_DATASET,
 ) -> Dict[str, Any]:
     """
     Build a complete provenance manifest for one golden-generation run.
@@ -170,7 +267,11 @@ def build_manifest(
     anything else.
 
     :param harness_mode: One of the six Phase 2 modes.
-    :param schema_version: Input/output schema version string (``"1"``).
+    :param schema_version: Input/output schema version string for
+        *harness_mode*, the mode-specific value from
+        :data:`MODE_SCHEMA_VERSIONS` (e.g. ``"1"`` for most modes,
+        ``"2"`` for ``mortality`` since the Phase 4 correction pass) —
+        never a single hardcoded value shared by every mode.
     :param compiler_identity: Real cl.exe version banner — never generic
         prose.
     :param generator_toolchain: Real CMake + Ninja version strings.
@@ -197,12 +298,22 @@ def build_manifest(
         supply this (this module never calls ``datetime.utcnow()`` itself
         so manifests stay reproducible/testable without wall-clock
         dependence); production callers pass a real timestamp.
+    :param dataset: Which golden dataset this manifest belongs to — one of
+        :data:`VALID_DATASETS`. ``"phase2"`` (the default) reproduces the
+        original, frozen behaviour exactly and writes NO ``dataset`` field,
+        so the committed Phase 2 manifests stay byte-identical; any other
+        dataset records the field explicitly.
     :return: A manifest dict with every field in :data:`REQUIRED_FIELDS`
         populated.
     :raises ProvenanceError: Via :func:`check_pinned_sha`.
-    :raises ValueError: If *tolerance_policy_keys* is empty.
+    :raises ValueError: If *tolerance_policy_keys* is empty or *dataset* is
+        not a known dataset.
     """
     check_pinned_sha()
+    if dataset not in VALID_DATASETS:
+        raise ValueError(
+            f"dataset {dataset!r} is not one of {sorted(VALID_DATASETS)}"
+        )
     if not tolerance_policy_keys:
         raise ValueError(
             "tolerance_policy_keys must not be empty — every golden must "
@@ -211,15 +322,15 @@ def build_manifest(
         )
 
     policy = load_tolerance_policy()
-    expected_policy_keys = phase2_canonical_policy_keys(harness_mode, policy)
+    expected_policy_keys = canonical_policy_keys(dataset, harness_mode, policy)
     if tolerance_policy_keys != expected_policy_keys:
         raise ValueError(
             f"tolerance_policy_keys for {harness_mode!r} must exactly match "
-            f"the canonical Phase 2 scenario contract; expected "
+            f"the canonical {DATASET_LABELS[dataset]} scenario contract; expected "
             f"{expected_policy_keys!r}, got {tolerance_policy_keys!r}"
         )
     divergences = divergences_for_keys(
-        policy, phase2_canonical_divergence_keys(harness_mode)
+        policy, canonical_divergence_keys(dataset, harness_mode)
     )
 
     overlay = compute_overlay_digests()
@@ -228,7 +339,9 @@ def build_manifest(
 
     generator_source_sha256: Dict[str, str] = {}
     if dirty["dirty"]:
-        generator_source_sha256 = sha256_files(GENERATOR_SOURCE_FILES)
+        generator_source_sha256 = sha256_files(
+            generator_source_files_for_dataset(dataset)
+        )
 
     manifest = {
         "upstream_cpp_sha": current_upstream_sha(),
@@ -256,7 +369,54 @@ def build_manifest(
         "documented_expected_divergences": divergences,
         "tolerance_policy_reference": list(expected_policy_keys),
     }
+    if dataset != DEFAULT_DATASET:
+        manifest["dataset"] = dataset
     return manifest
+
+
+def canonical_divergence_keys(dataset: str, mode: str) -> List[str]:
+    """
+    Return the dotted policy keys whose divergence status *dataset*'s
+    manifest for *mode* must document.
+
+    :param dataset: ``"phase2"`` or ``"phase4"``.
+    :param mode: Harness mode name.
+    :returns: Dotted ``<policy-section>.<route>`` keys, deterministically
+        ordered.
+    :raises KeyError: If *dataset* or *mode* has no contract.
+    """
+    if dataset == "phase2":
+        return phase2_canonical_divergence_keys(mode)
+    if dataset == "phase4":
+        # Imported lazily: _phase4_contract imports the harness-contract
+        # module, which imports _harness_support, which imports THIS module.
+        from tests.cpp_parity_live._phase4_contract import phase4_divergence_keys
+        return phase4_divergence_keys(mode)
+    raise KeyError(f"unknown golden dataset: {dataset!r}")
+
+
+def canonical_policy_keys(dataset: str, mode: str, policy: dict) -> List[str]:
+    """
+    Return every tolerance-policy key applicable to *dataset*'s golden for
+    *mode*.
+
+    :param dataset: ``"phase2"`` or ``"phase4"``.
+    :param mode: Harness mode name.
+    :param policy: Loaded tolerance-policy object.
+    :returns: Dotted ``<policy-section>.<route>`` keys, deterministically
+        ordered.
+    :raises KeyError: If *dataset*, *mode*, or a configured route is absent.
+    """
+    if dataset == "phase2":
+        return phase2_canonical_policy_keys(mode, policy)
+    if dataset == "phase4":
+        from tests.cpp_parity_live._phase4_contract import phase4_policy_keys
+        keys = phase4_policy_keys(mode)
+        for key in keys:
+            section, _, route = key.partition(".")
+            policy[section][route]
+        return keys
+    raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
 def check_pinned_sha() -> None:
@@ -305,34 +465,6 @@ def compute_overlay_digests() -> Dict[str, Any]:
     lines = sorted(f"{rel}:{h}" for rel, h in per_file.items())
     combined = hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
     return {"per_file": per_file, "combined": combined}
-
-
-def _is_safe_repo_relative_path(rel_path: str) -> bool:
-    """
-    Return ``True`` iff *rel_path* is a plain, forward-slash repo-relative
-    path that resolves inside :data:`~tests._support.PROJECT_ROOT` with no
-    ``..`` traversal — rejects e.g. ``"../../etc/passwd"`` or an absolute
-    path smuggled in as a "repo-relative" manifest field.
-    """
-    if not rel_path or os.path.isabs(rel_path):
-        return False
-    if "\\" in rel_path:
-        return False
-    normalized = os.path.normpath(os.path.join(PROJECT_ROOT, rel_path))
-    root = os.path.normpath(PROJECT_ROOT)
-    return normalized == root or normalized.startswith(root + os.sep)
-
-
-def _run_git(args: List[str]) -> str:
-    """Run a git command via the bounded/tree-killing subprocess helper and
-    return its stdout, raising like ``subprocess.check_output`` would on a
-    nonzero exit (``run_bounded`` itself does not raise on nonzero exit)."""
-    result = run_bounded(["git"] + args, timeout=TIMEOUT_GIT_S)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"git {' '.join(args)} failed (exit {result.returncode}): {result.stderr}"
-        )
-    return result.stdout
 
 
 def current_pyfofem_commit() -> str:
@@ -398,6 +530,27 @@ def divergences_for_keys(policy: Dict[str, Any], keys: List[str]) -> List[str]:
             f"({entry['traceability']})"
         )
     return out
+
+
+def generator_source_files_for_dataset(dataset: str) -> List[str]:
+    """
+    Return the absolute paths whose bytes determine *dataset*'s goldens.
+
+    :param dataset: ``"phase2"`` or ``"phase4"``.
+    :returns: Absolute paths, in the dataset's declared order.
+    :raises KeyError: If *dataset* is unknown.
+    """
+    if dataset == "phase2":
+        return list(GENERATOR_SOURCE_FILES)
+    if dataset == "phase4":
+        from tests.cpp_parity_live._phase4_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE,
+        )
+        return [
+            os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
+            for rel in GENERATOR_SOURCE_FILES_RELATIVE
+        ]
+    raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
 def git_dirty_status(repo_dir: str) -> Dict[str, Any]:
@@ -518,6 +671,14 @@ def validate_manifest(
         the input/output authentication (side_file_sha256, which carries
         its own repo-relative paths, is still checked against
         :data:`~tests._support.PROJECT_ROOT` regardless of *golden_dir*).
+
+    The dataset a manifest belongs to is read from its own ``dataset``
+    field (absent means ``"phase2"``), and every dataset-scoped contract —
+    the exact tolerance-policy key set, the derived expected-divergence
+    list, and the exact ``generator_source_sha256`` key set — is resolved
+    against THAT dataset. A manifest naming an unknown dataset is rejected
+    outright rather than validated against the wrong contract.
+
     :return: List of human-readable error strings; empty means valid.
     """
     errors: List[str] = []
@@ -533,6 +694,15 @@ def validate_manifest(
         return errors
 
     # --- type / format / allowed-value checks ---
+    dataset = _dataset_of(manifest)
+    if dataset not in VALID_DATASETS:
+        # Every downstream contract (policy keys, divergences, generator
+        # sources) is dataset-scoped, so an unknown dataset makes the rest
+        # meaningless — fail here rather than validate against the wrong
+        # contract.
+        return [
+            f"dataset {dataset!r} is not one of {sorted(VALID_DATASETS)}"
+        ]
     if manifest["harness_mode"] not in VALID_HARNESS_MODES:
         errors.append(
             f"harness_mode {manifest['harness_mode']!r} not one of "
@@ -543,6 +713,17 @@ def validate_manifest(
             f"schema_version {manifest['schema_version']!r} not one of "
             f"{sorted(VALID_SCHEMA_VERSIONS)}"
         )
+    elif manifest["harness_mode"] in MODE_SCHEMA_VERSIONS:
+        # The binding check: a version string that is valid for SOME
+        # mode is still wrong provenance if it is not this mode's own
+        # declared version.
+        expected_version = MODE_SCHEMA_VERSIONS[manifest["harness_mode"]]
+        if manifest["schema_version"] != expected_version:
+            errors.append(
+                f"schema_version is {manifest['schema_version']!r}, but "
+                f"mode {manifest['harness_mode']!r} declares "
+                f"{expected_version!r}"
+            )
     if not _GIT_SHA_RE.match(str(manifest["upstream_cpp_sha"])):
         errors.append(
             f"upstream_cpp_sha {manifest['upstream_cpp_sha']!r} is not a "
@@ -682,11 +863,11 @@ def validate_manifest(
                 if key_mode not in policy or scenario not in policy.get(key_mode, {}):
                     errors.append(f"tolerance_policy_reference key {key!r} not found in tolerance_policy.json")
             if mode in VALID_HARNESS_MODES:
-                expected_policy_keys = phase2_canonical_policy_keys(mode, policy)
+                expected_policy_keys = canonical_policy_keys(dataset, mode, policy)
                 if manifest["tolerance_policy_reference"] != expected_policy_keys:
                     errors.append(
                         f"tolerance_policy_reference for mode {mode!r} must "
-                        "exactly match the canonical Phase 2 scenario "
+                        f"exactly match the canonical {DATASET_LABELS[dataset]} scenario "
                         f"contract: expected {expected_policy_keys!r}, got "
                         f"{manifest['tolerance_policy_reference']!r}"
                     )
@@ -706,7 +887,7 @@ def validate_manifest(
         # divergences_for_keys()'s _NON_DIVERGENT_STATUSES filter.
         if policy is not None and mode in VALID_HARNESS_MODES:
             expected_divergences = divergences_for_keys(
-                policy, phase2_canonical_divergence_keys(mode)
+                policy, canonical_divergence_keys(dataset, mode)
             )
             if manifest["documented_expected_divergences"] != expected_divergences:
                 errors.append(
@@ -797,7 +978,10 @@ def validate_manifest(
         )
 
     # --- generator_source_sha256: exact key set + live rehash ---
-    expected_gen_keys = {to_repo_relative(p) for p in GENERATOR_SOURCE_FILES}
+    expected_gen_keys = {
+        to_repo_relative(p)
+        for p in generator_source_files_for_dataset(dataset)
+    }
     gen_sha = manifest.get("generator_source_sha256") or {}
     if gen_sha:
         actual_gen_keys = set(gen_sha.keys())

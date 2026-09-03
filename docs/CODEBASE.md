@@ -98,7 +98,7 @@ pyfofem/
 - `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
 - `tests/run_unified_tests.py --suite core|full` is the current publish-oriented test runner (see `README.md`).
 - `examples/emissions_batch.py` (not under `tests/`) is the current emissions batch/example driver.
-- `reference/fofem_cpp_overlay/source/FOF_UNIX/test_harness.cpp` (applied onto `reference/fofem_cpp/FOF_UNIX/test_harness.cpp`, never committed inside the submodule) is the **Phase 2** C++ oracle harness (`fofem_test`), superseding the old single-mode ("consume" only) harness this section previously described. It implements six modes — `consume`, `litter_eq`, `shrub_herb_eq`, `mortality`, `bark_thick`, `canopy_cover` — per `development/plans/gate0/05-harness-contract.md`; `soil_campbell` is Phase 5's. `mortality`/`bark_thick`/`canopy_cover` require an explicit `--species-csv <path>` (real production loader `MRT_LoadSpe()`, not `MRT_InitST()` — see that file's own header comment and the Gate 0 correction recorded in `03-cpp-crosswalk.md`/`05-harness-contract.md`).
+- `reference/fofem_cpp_overlay/source/FOF_UNIX/test_harness.cpp` (applied onto `reference/fofem_cpp/FOF_UNIX/test_harness.cpp`, never committed inside the submodule) is the **Phase 2** C++ oracle harness (`fofem_test`), superseding the old single-mode ("consume" only) harness this section previously described. It implements six modes — `consume`, `litter_eq`, `shrub_herb_eq`, `mortality`, `bark_thick`, `canopy_cover` — per `development/plans/gate0/05-harness-contract.md`; **the input/output schema version is declared PER MODE** (`test_harness.cpp`'s `MODES[]` table, mirrored by `MODE_SCHEMA_VERSIONS` in `tests/cpp_parity_live/_golden_manifest.py` and enforced by `validate_manifest()`): `mortality` is at **v2** since the 2026-09-01 Phase 4 correction pass (added `density_tpa`, renamed `ckr_pct` to `ckr_rating`, widened the mode's error rule — see F-45), every other mode is at v1, and each mode rejects every version but its own; `soil_campbell` is Phase 5's. `mortality`/`bark_thick`/`canopy_cover` require an explicit `--species-csv <path>` (real production loader `MRT_LoadSpe()`, not `MRT_InitST()` — see that file's own header comment and the Gate 0 correction recorded in `03-cpp-crosswalk.md`/`05-harness-contract.md`).
 - `tests/cpp_parity_live/_harness_support.py` locates the MSVC/CMake/Ninja toolchain (via `vswhere.exe`), builds `fofem_test.exe`, and drives it from Python.
 - `tests/cpp_parity_live/_golden_manifest.py` builds/validates the provenance manifest every Phase 2 golden dataset carries (upstream SHA, overlay digests, compiler/toolchain identity, input/output/side-file hashes, generation timestamp, pyfofem commit, and exact scenario-applicable tolerance-policy references/divergences). Validation fails closed on omitted/cross-mode policy keys and re-derives the expected divergence list from the canonical route contract. Validated by `tests/unit/test_golden_manifest_validator.py` (no live build needed).
 - `tests/cpp_parity_live/test_cpp_harness_contract.py` implements the full 19-row + 11a-11g self-test matrix from `gate0/05-harness-contract.md` §10 against the live compiled binary (192 tests as of Phase 2 final approval; requires the MSVC toolchain, skips cleanly if absent).
@@ -283,12 +283,14 @@ $env:FOFEM_TEST_HARNESS_EXE = "$(Get-Location)\reference\fofem_cpp\build_diag\fo
 python -m pytest tests/cpp_parity_live/test_cpp_harness_contract.py -q
 ```
 
-**Results (2026-08-29, round 4 correction pass, against the harness as of this pass):**
+**Results (2026-09-01, Phase 4 correction pass, against the harness as of
+this pass — re-run in full because `test_harness.cpp` changed; supersedes
+the 2026-08-29 round-4 run, whose matrix was 192 tests):**
 
 - Golden/release build: 0 errors. Own file (`test_harness.cpp`) compiles with **zero warnings** even at `/W4` (stricter than the release build's own `/W3`). Warnings remain only in the pinned, untouched `FOF_UNIX/*.cpp` upstream sources (C4244/C4305/C4996/C4459/C4101/C4267 — narrowing conversions, deprecated CRT calls, shadowing, unused locals, size_t truncation) — pre-existing, not introduced by Phase 2, and out of scope to fix (pinned source).
-- Full `test_cpp_harness_contract.py` matrix (192 tests) run against the NORMAL golden/release binary: **192 passed, 0 failed**.
-- The SAME full 192-test matrix run against the ASan diagnostic binary via `FOFEM_TEST_HARNESS_EXE`, exactly as shown above: **192 passed, 0 failed** — a prior round's `test_harness_exe_override_unset_resolves_to_default` unconditionally asserted the override was unset, which was false whenever `FOFEM_TEST_HARNESS_EXE` was exported for the whole run (correctly reported then as "1 failed by design", but a diagnostic qualification gate may not contain an intentional failure); it now explicitly removes the override for its own scope via `monkeypatch.delenv`, so both runs are genuinely, completely green. 0 sanitizer findings across the full matrix in either run, including the malformed-input/fault-injection paths (unknown species, overlong fields at every distinct buffer-size class, malformed numeric syntax, malformed headers, non-contiguous groups, the `SMT_CalcCrnCov` unresolved-species guard path) and the real out-of-bounds read `SMT_CalcCrnCov` has for an unresolved species (`fof_mrt.cpp:1611-1640`, no `iX<0` check), which the harness's own guard prevents from ever executing — confirmed clean under ASan, not just by code inspection.
-- `/analyze`: **0 findings** (previously one, fixed in round 3: `C6262`, "Function uses ~248 KB of stack", in `run_consume()`).
+- Full `test_cpp_harness_contract.py` matrix (**225** tests — the 192 of the round-4 run plus the 33 added for the `mortality` schema-v2 density/per-mode-schema-version contract) run against the NORMAL golden/release binary: **225 passed, 0 failed**.
+- The SAME full 225-test matrix run against the ASan diagnostic binary via `FOFEM_TEST_HARNESS_EXE`, exactly as shown above (the diagnostic tree was deleted and rebuilt cold from the revised source first, not reused): **225 passed, 0 failed** — a prior round's `test_harness_exe_override_unset_resolves_to_default` unconditionally asserted the override was unset, which was false whenever `FOFEM_TEST_HARNESS_EXE` was exported for the whole run (correctly reported then as "1 failed by design", but a diagnostic qualification gate may not contain an intentional failure); it now explicitly removes the override for its own scope via `monkeypatch.delenv`, so both runs are genuinely, completely green. 0 sanitizer findings across the full matrix in either run, including the malformed-input/fault-injection paths (unknown species, overlong fields at every distinct buffer-size class, malformed numeric syntax, malformed headers, non-contiguous groups, the `SMT_CalcCrnCov` unresolved-species guard path) and the real out-of-bounds read `SMT_CalcCrnCov` has for an unresolved species (`fof_mrt.cpp:1611-1640`, no `iX<0` check), which the harness's own guard prevents from ever executing — confirmed clean under ASan, not just by code inspection.
+- `/analyze` on the revised `test_harness.cpp`: **0 findings** (previously one, fixed in round 3: `C6262`, "Function uses ~248 KB of stack", in `run_consume()`). `/W4` on the harness's own file: **0 warnings**, unchanged by the schema-v2 edits.
 
 **`C6262` reconciliation (item 9 of the round 3 correction pass) — the prior round's attribution to `/RTC1` was WRONG, corrected here:**
 
@@ -297,6 +299,182 @@ The documented `/analyze` command above never included `/RTC1` — it is a bare 
 **Fix applied** (preferred option per the correction instructions, over merely re-documenting a stack-margin argument): `ci`/`co` are now heap-allocated via `std::unique_ptr<d_CI>`/`std::unique_ptr<d_CO>` with `d_CI&`/`d_CO&` references bound to them, so every existing `ci.`/`co.` access in the function body is unchanged. This is a harness-local, test-tooling-only change — no pinned `FOF_UNIX/*.cpp` source was touched, and `CI_Init`/`CO_Init`/the scientific call sequence are identical. Re-running `/analyze` after the fix confirms **0 findings** (verified directly above, not assumed); the full `test_cpp_harness_contract.py` matrix (192 tests, both the normal build and the ASan diagnostic build) was re-run afterward and passes identically to before the fix, confirming no functional/behavioral change.
 
 `/RTC1` (Runtime Checks — uninitialized-variable and stack-frame-corruption detection) is CMake's own `CMAKE_CXX_FLAGS_DEBUG` default and is therefore already active on every golden/release build and every one of the hundreds of harness invocations across the self-test suite and golden generation this session — zero RTC aborts observed.
+
+#### Phase 4 test and dataset architecture (2026-08-31) — executed C++ oracle comparison for Tier-2 functions
+
+Phase 4 is the first phase whose tests are category **(c) executable C++
+parity** in the Phase 3 taxonomy above: every value it asserts is compared
+against output from a live pinned-C++ run, not hand-derived. It **builds no
+new harness mode** — it drives the same six Phase 2 modes and consumes their
+output through a second, larger golden dataset tree.
+
+| Module | Covers | Golden mode(s) |
+|---|---|---|
+| `unit/test_phase4_consumption_parity.py` | `consm_duff`, `consm_litter`, `consm_mineral_soil`, `consm_herb`, `consm_shrub`, `consm_canopy` | `consume`, `shrub_herb_eq`, `litter_eq` |
+| `unit/test_phase4_emissions_parity.py` | `calc_smoke_emissions` in `legacy` and `expanded` modes | `consume` |
+| `unit/test_phase4_mortality_parity.py` | `mort_crnsch`, `mort_bolchar`, `mort_crcabe` | `mortality` |
+| `unit/test_phase4_tree_structure_parity.py` | `calc_bark_thickness`, `calc_canopy_cover` | `bark_thick`, `canopy_cover` |
+
+All four are registered in `CORE_TESTS` (`tests/run_unified_tests.py`). They
+read committed golden CSVs and require no MSVC toolchain; the live-build
+generator that produces those CSVs is separate and lives in `FULL_EXTRA_TESTS`.
+
+**Dataset tree.** `tests/test_data/test_golden_output/phase4/<mode>/` is a
+sibling of `phase2/`, never a replacement for it. Each of the six modes
+carries its input CSV, its output CSV(s), and a `<mode>.manifest.json`.
+Phase 4 manifests carry **22** keys — Phase 2's 21 plus a `dataset` key that
+names which tree the manifest describes, so a Phase 2 and a Phase 4 manifest
+can never be silently interchanged. The pinned upstream SHA and the overlay
+digest in every Phase 4 manifest match the Phase 2 values; the two trees are
+generated from the same qualified binary.
+
+**Generator.** `tests/cpp_parity_live/generate_phase4_goldens.py` reuses
+Phase 2's promotion machinery rather than duplicating it — `_qualify_all`,
+`_promote`, `_validate_staged_tree` and `verify_regeneration` are imported
+from `generate_phase2_goldens`. `_promote(tmp_root, out_root, modes)` takes
+its destination explicitly, and Phase 4 always passes its own `GOLDEN_ROOT`
+(`_phase4_contract.py:49`), so the shared helpers cannot write into the
+Phase 2 tree. `--verify-only` proves deterministic regeneration without
+overwriting, exactly as in Phase 2.
+
+**Scenario contract.** `tests/cpp_parity_live/_phase4_contract.py` holds the
+scenario matrices, the golden-row accessors and the mode indices shared by all
+four test modules, so scenario identity is defined once and consumed
+everywhere rather than restated per module.
+
+**Tolerance policy.** `tests/cpp_parity_live/tolerance_policy.json` gained six
+`*_p4` namespaces — `consume_p4` (12 keys), `litter_eq_p4` (2),
+`shrub_herb_eq_p4` (4), `mortality_p4` (3), `bark_thick_p4` (1) and
+`canopy_cover_p4` (1), 23 new entries in total. They are namespaced separately
+from the Phase 2/Phase 3 keys, which are unchanged, so a Phase 4 tolerance can
+never be applied to a Phase 2 comparison. Every entry carries a measured
+justification naming the scenarios that agree, the maximum observed difference
+among them, the scenarios that diverge, and the finding ID each divergence is
+recorded under. `unit/test_tolerance_policy_completeness.py` is `_p4`-aware
+and enforces that coverage.
+
+**One xfail mechanism, and it is now uniform.** Divergences are recorded as
+`pytest.mark.xfail(strict=True, ...)`, applied one of two ways:
+
+- A per-module `_maybe_xfail(request, table, case_id)` helper adds the
+  marker at runtime from a module-level `*_XFAIL` table, present in the
+  consumption, mortality and tree-structure modules.
+- A `@pytest.mark.xfail(strict=True, reason=...)` decorator directly above
+  the `def`, for a scenario-independent divergence.
+
+Both forms wrap a REAL, EXECUTING assertion of the desired (post-fix)
+behaviour — never an unconditional surrender. **Prior state, corrected in
+the Phase 4 correction pass part 2 (2026-09-02):** five call sites (emissions
+1, mortality 2, tree-structure 2) used the imperative `pytest.xfail(reason=
+...)` form, which raises `_pytest.outcomes.XFailed` immediately and never
+reaches a real assertion — under `--runxfail` these were vacuous passes, one
+of independent review's round-1 findings. All five were rewritten to execute
+the real desired-behaviour assertion (verified failing, with real measured
+values, under `--runxfail`) and decorated `@pytest.mark.xfail(strict=True,
+reason=...)` instead; the imperative form no longer appears anywhere in the
+Phase 4 modules, enforced by a new AST-based meta-test,
+`tests/unit/test_phase4_contract_hygiene.py`, which also asserts every
+`xfail` marker in the Phase 4 modules is `strict=True`.
+
+Neither form is a skip: the Phase 4 modules add **zero** skips. The
+module-level `pytest.mark.skipif(not golden_tree_exists(), ...)` guard that
+previously fronted all four Phase 4 parity modules was ALSO removed in the
+correction pass part 2 (independent review finding (2), fail-open on a
+missing golden tree): each module now calls
+`_phase4_contract.require_golden_tree()` directly at collection time, which
+raises `FileNotFoundError` naming the exact missing/empty file(s) if the
+committed dataset is incomplete — a loud collection error, never a silent
+skip. `tests/unit/test_phase4_golden_tracking.py` duplicates this check as
+an independently runnable test and additionally proves — via real,
+STATE-INDEPENDENT `git` subprocess checks, valid whether the golden tree is
+currently tracked or still untracked (correction pass 3, 2026-09-02; see
+below) — that every required Phase 4 golden file is committable without
+`-f`. See the `.gitignore` negation below.
+
+**Phase 4 golden tree committability (correction pass part 2, 2026-09-02).**
+`.gitignore`'s blanket `*.csv` rule (line 55, pre-dating Phase 4) silently
+ignored every Phase 4 scientific CSV, so a normal `git add
+tests/test_data/test_golden_output/phase4/` would have staged only the
+`.json` manifests (independent review finding (3)). Fixed with one narrow
+negation, `!tests/test_data/test_golden_output/phase4/**/*.csv`, added
+directly below the fuel_analyst negations already there. Manifest `.json`
+files were never matched by the `*.csv` rule and needed no change. Phase 2's
+own goldens are unaffected and use a DIFFERENT, already-complete mechanism
+(`git add -f` at commit time, when the Phase 2 golden tree was first
+committed as `d1039d3`) — they do not need, and were not given, a gitignore
+negation, since a file already tracked stays tracked regardless of
+`.gitignore`. `.gitattributes` gained the matching
+`tests/test_data/test_golden_output/phase4/** -text` line, mirroring
+Phase 2's own rule, so Phase 4 manifest JSON hashes stay byte-stable across a
+Windows checkout (no CRLF conversion).
+
+**Trackability contract is STATE-INDEPENDENT, not "always untracked"
+(correction pass 3, 2026-09-02).** The part-2 verification above (plain `git
+check-ignore` reporting exit 1 for every file, plus a `git add --dry-run`
+that stages all 21) is only true while the Phase 4 golden tree is
+untracked, and both checks silently stop meaning what they claim once the
+tree is actually committed:
+
+- Plain `git check-ignore` (no `--no-index`) consults the index, so it
+  reports an ALREADY-TRACKED path as "not ignored" (exit 1) regardless of
+  whether a gitignore rule still pattern-matches it — it cannot distinguish
+  "genuinely not excluded" from "excluded but saved by being tracked".
+  `git check-ignore --no-index` evaluates the gitignore patterns against
+  the path alone, ignoring the index entirely, and is the only form that is
+  meaningful whether or not the file is currently tracked.
+- `git add --dry-run` prints an `add '<path>'` line only for a path git
+  would actually touch. A path that is already tracked AND unchanged has
+  nothing to add, so git prints NOTHING for it (while still exiting 0) —
+  "every required file appears in `git add --dry-run` stdout" silently
+  starts failing the moment the golden tree is committed and clean.
+
+The real, state-independent contract every required Phase 4 golden file
+must satisfy (`tests/unit/test_phase4_golden_tracking.py`, rewritten in
+correction pass 3): (1) not ignored per `git check-ignore --no-index`; (2)
+EITHER already tracked (`git ls-files --error-unmatch` succeeds — nothing
+further to add, `-f` is moot) OR, if untracked, staged by a real `git add
+--dry-run` without any "ignored" warning. Both the plain-`check-ignore`
+gotcha and the tracked-unchanged `add --dry-run` silence are reproduced
+directly against a disposable temp git repository (never the real project
+index) by dedicated tests in that same module.
+
+**The one blocked branch family is now RESOLVED (F-45, 2026-09-01).** As
+originally reported, the `mortality` mode could not produce a valid
+`mort_crcabe` (crown-damage) oracle: `PFI_Calc` validates through
+`ValidInput`, which requires `1 <= f_Den <= 20000`
+(`fof_mrt.cpp:1854-1856`), and the `mortality` schema v1 had no density
+column. `PFI_Calc` returns `0` — an ordinary probability — rather than a
+negative sentinel, so under the harness's then-current `prob < 0` error rule
+those rows were recorded `outcome=ok` with `prob=0.000000` and a non-empty
+`err_text`: a value that looks like a result but is not one. The eleven
+affected PFI species equations were recorded `BLOCKED-HARNESS`.
+
+The Phase 4 correction pass fixed both halves in the harness. `mortality`
+schema **v2** adds a `density_tpa` column wired to `d_MIS.f_Den`, and the
+mode's error rule now treats EITHER a negative probability OR non-empty
+`cr_ErrMes` as a model error (a row declared `ok` must additionally carry a
+finite probability in `[0, 1]`). All eleven equations now have a real
+executable oracle, and **zero `BLOCKED-HARNESS` rows remain** in
+`07-branch-traceability.csv`: eight equations agree (`SF`, `WL`, `IC`, `ES`,
+`RF`, `SP`, `PP`, `PK`; measured max |diff| 4.51e-07) and three are strict
+xfails under the new **F-50** (`WF`, `WP`, `DF` — the equations carrying a
+DBH term, whose Python coefficients are rounded centimetre conversions of the
+pinned per-inch values). `BR-MRT-CD-VAL` is upgraded from `CONTRACT-ONLY` to
+`EXPECT-PASS`: `ValidInput`'s density boundaries (1 and 20000 accepted, 0 and
+20001 rejected) are now an executed, manifested oracle. The corrected
+behaviour is *asserted* by `test_crodam_density_rejection_is_surfaced` and
+`test_every_ok_golden_row_is_a_clean_oracle`, which replaced the old
+blocked-state assertion.
+
+**Findings.** Phase 4 added 14 finding IDs (F-35 through F-43 and F-45 through
+F-49) to `development/plans/gate0/04-findings.md`, and its 2026-09-01
+correction pass added **F-50** (three crown-damage equations use rounded
+unit-converted DBH coefficients — the same defect class as F-47), bringing the
+tracked total to 49. `F-44` was never allocated and is documented as a
+deliberate gap rather than left to look like a lost finding. **F-45 is the
+first finding in this register to be marked RESOLVED**; its original analysis
+is preserved verbatim inside the entry, followed by what the correction pass
+changed and measured.
 
 ## Architecture Overview
 

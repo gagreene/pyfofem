@@ -27,9 +27,11 @@ from tests._support import PROJECT_ROOT
 from tests.cpp_parity_live._golden_manifest import (
     EXPECTED_SPECIES_TABLE_REPO_PATH,
     GENERATOR_SOURCE_FILES,
+    MODE_SCHEMA_VERSIONS,
     PINNED_UPSTREAM_SHA,
     REQUIRED_FIELDS,
     REQUIRED_OVERLAY_FILES,
+    VALID_HARNESS_MODES,
     build_manifest,
     check_pinned_sha,
     compute_overlay_digests,
@@ -75,12 +77,16 @@ def side_file():
 @pytest.fixture
 def sample_manifest(tmp_path, side_file):
     input_csv = tmp_path / f"{_SAMPLE_MODE}_in.csv"
-    input_csv.write_text("#fofem-harness,mortality,1\n", encoding="utf-8")
+    input_csv.write_text(
+        "#fofem-harness,%s,%s\n"
+        % (_SAMPLE_MODE, MODE_SCHEMA_VERSIONS[_SAMPLE_MODE]),
+        encoding="utf-8",
+    )
     output_csv = tmp_path / f"{_SAMPLE_MODE}.csv"
     output_csv.write_text("case_id,outcome\nc1,ok\n", encoding="utf-8")
     return build_manifest(
         harness_mode=_SAMPLE_MODE,
-        schema_version="1",
+        schema_version=MODE_SCHEMA_VERSIONS[_SAMPLE_MODE],
         compiler_identity="test-compiler",
         generator_toolchain="test-toolchain",
         platform="test-platform",
@@ -516,3 +522,33 @@ def test_write_manifest_round_trips_through_json(tmp_path, sample_manifest):
         loaded = json.load(f)
     assert loaded == sample_manifest
     assert validate_manifest(loaded, check_against_live_checkout=False) == []
+
+
+def test_mode_schema_versions_covers_every_valid_harness_mode():
+    """Every mode the validator accepts must declare a schema version, or the
+    per-mode equality check would silently not apply to it."""
+    assert set(MODE_SCHEMA_VERSIONS) == set(VALID_HARNESS_MODES)
+
+
+def test_schema_version_must_match_the_mode_that_declares_it(sample_manifest):
+    """A version string that is valid for SOME mode is still wrong provenance
+    if it is not THIS mode's own declared version.
+
+    This is what makes ``mortality``'s v2 a genuine per-mode revision rather
+    than a silent redefinition of "v1": a manifest claiming
+    ``harness_mode=mortality, schema_version=1`` is rejected outright, not
+    quietly accepted because "1" is a version some other mode uses.
+    """
+    others = sorted(
+        set(MODE_SCHEMA_VERSIONS.values())
+        - {MODE_SCHEMA_VERSIONS[_SAMPLE_MODE]}
+    )
+    assert others, "expected at least one other declared schema version"
+    for version in others:
+        bad = copy.deepcopy(sample_manifest)
+        bad["schema_version"] = version
+        errors = validate_manifest(bad)
+        assert any("schema_version" in e for e in errors), (
+            "%s manifest wrongly accepted schema_version %r"
+            % (_SAMPLE_MODE, version)
+        )
