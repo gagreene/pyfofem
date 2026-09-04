@@ -1,25 +1,26 @@
 /*
  * test_harness.cpp - Phase 2 pyfofem C++ oracle harness.
  *
- * Implements the shared strict harness contract and six scientific modes
- * from development/plans/gate0/05-harness-contract.md:
+ * Implements the shared strict harness contract and all seven scientific
+ * modes from development/plans/gate0/05-harness-contract.md:
  *   consume, litter_eq, shrub_herb_eq, mortality, bark_thick, canopy_cover
- * (soil_campbell is Phase 5's; the removed emissions_state mode is not
- * reintroduced here — see gate0/05-harness-contract.md §8).
+ *   (Phase 2), soil_campbell (Phase 5 — added on top of the same pinned
+ *   upstream SHA; the removed emissions_state mode is not reintroduced
+ *   here — see gate0/05-harness-contract.md §8).
  *
  * Usage:
  *   fofem_test <input.csv> <output_prefix> [--species-csv <path>]
  *
  * --species-csv is REQUIRED for mortality, bark_thick, and canopy_cover
  * (species table load + startup qualification happens before any row is
- * processed — see load_species_table()) and REJECTED for consume,
- * litter_eq, and shrub_herb_eq (those modes never touch the species table).
+ * processed — see load_species_table()) and REJECTED for every other mode,
+ * including soil_campbell (none of them touch the species table).
  *
  * Input file format (every mode):
  *   line 1: #fofem-harness,<mode>,<schema_version>
  *           <schema_version> is PER MODE (see the MODES[] table near
  *           main()): "1" for consume/litter_eq/shrub_herb_eq/
- *           bark_thick/canopy_cover, "2" for mortality.
+ *           bark_thick/canopy_cover/soil_campbell, "2" for mortality.
  *   line 2: exact column header for that mode
  *   line 3+: data rows, comma-separated, case_id first, expect_error second
  *
@@ -77,6 +78,7 @@ extern "C" {
 #include "fof_pf2.h"
 #include "fof_sgv.h"
 #include "fof_sh.h"
+#include "fof_sha.h"
 #include "fof_smt.h"
 }
 
@@ -448,6 +450,12 @@ struct InputFile {
   std::vector<std::string> header;
   std::vector<std::vector<std::string>> rows;  // raw fields, one vec per row
   std::vector<std::string> row_hashes;         // input_sha256 per row
+  // Directory containing the input CSV, WITHOUT a trailing separator (or
+  // "." if the input path has no directory component). Only soil_campbell
+  // uses this (its two side-file path columns are resolved relative to
+  // it — see harness-contract §7 "Side files are part of the input
+  // identity"); every other mode ignores it.
+  std::string input_dir;
 };
 
 static bool read_input_file(const std::string &path,
@@ -457,6 +465,10 @@ static bool read_input_file(const std::string &path,
   if (!f) {
     *err = "cannot open input file: " + path;
     return false;
+  }
+  {
+    size_t slash = path.find_last_of("/\\");
+    out->input_dir = (slash == std::string::npos) ? "." : path.substr(0, slash);
   }
   std::string magic_line;
   if (!std::getline(f, magic_line)) {
@@ -1921,6 +1933,433 @@ static int run_canopy_cover(const InputFile &in, const std::string &prefix) {
 }
 
 // ===========================================================================
+// Mode: soil_campbell  (gate0/05-harness-contract.md section 7, Phase 5)
+//
+// Entry point: SH_Mngr (fof_sh.cpp:42). Item-1 audit findings this
+// implementation depends on (full source citations in the Phase 5 report):
+//   - d_SI fields f_DufLoaPre / f_DufConPer / f_DufMoi are read by
+//     SD_Init() (fof_sd.cpp:258-261) on the Duff route but are NOT
+//     initialised by SI_Init() (fof_sh.cpp:221-231) and are absent from
+//     the harness-contract-approved 13-column schema. This is a real,
+//     evidenced contract gap (reported, not silently absorbed): three
+//     columns (duff_load_tac, duff_consumed_pct, duff_moist_pct) are
+//     appended here as columns 13-15 to make the Duff route
+//     scientifically well-defined and reproducible.
+//   - d_SI.f_SoilDuffEff is also left uninitialised by SI_Init(); this
+//     harness always sets it to -1.0 (the documented "use built-in
+//     default" sentinel SD_Init() itself already implements at
+//     fof_sd.cpp:263-266), never garbage.
+//   - d_SI.ar_FI is dead: nothing in fof_sh.cpp/fof_sd.cpp/fof_se.cpp
+//     ever reads it. The real fire-intensity arrays travel exclusively
+//     through SH_Mngr's own fr_FI[]/fr_FIhs[] parameters.
+//   - cr_TmpFN ("" or a diagnostic dump-file path) is never populated
+//     here -- passing "" makes SD_Mngr_New/SE_Mngr_Array skip ALL
+//     temp-file I/O (fof_sd.cpp:64-66, fof_se.cpp:69-71), so this mode
+//     never creates a stray file and needs no cleanup logic for one.
+//   - d_SO.cr_Model is set by SH_Mngr on the Duff/ZDuff branches only
+//     ("Duff" / e_SM_Duff, or "Zero-Duff" / e_SM_ZDuff -- NOT "ZDuff").
+//     On the no-ignition early-return path SH_Mngr never touches it;
+//     this harness memsets the whole d_SO struct to 0 before every
+//     call, so a no-ignition row deterministically reports model=""
+//     (empty string), faithfully reflecting real unmodified C++ state.
+//   - d_SO.ir_Temp[14] is declared int (fof_sh.h:130) and populated
+//     from a float r_Max via implicit truncation (fof_sh.cpp:138) -- the
+//     per-layer maxima are integer degrees C, unlike the field.csv
+//     fan-out (SHA_Get returns float directly, fof_sha.cpp:235).
+//   - d_SO.ir_TimSec[14] is genuinely SECONDS (fof_sh.cpp:139:
+//     i_Time * SHA_GetInc(); SHA_GetInc() returns "# seconds between
+//     temp recordings", fof_sha.cpp:22/37-40) despite SO_Load's own
+//     header comment claiming "Minutes" (fof_sh.cpp:104-105) -- the
+//     unused ToMinutes() helper (fof_sha.cpp:296-302) is never called
+//     on this path. This corrects the approved harness-contract's
+//     crosswalk row 23 "Units: ... minutes" claim.
+//   - field.csv's per-row `time_s` column (Phase 5 correction pass item-2)
+//     is `time_index * SHA_GetInc()`, read directly from the SAME
+//     SHA_GetInc() accessor cited above, immediately after the row's own
+//     SH_Mngr() call returns -- SD_Mngr_New/SE_Mngr_Array each call
+//     SHA_SetInc(a_SD->i_dt)/SHA_SetInc(a_SE->i_dt) internally
+//     (fof_sd.cpp:118, fof_se.cpp:80) and the no-ignition path's
+//     SHA_Init_0() calls SHA_SetInc(60) (fof_sha.cpp:161), so this is the
+//     real per-row recording interval as C++ itself set it for that row,
+//     never an assumed/inferred constant.
+//   - eC_Lay == e_mplus1 == 14 always (fof_sha.h:9, fof_sh.h:50-51) -- a
+//     fixed compile-time constant, never variable per row.
+//   - n_time_indices has no public C++ getter (gi_SHA_TimX is a private
+//     fof_sha.cpp static with no accessor); derived here by scanning
+//     SHA_Get(1, iX) for the first iX returning the e_SHA_Init sentinel,
+//     exploiting that every real layer (rr_node[1..14] are all 1,
+//     fof_sh.cpp:165-166) is written in lockstep every simulation step.
+//   - Neither SD_Mngr_New nor SE_Mngr_Array's outer stepping loop has a
+//     hard iteration cap independent of SHA_Get's own eC_Tim(10000)
+//     table bound; the harness process-level timeout
+//     (_harness_support.TIMEOUT_HARNESS_RUN_S) is therefore a load-
+//     bearing safety net for this mode specifically, more so than for
+//     the other six. Self-test rows below use short, clearly-decaying
+//     fire-intensity series to avoid triggering this in qualification.
+// ===========================================================================
+
+static const std::vector<std::string> SOIL_CAMPBELL_HEADER = {
+    "case_id", "expect_error", "brn_ignited", "soil_type", "moist_cond",
+    "duff_dep_pre_in", "duff_dep_pos_in", "soil_moist_pct",
+    "wl_efficiency", "hs_efficiency", "n_steps",
+    "fi_series_path", "fi_hs_series_path",
+    "duff_load_tac", "duff_consumed_pct", "duff_moist_pct"};
+
+static const int kSoilCampbellNLayers = 14;     // eC_Lay == e_mplus1, fixed
+static const int kSoilCampbellMaxSteps = 6000;  // eC_sfi, fof_co.h:222
+
+// n_steps: strict positive integer in [1, eC_sfi]. Not a real d_SI field --
+// a harness-only bookkeeping value bounding how many side-file entries are
+// meaningful (see fr_FI/fr_FIhs sizing below).
+static bool parse_step_count(const std::string &raw, int *out, std::string *err) {
+  std::string s = trim(raw);
+  if (s.empty()) { *err = "blank n_steps field"; return false; }
+  const char *cs = s.c_str();
+  char *endp = nullptr;
+  errno = 0;
+  long v = std::strtol(cs, &endp, 10);
+  if (endp != cs + s.size() || endp == cs) {
+    *err = "n_steps must be a plain integer";
+    return false;
+  }
+  if (errno == ERANGE || v < 1 || v > kSoilCampbellMaxSteps) {
+    *err = "n_steps out of range [1, " + std::to_string(kSoilCampbellMaxSteps) + "]";
+    return false;
+  }
+  *out = static_cast<int>(v);
+  return true;
+}
+
+// Rejects an absolute path, a drive-letter path, or any traversal
+// segment (two dots) -- harness-contract section 7's "reject
+// ambiguous/unsafe paths" / item-2's "absolute paths that would make
+// manifests non-portable".
+static bool is_unsafe_relative_path(const std::string &p) {
+  if (p.empty()) return true;
+  if (p[0] == '/' || p[0] == '\\') return true;
+  if (p.size() >= 2 && std::isalpha((unsigned char)p[0]) && p[1] == ':') return true;
+  std::vector<std::string> parts;
+  std::string cur;
+  for (char c : p) {
+    if (c == '/' || c == '\\') { parts.push_back(cur); cur.clear(); }
+    else cur.push_back(c);
+  }
+  parts.push_back(cur);
+  for (const auto &part : parts) {
+    if (part.size() == 2 && part[0] == '.' && part[1] == '.') return true;
+  }
+  return false;
+}
+
+// Reads a side file: one finite numeric value per non-blank line, exactly
+// n_steps lines. Rejects missing/unreadable/empty/malformed/non-finite/
+// wrong-length content (harness-contract section 7). *sha_out receives the
+// file's own raw-bytes SHA-256 (used to replace the path column in
+// input_sha256 -- "side files are part of the input identity").
+static bool read_numeric_series_file(const std::string &dir, const std::string &rel_path,
+                                      int n_steps, std::vector<float> *values,
+                                      std::string *sha_out, std::string *err) {
+  if (is_unsafe_relative_path(rel_path)) {
+    *err = "side-file path must be relative, with no drive letter and no "
+           "two-dot traversal segment: " + rel_path;
+    return false;
+  }
+  std::string full = dir + "/" + rel_path;
+  bool hash_ok = false;
+  std::string h = sha256_hex_file(full, &hash_ok);
+  if (!hash_ok) {
+    *err = "side file missing or unreadable: " + rel_path;
+    return false;
+  }
+  std::ifstream f(full);
+  if (!f) {
+    *err = "side file missing or unreadable: " + rel_path;
+    return false;
+  }
+  std::vector<float> out;
+  std::string line;
+  while (std::getline(f, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    std::string t = trim(line);
+    if (t.empty()) continue;
+    double dv;
+    std::string perr;
+    if (!parse_strict_double(t, &dv, &perr)) {
+      *err = "side file " + rel_path + " line " +
+             std::to_string(out.size() + 1) + ": " + perr;
+      return false;
+    }
+    out.push_back((float)dv);
+  }
+  if (out.empty()) {
+    *err = "side file is empty: " + rel_path;
+    return false;
+  }
+  if ((int)out.size() != n_steps) {
+    *err = "side file " + rel_path + " has " + std::to_string(out.size()) +
+           " values, declared n_steps is " + std::to_string(n_steps);
+    return false;
+  }
+  *values = out;
+  *sha_out = h;
+  return true;
+}
+
+static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
+  CsvWriter summary(prefix + "_summary.csv");
+  CsvWriter field(prefix + "_field.csv");
+  if (!summary.ok || !field.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output files\n";
+    return 1;
+  }
+
+  std::vector<std::string> summary_header = {
+      "case_id", "mode", "schema_version", "outcome", "model",
+      "n_layers", "n_time_indices", "ret", "err_text", "input_sha256"};
+  for (int i = 0; i < kSoilCampbellNLayers; ++i) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "lay%02d_max_temp_c", i);
+    summary_header.push_back(buf);
+  }
+  for (int i = 0; i < kSoilCampbellNLayers; ++i) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "lay%02d_max_time_s", i);
+    summary_header.push_back(buf);
+  }
+  summary_header.push_back("duf_pre_cm");
+  summary_header.push_back("duf_post_cm");
+  summary_header.push_back("heat_frac");
+  summary_header.push_back("lay_max_deg1_index");
+  summary_header.push_back("lay_max_deg2_index");
+  summary.header(summary_header);
+  field.header({"case_id", "layer_index", "time_index", "time_s", "temp_c",
+                "input_sha256"});
+
+  bool any_unexpected = false;
+  size_t ok_rows = 0;
+  size_t field_rows_written = 0;
+  size_t expected_field_rows = 0;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+
+    if (f[2] != "YES" && f[2] != "NO") {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field brn_ignited: must be exactly YES or NO, got "
+                << f[2] << "\n";
+      return 1;
+    }
+
+    double dv;
+#define REQ_SOIL_DOUBLE(idx, target)                                       \
+    if (!parse_strict_double(f[idx], &dv, &row_err)) {                     \
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"        \
+                << SOIL_CAMPBELL_HEADER[idx] << "': " << row_err << "\n";   \
+      return 1;                                                            \
+    }                                                                       \
+    (target) = (float)dv;
+
+    float duff_dep_pre_in, duff_dep_pos_in, soil_moist_pct;
+    float wl_efficiency, hs_efficiency;
+    float duff_load_tac, duff_consumed_pct, duff_moist_pct;
+    REQ_SOIL_DOUBLE(5, duff_dep_pre_in);
+    REQ_SOIL_DOUBLE(6, duff_dep_pos_in);
+    REQ_SOIL_DOUBLE(7, soil_moist_pct);
+    REQ_SOIL_DOUBLE(8, wl_efficiency);
+    REQ_SOIL_DOUBLE(9, hs_efficiency);
+    REQ_SOIL_DOUBLE(13, duff_load_tac);
+    REQ_SOIL_DOUBLE(14, duff_consumed_pct);
+    REQ_SOIL_DOUBLE(15, duff_moist_pct);
+#undef REQ_SOIL_DOUBLE
+    if (duff_load_tac < 0.0f) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field duff_load_tac: must be >= 0\n";
+      return 1;
+    }
+
+    int n_steps;
+    if (!parse_step_count(f[10], &n_steps, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field n_steps: "
+                << row_err << "\n";
+      return 1;
+    }
+
+    std::vector<float> fi_wl, fi_hs;
+    std::string sha_wl, sha_hs;
+    if (!read_numeric_series_file(in.input_dir, f[11], n_steps, &fi_wl, &sha_wl, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field fi_series_path: " << row_err << "\n";
+      return 1;
+    }
+    if (!read_numeric_series_file(in.input_dir, f[12], n_steps, &fi_hs, &sha_hs, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field fi_hs_series_path: " << row_err << "\n";
+      return 1;
+    }
+
+    // input_sha256: normalised fields with the two path columns replaced
+    // by the referenced files' own content hash (harness-contract sec 7).
+    std::string normalised;
+    for (size_t i = 0; i < f.size(); ++i) {
+      if (i) normalised += ",";
+      if (i == 11) normalised += sha_wl;
+      else if (i == 12) normalised += sha_hs;
+      else normalised += f[i];
+    }
+    std::string row_hash = sha256_hex(normalised);
+
+    // Fixed-size arrays sized to eC_sfi+1 (fof_co.h:222), matching
+    // Burnup's own fr_SFI[]/fr_SFIhs[] convention and SH_Mngr's real
+    // safety bound (fof_se.cpp:241 rejects any index >= eC_sfi) -- never
+    // undersized, never read past what was validated above.
+    std::vector<float> fr_FI(kSoilCampbellMaxSteps + 1, 0.0f);
+    std::vector<float> fr_FIhs(kSoilCampbellMaxSteps + 1, 0.0f);
+    for (int i = 0; i < n_steps; ++i) { fr_FI[i] = fi_wl[i]; fr_FIhs[i] = fi_hs[i]; }
+
+    d_SI si;
+    d_SO so;
+    std::memset(&si, 0, sizeof(si));
+    std::memset(&so, 0, sizeof(so));
+    SI_Init(&si);
+    // SI_Init() leaves f_DufLoaPre/f_DufConPer/f_DufMoi/f_SoilDuffEff
+    // uninitialised (fof_sh.cpp:221-231) -- set every one explicitly so
+    // no row ever runs on garbage memory (item-1 audit finding).
+    // f[2] is CSV-derived (already validated above as exactly "YES" or
+    // "NO"), so it is copied with the fail-closed safe_copy(), not
+    // safe_copy_literal() -- the latter is reserved for harness-controlled
+    // literals per its own doc comment.
+    if (!safe_copy(si.cr_BrnIg, f[2])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field brn_ignited: value exceeds destination buffer "
+                   "capacity (" << (sizeof(si.cr_BrnIg) - 1) << " chars)\n";
+      return 1;
+    }
+    if (!safe_copy(si.cr_SoilType, f[3])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field soil_type: value exceeds destination buffer "
+                   "capacity (" << (sizeof(si.cr_SoilType) - 1) << " chars)\n";
+      return 1;
+    }
+    if (!safe_copy(si.cr_MoistCond, f[4])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field moist_cond: value exceeds destination buffer "
+                   "capacity (" << (sizeof(si.cr_MoistCond) - 1) << " chars)\n";
+      return 1;
+    }
+    si.f_DufDepPre = duff_dep_pre_in;
+    si.f_DufDepPos = duff_dep_pos_in;
+    si.f_SoilMoist = soil_moist_pct;
+    si.f_SoilWlEff = wl_efficiency;
+    si.f_SoilHsEff = hs_efficiency;
+    si.f_DufLoaPre = duff_load_tac;
+    si.f_DufConPer = duff_consumed_pct;
+    si.f_DufMoi = duff_moist_pct;
+    si.f_SoilDuffEff = -1.0f;   // "use built-in default", fof_sd.cpp:263-266
+    si.ar_FI = nullptr;        // dead field -- never read by SH_Mngr's path
+
+    char err_buf[3000];
+    err_buf[0] = '\0';
+    // "" (never a real path) -- makes SD_Mngr_New/SE_Mngr_Array skip ALL
+    // temp-file I/O (fof_sd.cpp:64-66, fof_se.cpp:69-71); a local mutable
+    // buffer, not a cast string literal, since cr_TmpFN[] is non-const.
+    char tmp_fn[1] = {'\0'};
+    int ret = SH_Mngr(&si, &so, fr_FI.data(), fr_FIhs.data(), tmp_fn, err_buf);
+    bool model_errored = (ret != 1);
+
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+
+    std::string model_str(so.cr_Model);
+    int n_time_indices = 0;
+    if (oc == Outcome::OK) {
+      while (n_time_indices < eC_Tim &&
+             SHA_Get(1, n_time_indices) != (float)e_SHA_Init) {
+        ++n_time_indices;
+      }
+    }
+
+    std::vector<std::string> row = {
+        f[0], "soil_campbell", in.schema_version, outcome_str(oc),
+        oc == Outcome::OK ? model_str : std::string(NA_SENTINEL),
+        oc == Outcome::OK ? std::to_string(kSoilCampbellNLayers) : std::string(NA_SENTINEL),
+        oc == Outcome::OK ? std::to_string(n_time_indices) : std::string(NA_SENTINEL),
+        std::to_string(ret), csv_quote(err_buf), row_hash};
+
+    if (oc == Outcome::OK) {
+      for (int i = 0; i < kSoilCampbellNLayers; ++i)
+        row.push_back(std::to_string(so.ir_Temp[i]));
+      for (int i = 0; i < kSoilCampbellNLayers; ++i)
+        row.push_back(std::to_string(so.ir_TimSec[i]));
+      row.push_back(fmt(so.f_cDufPre));
+      row.push_back(fmt(so.f_cDufPost));
+      row.push_back(fmt(so.f_Heatpc, 6));
+      row.push_back(std::to_string(so.i_LayMaxDeg1));
+      row.push_back(std::to_string(so.i_LayMaxDeg2));
+    } else {
+      for (int i = 0; i < 2 * kSoilCampbellNLayers + 5; ++i)
+        row.push_back(NA_SENTINEL);
+    }
+    if (oc == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": soil_campbell produced a non-finite scientific value "
+                   "on a successful row\n";
+      return 1;
+    }
+    summary.row(row);
+
+    if (oc == Outcome::OK) {
+      ++ok_rows;
+      expected_field_rows += (size_t)kSoilCampbellNLayers * (size_t)n_time_indices;
+      // Real per-row recording interval, read directly from SHA_GetInc()
+      // right after this row's own SH_Mngr() call -- see the "Mode:
+      // soil_campbell" header comment's time_s note above. Never an
+      // assumed constant: SD_Mngr_New/SE_Mngr_Array/SHA_Init_0 each set it
+      // themselves inside the SH_Mngr() call this row just made.
+      int inc_s = SHA_GetInc();
+      for (int lay = 0; lay < kSoilCampbellNLayers; ++lay) {
+        for (int t = 0; t < n_time_indices; ++t) {
+          float temp = SHA_Get(lay + 1, t);
+          field.row({f[0], std::to_string(lay), std::to_string(t),
+                     std::to_string(t * inc_s), fmt(temp), row_hash});
+          ++field_rows_written;
+        }
+      }
+      if (g_output_nonfinite) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": soil_campbell field harvest produced a non-finite "
+                     "temperature on a successful row\n";
+        return 1;
+      }
+    }
+  }
+
+  // Final reconciliation (harness-contract section 7 / self-test 11c):
+  // variable per-row multiplicity k(case_id) = n_layers*n_time_indices for
+  // ok rows, zero for everything else.
+  if (field_rows_written != expected_field_rows) {
+    std::cerr << "[fofem_test] FATAL: soil_campbell field-row reconciliation "
+                 "failed: wrote " << field_rows_written
+              << " field rows, expected " << expected_field_rows
+              << " (sum of n_layers*n_time_indices over " << ok_rows
+              << " ok rows)\n";
+    return 1;
+  }
+  if (!summary.close_and_check() || !field.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: soil_campbell output write/flush/close failed\n";
+    return 1;
+  }
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
 // Mode dispatch table
 // ===========================================================================
 
@@ -1945,6 +2384,7 @@ static const ModeSpec MODES[] = {
     {"mortality", "2", &MORTALITY_HEADER, run_mortality},
     {"bark_thick", "1", &BARK_THICK_HEADER, run_bark_thick},
     {"canopy_cover", "1", &CANOPY_COVER_HEADER, run_canopy_cover},
+    {"soil_campbell", "1", &SOIL_CAMPBELL_HEADER, run_soil_campbell},
 };
 
 int main(int argc, char **argv) {

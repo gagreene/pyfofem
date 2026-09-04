@@ -93,6 +93,20 @@ METADATA_COLUMNS: Dict[Tuple[str, str], FrozenSet[str]] = {
         "n_expected_model_error", "n_unexpected_failure",
         "aggregate_emitted", "suppression_reason", "group_sha256",
     }),
+    # soil_campbell (Phase 5, gate0/05-harness-contract.md section 7).
+    # n_layers/n_time_indices are per-row reconciliation counts (checkable
+    # against the field.csv fan-out), not measured quantities — metadata,
+    # like canopy_cover's n_trees/n_members.
+    ("soil_campbell", "_summary"): frozenset({
+        "case_id", "mode", "schema_version", "outcome", "model",
+        "n_layers", "n_time_indices", "ret", "err_text", "input_sha256",
+    }),
+    # layer_index/time_index identify WHICH data point within the fan-out,
+    # like consume_components.csv's "component" — metadata, not a measured
+    # quantity; temp_c is the file's one real scientific column.
+    ("soil_campbell", "_field"): frozenset({
+        "case_id", "layer_index", "time_index", "input_sha256",
+    }),
 }
 
 #: consume_components.csv's component-name (as written by the harness) to

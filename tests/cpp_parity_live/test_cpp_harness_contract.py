@@ -1204,3 +1204,574 @@ def test_mortality_error_text_alone_marks_a_model_error(tmp_path):
     row = res.rows("")[0]
     assert row["outcome"] == "expected_model_error"
     assert row["err_text"].strip() != ""
+
+
+# ===========================================================================
+# Mode: soil_campbell (Phase 5, gate0/05-harness-contract.md section 7)
+#
+# soil_campbell is deliberately NOT added to the shared MODES/ALL_MODE_NAMES/
+# NUMERIC_FIELD_INDEX/SECOND_ROW_OK structures above: MODES is imported by
+# generate_phase2_goldens.py and iterated at MODULE IMPORT TIME to build
+# GOLDEN_TOLERANCE_KEYS via PHASE2_CANONICAL_ROUTE_KEYS[mode] (a fixed dict
+# in _output_contract.py scoped to the six Phase 2 modes) -- adding
+# "soil_campbell" there was verified (by direct import) to raise a hard
+# KeyError at collection time, breaking every test that transitively imports
+# generate_phase2_goldens.py (including test_tolerance_policy_completeness.py
+# and this module's own generator-driver test). Golden generation and
+# tolerance-policy work for soil_campbell are explicitly deferred (Phase 5
+# items 4-9), so this mode gets its own small, self-contained set of
+# constants/helpers below instead, applying the same row-1..19 self-test
+# discipline directly rather than through the shared parametrization.
+# ===========================================================================
+
+SOIL_CAMPBELL_HEADER = [
+    "case_id", "expect_error", "brn_ignited", "soil_type", "moist_cond",
+    "duff_dep_pre_in", "duff_dep_pos_in", "soil_moist_pct",
+    "wl_efficiency", "hs_efficiency", "n_steps",
+    "fi_series_path", "fi_hs_series_path",
+    "duff_load_tac", "duff_consumed_pct", "duff_moist_pct",
+]
+SOIL_CAMPBELL_SUFFIXES = ("_summary", "_field")
+SOIL_CAMPBELL_N_STEPS = 20
+SOIL_CAMPBELL_FI_WL_NAME = "fi_wl.csv"
+SOIL_CAMPBELL_FI_HS_NAME = "fi_hs.csv"
+
+
+def _soil_zduff_row(case_id="c1", expect_error="0", soil_type="Fine-Silt",
+                     moist_cond="Dry", soil_moist_pct="10",
+                     wl_name=SOIL_CAMPBELL_FI_WL_NAME,
+                     hs_name=SOIL_CAMPBELL_FI_HS_NAME,
+                     n_steps=SOIL_CAMPBELL_N_STEPS):
+    """duff_dep_pre_in=0 selects the ZDuff (SE_Mngr_Array) route."""
+    return [case_id, expect_error, "YES", soil_type, moist_cond,
+            "0", "0", soil_moist_pct, "-1", "-1", str(n_steps),
+            wl_name, hs_name, "0", "-1", "0"]
+
+
+def _soil_duff_row(case_id="c3", expect_error="0",
+                    wl_name=SOIL_CAMPBELL_FI_WL_NAME,
+                    hs_name=SOIL_CAMPBELL_FI_HS_NAME,
+                    n_steps=SOIL_CAMPBELL_N_STEPS):
+    """duff_dep_pre_in=2 (>0) selects the Duff (SD_Mngr_New) route. The
+    trailing three columns (duff_load_tac, duff_consumed_pct,
+    duff_moist_pct) are the Phase 5 item-1 audit's schema-gap addition --
+    see test_harness.cpp's soil_campbell header comment and
+    _golden_manifest.MODE_SCHEMA_VERSIONS's soil_campbell docstring."""
+    return [case_id, expect_error, "YES", "Fine-Silt", "Dry",
+            "2", "1", "10", "-1", "-1", str(n_steps),
+            wl_name, hs_name, "5", "50", "60"]
+
+
+SOIL_CAMPBELL_ROW_OK = _soil_zduff_row()
+
+#: A SECOND, scientifically distinct valid row (different soil type /
+#: moisture condition / soil moisture) -- mirrors SECOND_ROW_OK's role for
+#: the other six modes: needed for the same-process multi-row isolation and
+#: order-dependent-state tests below, since changing only case_id cannot
+#: reveal state that depends on the actual computed values.
+SOIL_CAMPBELL_SECOND_ROW_OK = _soil_zduff_row(
+    case_id="c2", soil_type="Loamy-Skeletal", moist_cond="Wet",
+    soil_moist_pct="20")
+
+
+def _write_soil_side_files(tmp_path, n_steps=SOIL_CAMPBELL_N_STEPS,
+                            wl_name=SOIL_CAMPBELL_FI_WL_NAME,
+                            hs_name=SOIL_CAMPBELL_FI_HS_NAME,
+                            wl_values=None, hs_values=None):
+    """Write the two default fire-intensity side files into *tmp_path* if
+    not already present. Deliberately short and clearly decaying to zero:
+    neither SD_Mngr_New nor SE_Mngr_Array's stepping loop has a hard
+    iteration cap independent of SHA_Get's eC_Tim(10000) table bound (see
+    test_harness.cpp's soil_campbell header comment), so a qualification
+    row must be constructed to terminate on its own rather than relying on
+    an artificial cap."""
+    wl_path = os.path.join(str(tmp_path), wl_name)
+    hs_path = os.path.join(str(tmp_path), hs_name)
+    if wl_values is None:
+        wl_values = [max(0.0, 50.0 - i * 3.0) for i in range(n_steps)]
+    if hs_values is None:
+        hs_values = [max(0.0, 10.0 - i * 0.5) for i in range(n_steps)]
+    if not os.path.isfile(wl_path):
+        with open(wl_path, "w", newline="\n") as f:
+            f.write("\n".join(str(v) for v in wl_values) + "\n")
+    if not os.path.isfile(hs_path):
+        with open(hs_path, "w", newline="\n") as f:
+            f.write("\n".join(str(v) for v in hs_values) + "\n")
+
+
+def _run_soil(rows, tmp_path, name="case", write_side_files=True, **kwargs):
+    if write_side_files:
+        _write_soil_side_files(tmp_path)
+    kwargs.setdefault("output_suffixes", SOIL_CAMPBELL_SUFFIXES)
+    return run_harness(
+        "soil_campbell", SOIL_CAMPBELL_HEADER, rows,
+        os.path.join(str(tmp_path), name), **kwargs,
+    )
+
+
+def test_soil_row1_valid_all_rows_ok(tmp_path):
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_summary")
+    assert len(rows) == 1
+    assert rows[0]["outcome"] == "ok"
+    assert rows[0]["model"] == "Zero-Duff"
+
+
+def test_soil_row2_missing_magic_line(tmp_path):
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, magic_override="")
+    assert res.returncode != 0
+    assert not res.rows("_summary")
+
+
+def test_soil_row3_wrong_schema_version(tmp_path):
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="2")
+    assert res.returncode != 0
+
+
+def test_soil_row3_declared_schema_version_is_accepted(tmp_path):
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="1")
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_summary")[0]["schema_version"] == "1"
+
+
+def test_soil_row3_mortality_schema_version_is_rejected(tmp_path):
+    """soil_campbell is v1; mortality's v2 must not be silently accepted."""
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="2")
+    assert res.returncode != 0
+
+
+def test_soil_row4_column_removed(tmp_path):
+    header = SOIL_CAMPBELL_HEADER[:-1]
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK[:-1]], tmp_path, header_override=header)
+    assert res.returncode != 0
+
+
+def test_soil_row4_column_added(tmp_path):
+    header = SOIL_CAMPBELL_HEADER + ["extra_col"]
+    row = SOIL_CAMPBELL_ROW_OK + ["0"]
+    res = _run_soil([row], tmp_path, header_override=header)
+    assert res.returncode != 0
+
+
+def test_soil_row4_column_reordered(tmp_path):
+    header = list(SOIL_CAMPBELL_HEADER)
+    header[0], header[1] = header[1], header[0]
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, header_override=header)
+    assert res.returncode != 0
+
+
+def test_soil_row4_column_duplicated(tmp_path):
+    header = list(SOIL_CAMPBELL_HEADER) + [SOIL_CAMPBELL_HEADER[-1]]
+    row = list(SOIL_CAMPBELL_ROW_OK) + [SOIL_CAMPBELL_ROW_OK[-1]]
+    res = _run_soil([row], tmp_path, header_override=header)
+    assert res.returncode != 0
+
+
+def test_soil_row5_blank_numeric_field(tmp_path):
+    row = list(SOIL_CAMPBELL_ROW_OK)
+    row[7] = ""  # soil_moist_pct
+    res = _run_soil([row], tmp_path)
+    assert res.returncode != 0
+    assert "0.0" not in res.stdout  # never silently defaulted to 0.0
+
+
+@pytest.mark.parametrize("bad", ["abc", "1.2.3", "1e", "0x10"])
+def test_soil_row6_non_numeric_field(bad, tmp_path):
+    row = list(SOIL_CAMPBELL_ROW_OK)
+    row[7] = bad
+    res = _run_soil([row], tmp_path, name=f"case_{bad!r}")
+    assert res.returncode != 0
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "1e999", "-1e999"])
+def test_soil_row7_nan_inf_and_overflow(bad, tmp_path):
+    row = list(SOIL_CAMPBELL_ROW_OK)
+    row[7] = bad
+    res = _run_soil([row], tmp_path, name=f"case_{bad!r}")
+    assert res.returncode != 0
+
+
+@pytest.mark.parametrize("bad", ["0", "-1", "6001", "999999"])
+def test_soil_row8_n_steps_out_of_domain(bad, tmp_path):
+    """n_steps is a harness-only bookkeeping value bounded to [1, eC_sfi]
+    (eC_sfi=6000, fof_co.h:222) -- not a real d_SI field, but still subject
+    to self-test row 8's "value out of the field's documented range"."""
+    row = list(SOIL_CAMPBELL_ROW_OK)
+    row[10] = bad
+    res = _run_soil([row], tmp_path, name=f"case_n{bad}", write_side_files=False)
+    assert res.returncode != 0
+
+
+def test_soil_row9_duplicate_case_id(tmp_path):
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK, SOIL_CAMPBELL_ROW_OK], tmp_path)
+    assert res.returncode != 0
+
+
+def test_soil_row10_empty_file(tmp_path):
+    res = _run_soil([], tmp_path, magic_override="")
+    assert res.returncode != 0
+
+
+def test_soil_row10_header_only(tmp_path):
+    res = _run_soil([], tmp_path)
+    assert res.returncode != 0
+
+
+def test_soil_row11c_variable_fanout_expected_error_zero_field_rows(tmp_path):
+    """A row expected to error must contribute zero field rows -- the
+    variable-fan-out counterpart of consume's row11b constant-fan-out
+    check (harness-contract section 1 fan-out reconciliation table,
+    section 7's explicit "expected field-row count is therefore zero")."""
+    bad = _soil_zduff_row(case_id="bad1", expect_error="1", soil_type="NotARealSoil")
+    ok = _soil_zduff_row(case_id="ok1")
+    res = _run_soil([bad, ok], tmp_path)
+    assert res.returncode == 0, res.stderr
+    summary = {r["case_id"]: r for r in res.rows("_summary")}
+    assert summary["bad1"]["outcome"] == "expected_model_error"
+    assert summary["bad1"]["n_layers"] == "NA"
+    assert summary["bad1"]["n_time_indices"] == "NA"
+    field = res.rows("_field")
+    assert all(r["case_id"] != "bad1" for r in field)
+    assert any(r["case_id"] == "ok1" for r in field)
+
+
+def test_soil_row11e_two_sided_unexpectedly_succeeds(tmp_path):
+    row = _soil_zduff_row(expect_error="1")  # a normal, succeeding row
+    res = _run_soil([row], tmp_path)
+    assert res.returncode != 0
+    assert res.rows("_summary")[0]["outcome"] == "unexpected_failure"
+
+
+def test_soil_row12_row_unexpectedly_errors(tmp_path):
+    row = _soil_zduff_row(soil_type="NotARealSoil")  # expect_error=0
+    res = _run_soil([row], tmp_path)
+    assert res.returncode != 0
+    assert res.rows("_summary")[0]["outcome"] == "unexpected_failure"
+
+
+def test_soil_row13_output_path_unwritable(tmp_path):
+    # The input file (and its side files) must exist and be readable; only
+    # the OUTPUT prefix's directory is missing -- mirrors the generic
+    # test_row13_output_path_unwritable's approach of writing the input CSV
+    # directly and invoking the binary, since run_harness() itself would
+    # otherwise fail earlier trying to write a nonexistent input path.
+    _write_soil_side_files(tmp_path)
+    in_path = os.path.join(str(tmp_path), "case_in.csv")
+    with open(in_path, "w", newline="\n") as f:
+        f.write("#fofem-harness,soil_campbell,1\n")
+        f.write(",".join(SOIL_CAMPBELL_HEADER) + "\n")
+        f.write(",".join(SOIL_CAMPBELL_ROW_OK) + "\n")
+    bad_prefix = os.path.join(str(tmp_path), "no_such_dir", "deeper", "case")
+    proc = run_bounded([HARNESS_EXE, in_path, bad_prefix], cwd=FOF_UNIX_DIR,
+                        timeout=TIMEOUT_HARNESS_RUN_S)
+    assert proc.returncode != 0
+
+
+def test_soil_row14_overlong_soil_type_field(tmp_path):
+    """d_SI.cr_SoilType is char[30] (eC_SoilType, fof_sh.h:84); a 40-char
+    value must be rejected fail-closed (safe_copy), never truncated."""
+    row = _soil_zduff_row(soil_type="X" * 40)
+    res = _run_soil([row], tmp_path)
+    assert res.returncode != 0
+    assert "not truncated" in res.stderr or "capacity" in res.stderr
+
+
+def test_soil_row15_same_process_multi_row_matches_isolated_fresh_process(tmp_path):
+    row_a = list(SOIL_CAMPBELL_ROW_OK)
+    row_b = list(SOIL_CAMPBELL_SECOND_ROW_OK)
+    multi = _run_soil([row_a, row_b], tmp_path, name="multi")
+    assert multi.returncode == 0, multi.stderr
+    iso_a = _run_soil([row_a], tmp_path, name="iso_a")
+    iso_b = _run_soil([row_b], tmp_path, name="iso_b")
+    assert iso_a.returncode == 0 and iso_b.returncode == 0
+
+    def scientific(row):
+        return {k: v for k, v in row.items() if k not in ("case_id", "input_sha256")}
+
+    multi_by_id = {r["case_id"]: r for r in multi.rows("_summary")}
+    assert scientific(multi_by_id["c1"]) == scientific(iso_a.rows("_summary")[0])
+    assert scientific(multi_by_id["c2"]) == scientific(iso_b.rows("_summary")[0])
+    # This is the mandatory fof_soi.cpp state-hazard proof (crosswalk F-E,
+    # harness-contract section 7 "State hazard"): fof_soi.cpp keeps
+    # file-scope statics (rr_w/rr_t/rr_p/r_bd/r_m/... -- see the Phase 5
+    # report's item-1 audit) that soiltemp_initconsts()/initprofile() only
+    # get reset by being called again at the TOP of SD_Mngr_New/
+    # SE_Mngr_Array on every SH_Mngr invocation. If that reset were ever
+    # skipped or partial for a second row in the same process, row c2's
+    # temperature trajectory would silently inherit row c1's leftover
+    # profile/constants and this equality would fail while the isolated
+    # fresh-process runs (which cannot share any state) would still be
+    # correct -- exactly the class of bug this comparison is built to catch.
+
+
+def test_soil_row16_repeat_fresh_process_byte_identical(tmp_path):
+    first = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, name="rep1")
+    second = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, name="rep2")
+    assert first.returncode == second.returncode == 0
+    assert first.rows("_summary") == [
+        {**r, "case_id": r["case_id"]} for r in second.rows("_summary")
+    ]
+    assert first.rows("_field") == second.rows("_field")
+
+
+def test_soil_row17_independent_row_permutation(tmp_path):
+    row_a = list(SOIL_CAMPBELL_ROW_OK)
+    row_b = list(SOIL_CAMPBELL_SECOND_ROW_OK)
+    forward = _run_soil([row_a, row_b], tmp_path, name="fwd")
+    backward = _run_soil([row_b, row_a], tmp_path, name="bwd")
+    assert forward.returncode == backward.returncode == 0
+
+    def by_id(res):
+        return {r["case_id"]: {k: v for k, v in r.items() if k != "case_id"}
+                for r in res.rows("_summary")}
+
+    assert by_id(forward) == by_id(backward)
+    # Mandatory cross-order isolation proof: the two rows differ (Fine-Silt
+    # vs Loamy-Skeletal, Dry vs Wet, 10% vs 20% soil moisture, hence
+    # different soiltemp_initconsts()/initprofile() inputs); if row order
+    # inside one process leaked state (e.g. a stale fof_soi.cpp static from
+    # whichever row ran first), c1's or c2's own result would differ between
+    # the forward and backward runs even though both contain the same two
+    # rows -- this assertion is exactly what would catch that.
+
+
+def test_soil_valid_duff_route(tmp_path):
+    res = _run_soil([_soil_duff_row()], tmp_path)
+    assert res.returncode == 0, res.stderr
+    row = res.rows("_summary")[0]
+    assert row["outcome"] == "ok"
+    assert row["model"] == "Duff"
+    assert float(row["heat_frac"]) > 0.0
+    # Duff-route scientific values additionally depend on duff_load_tac /
+    # duff_consumed_pct / duff_moist_pct -- the Phase 5 item-1 audit's
+    # schema-gap addition (see the module docstring above and the Phase 5
+    # report). Route selection and reproducibility are asserted here;
+    # independent numerical validation against a Python oracle is Phase 5
+    # items 4-9 (deferred), not this pass.
+
+
+def test_soil_valid_zduff_route(tmp_path):
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path)
+    assert res.returncode == 0, res.stderr
+    row = res.rows("_summary")[0]
+    assert row["outcome"] == "ok"
+    assert row["model"] == "Zero-Duff"
+    assert row["heat_frac"] == "0.000000"  # only ever set on the Duff route
+
+
+def test_soil_no_ignition(tmp_path):
+    """Empirically observed, corrected from an initial source-reading
+    prediction (the brief's explicit requirement -- "must be tested from
+    ACTUAL SH_Mngr behavior observed by running it, not assumed from
+    reading the code alone"): SH_Mngr's cr_BrnIg=="NO" branch calls
+    SHA_Init_0() then returns immediately -- it NEVER reaches the `Load:`
+    label / calls SO_Load() (fof_sh.cpp:51-53). So d_SO is left exactly as
+    SO_Init() set it at function entry: every summary maximum genuinely
+    reads 0, not 21 -- matching gate0/07-branch-traceability.csv's
+    BR-SOI-NOIG "all zeros" description for the SUMMARY file specifically.
+    But SHA_Init_0() DOES fill the raw rr_SHA[][] table (which this
+    harness reads independently via SHA_Get, bypassing d_SO entirely) with
+    a constant 21.0C (e_StaSoiTem) over 60 fake 60-second-interval steps.
+    So field.csv genuinely disagrees with summary.csv here: field shows
+    real 21.0 values, summary shows 0 -- both faithful reflections of two
+    genuinely different pieces of real, unmodified C++ state on this one
+    path, not a harness inconsistency."""
+    row = _soil_zduff_row(case_id="noig")
+    row[2] = "NO"  # brn_ignited
+    res = _run_soil([row], tmp_path)
+    assert res.returncode == 0, res.stderr
+    summ = res.rows("_summary")[0]
+    assert summ["outcome"] == "ok"
+    assert summ["model"] == ""  # SH_Mngr never sets cr_Model on this path
+    assert summ["n_time_indices"] == "60"
+    for i in range(14):
+        assert summ[f"lay{i:02d}_max_temp_c"] == "0"
+        assert summ[f"lay{i:02d}_max_time_s"] == "0"
+    assert summ["duf_pre_cm"] == "0.000000"
+    assert summ["duf_post_cm"] == "0.000000"
+    assert summ["heat_frac"] == "0.000000"
+    assert summ["lay_max_deg1_index"] == "-1"
+    assert summ["lay_max_deg2_index"] == "-1"
+    field = res.rows("_field")
+    assert len(field) == 14 * 60
+    assert all(r["temp_c"] == "21.000000" for r in field)
+    # time_s (Phase 5 correction pass item-2): SHA_Init_0() sets the
+    # recording interval to a hardcoded 60 s (fof_sha.cpp:161) on this
+    # no-ignition path, independent of any real solver step.
+    assert all(int(r["time_s"]) == int(r["time_index"]) * 60 for r in field)
+
+
+def test_soil_missing_side_file_is_rejected(tmp_path):
+    row = _soil_zduff_row(wl_name="does_not_exist.csv")
+    res = _run_soil([row], tmp_path)
+    assert res.returncode != 0
+    assert "missing or unreadable" in res.stderr
+
+
+def test_soil_empty_side_file_is_rejected(tmp_path):
+    _write_soil_side_files(tmp_path)
+    empty_path = os.path.join(str(tmp_path), "empty.csv")
+    with open(empty_path, "w"):
+        pass
+    row = _soil_zduff_row(wl_name="empty.csv")
+    res = _run_soil([row], tmp_path, write_side_files=False)
+    assert res.returncode != 0
+    assert "empty" in res.stderr
+
+
+@pytest.mark.parametrize("bad", ["abc", "nan", "inf", "1,2"])
+def test_soil_malformed_side_file_line_is_rejected(bad, tmp_path):
+    _write_soil_side_files(tmp_path)
+    bad_path = os.path.join(str(tmp_path), f"bad_{abs(hash(bad))}.csv")
+    with open(bad_path, "w", newline="\n") as f:
+        f.write("\n".join([bad] * SOIL_CAMPBELL_N_STEPS) + "\n")
+    row = _soil_zduff_row(wl_name=os.path.basename(bad_path))
+    res = _run_soil([row], tmp_path, name=f"case_{abs(hash(bad))}",
+                     write_side_files=False)
+    assert res.returncode != 0
+
+
+def test_soil_too_short_side_file_is_rejected(tmp_path):
+    _write_soil_side_files(tmp_path)
+    short_path = os.path.join(str(tmp_path), "short.csv")
+    with open(short_path, "w", newline="\n") as f:
+        f.write("\n".join(["1.0"] * (SOIL_CAMPBELL_N_STEPS - 5)) + "\n")
+    row = _soil_zduff_row(wl_name="short.csv")
+    res = _run_soil([row], tmp_path, write_side_files=False)
+    assert res.returncode != 0
+    assert "n_steps is" in res.stderr
+
+
+def test_soil_too_long_side_file_is_rejected(tmp_path):
+    _write_soil_side_files(tmp_path)
+    long_path = os.path.join(str(tmp_path), "long.csv")
+    with open(long_path, "w", newline="\n") as f:
+        f.write("\n".join(["1.0"] * (SOIL_CAMPBELL_N_STEPS + 5)) + "\n")
+    row = _soil_zduff_row(wl_name="long.csv")
+    res = _run_soil([row], tmp_path, write_side_files=False)
+    assert res.returncode != 0
+    assert "n_steps is" in res.stderr
+
+
+@pytest.mark.parametrize("bad_path", ["/abs/path.csv", "C:/abs/path.csv",
+                                       "..\\escape.csv", "sub/../../escape.csv"])
+def test_soil_unsafe_side_file_path_is_rejected(bad_path, tmp_path):
+    row = _soil_zduff_row(wl_name=bad_path)
+    res = _run_soil([row], tmp_path, name=f"case_{abs(hash(bad_path))}")
+    assert res.returncode != 0
+    assert "relative" in res.stderr
+
+
+def test_soil_field_reconciliation_matches_summary_counts(tmp_path):
+    """harness-contract section 7: rows(field) == sum of n_layers *
+    n_time_indices(case_id) over ok rows; every (case_id, layer_index,
+    time_index) triple unique, both indices dense from 0."""
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK, SOIL_CAMPBELL_SECOND_ROW_OK], tmp_path)
+    assert res.returncode == 0, res.stderr
+    summary = {r["case_id"]: r for r in res.rows("_summary")}
+    field = res.rows("_field")
+    seen = set()
+    counts = {}
+    for r in field:
+        key = (r["case_id"], int(r["layer_index"]), int(r["time_index"]))
+        assert key not in seen, f"duplicate field row {key}"
+        seen.add(key)
+        counts[r["case_id"]] = counts.get(r["case_id"], 0) + 1
+    for cid, row in summary.items():
+        expected = int(row["n_layers"]) * int(row["n_time_indices"])
+        assert counts[cid] == expected
+    for cid in summary:
+        lay_idx = sorted({int(r["layer_index"]) for r in field if r["case_id"] == cid})
+        assert lay_idx == list(range(int(summary[cid]["n_layers"])))
+        tim_idx = sorted({int(r["time_index"]) for r in field if r["case_id"] == cid})
+        assert tim_idx == list(range(int(summary[cid]["n_time_indices"])))
+
+
+def test_soil_field_time_s_is_time_index_times_the_real_recording_interval(tmp_path):
+    """harness-contract section 7 / Phase 5 correction pass item-2:
+    field.csv's ``time_s`` column must equal ``time_index`` times the SAME
+    per-row recording interval for every layer/time_index of that case_id
+    (i.e. linear in time_index with no per-layer variation) -- proven
+    directly from the harness's own output, not assumed. duf/zduf routes
+    use different i_dt values (20 s / 10 s), so this also proves the
+    interval is read per-row rather than hardcoded to one route's value."""
+    res = _run_soil(
+        [SOIL_CAMPBELL_ROW_OK, SOIL_CAMPBELL_SECOND_ROW_OK, _soil_duff_row()],
+        tmp_path,
+    )
+    assert res.returncode == 0, res.stderr
+    field = res.rows("_field")
+    by_case: dict = {}
+    for r in field:
+        by_case.setdefault(r["case_id"], []).append(r)
+    for cid, case_rows in by_case.items():
+        times = sorted({int(r["time_index"]) for r in case_rows})
+        assert times[0] == 0
+        if len(times) < 2:
+            continue
+        interval = next(
+            int(r["time_s"]) for r in case_rows if int(r["time_index"]) == 1
+        )
+        assert interval > 0, cid
+        for r in case_rows:
+            expected = int(r["time_index"]) * interval
+            assert int(r["time_s"]) == expected, (cid, r)
+
+
+def test_soil_normalized_whitespace_hashes_identically(tmp_path):
+    # Two SEPARATE runs (not two rows in one file) sharing the identical
+    # case_id: since case_id is itself part of the hashed field list, two
+    # rows in the same file could never hash identically even with perfect
+    # whitespace normalisation -- separate runs isolate the one thing under
+    # test (incidental padding around otherwise-identical fields).
+    # case_id itself is validated (parse_case_id) against the RAW field
+    # before the normalisation/trim pass that produces input_sha256's
+    # inputs -- padding it would be rejected outright as "case_id contains
+    # a disallowed character", not silently trimmed, so it is left
+    # unpadded here; every other field is padded.
+    _write_soil_side_files(tmp_path)
+    row_padded = [SOIL_CAMPBELL_ROW_OK[0]] + [f"  {v}  " for v in SOIL_CAMPBELL_ROW_OK[1:]]
+    padded_res = _run_soil([row_padded], tmp_path, name="padded",
+                            write_side_files=False)
+    trimmed_res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, name="trimmed",
+                             write_side_files=False)
+    assert padded_res.returncode == 0, padded_res.stderr
+    assert trimmed_res.returncode == 0, trimmed_res.stderr
+    padded_hash = padded_res.rows("_summary")[0]["input_sha256"]
+    trimmed_hash = trimmed_res.rows("_summary")[0]["input_sha256"]
+    assert padded_hash == trimmed_hash
+
+
+def test_soil_side_file_hash_identity_rename_vs_content_change(tmp_path):
+    """input_sha256 depends on the referenced BYTES, not the path: a
+    renamed-but-identical file hashes the same; a same-named-but-different-
+    content file hashes differently (harness-contract section 7).
+
+    Uses SEPARATE runs sharing one case_id (not multiple rows in one file)
+    for the same reason as the whitespace test above: case_id is itself
+    part of the hashed field list, so two rows could never hash identically
+    regardless of how the side-file substitution behaves."""
+    _write_soil_side_files(tmp_path, wl_name="fi_a.csv")
+    import shutil
+    shutil.copyfile(os.path.join(str(tmp_path), "fi_a.csv"),
+                     os.path.join(str(tmp_path), "fi_b.csv"))
+    row_a = _soil_zduff_row(wl_name="fi_a.csv")
+    row_b = _soil_zduff_row(wl_name="fi_b.csv")  # same content, renamed
+    res_a = _run_soil([row_a], tmp_path, name="run_a", write_side_files=False)
+    res_b = _run_soil([row_b], tmp_path, name="run_b", write_side_files=False)
+    assert res_a.returncode == 0, res_a.stderr
+    assert res_b.returncode == 0, res_b.stderr
+    hash_a = res_a.rows("_summary")[0]["input_sha256"]
+    hash_b = res_b.rows("_summary")[0]["input_sha256"]
+    assert hash_a == hash_b
+
+    diff_values = [v + 1.0 for v in
+                   [max(0.0, 50.0 - i * 3.0) for i in range(SOIL_CAMPBELL_N_STEPS)]]
+    with open(os.path.join(str(tmp_path), "fi_c.csv"), "w", newline="\n") as f:
+        f.write("\n".join(str(v) for v in diff_values) + "\n")
+    row_c = _soil_zduff_row(wl_name="fi_c.csv")  # same NAME pattern, different content
+    res_c = _run_soil([row_c], tmp_path, name="run_c", write_side_files=False)
+    assert res_c.returncode == 0, res_c.stderr
+    hash_c = res_c.rows("_summary")[0]["input_sha256"]
+    assert hash_a != hash_c

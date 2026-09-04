@@ -64,6 +64,11 @@ credentials.json
 # deliberately NOT touched by this rule.
 !tests/test_data/test_golden_output/phase4/**/*.csv
 
+# Phase 5 committed C++-oracle golden dataset (soil_campbell scenario
+# matrix). Same narrow negation as Phase 4's rule above, its own sibling
+# tree - never merged with phase2/ or phase4/.
+!tests/test_data/test_golden_output/phase5/**/*.csv
+
 # Testing data (keep sample data in supporting_data only)
 src/pyfofem/reference_docs/
 

@@ -3,27 +3,30 @@
   "build_flags": "CMAKE_BUILD_TYPE=Debug CMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /W3 /GR /EHsc CMAKE_CXX_FLAGS_DEBUG=/MDd /Zi /Ob0 /Od /RTC1",
   "build_type": "Debug",
   "compiler_identity": "Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35728 for x64",
+  "dataset": "phase5",
   "documented_expected_divergences": [
-    "mortality.CroSco: python_side_unreachable \u2014 mort_crnsch() (and run_fofem_mortality('crnsch', ...)) cannot be called without an explicit bark_thickness argument: the default derivation path calls calc_bark_thickness(), which always raises KeyError (F-19/F-20). No Python-vs-C++ numeric comparison is possible for this equation type until F-19 is fixed on the Python side. The C++ oracle path itself (this Phase 2 golden) is unaffected and fully functional. (gate0/04-findings.md:F-19,F-20)"
+    "soil_campbell_p5.noig: contract_only \u2014 BR-SOI-NOIG (SOI-NOIG-01, brn_ignited=NO) short-circuits SH_Mngr before either route runs (fof_sh.cpp:50-53); soil_heat_campbell() has no 'burnup never ignited' code path at all -- it always integrates the ODE. There is no Python counterpart to compare against, on any soil family, ever -- this is genuinely contract-only, not deferred pending F-51. The exact expected zero/21.0C C++ output for this row is asserted directly by test_soil_no_ignition in test_cpp_harness_contract.py. (gate0/07-branch-traceability.csv BR-SOI-NOIG; tests/cpp_parity_live/test_cpp_harness_contract.py::test_soil_no_ignition)"
   ],
-  "generated_utc": "2026-09-04T09:19:55.492671+00:00",
-  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmph4zoebaa\\mortality\\mortality_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmph4zoebaa\\mortality\\mortality --species-csv C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\src\\pyfofem\\supporting_data\\FOFEM6.7\\FOF_SPP.CSV",
+  "generated_utc": "2026-09-04T18:10:14.303570+00:00",
+  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmp3re494hs\\soil_campbell\\soil_campbell_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmp3re494hs\\soil_campbell\\soil_campbell",
   "generator_source_sha256": {
     "tests/cpp_parity_live/_golden_manifest.py": "1fa2caa179559c8eb4552e76e684bdcd30dc6799e550cc7ab960899dd90fd97b",
     "tests/cpp_parity_live/_harness_support.py": "5ab95174cf9d5021fb98d888a09b2d270c011a7fb5cf44c00549e2e131db9b94",
-    "tests/cpp_parity_live/_output_contract.py": "bfaf3ca9e858c348260bc90d3dd203a57303d115f3e7a9314458f450bceb2c27",
+    "tests/cpp_parity_live/_phase5_contract.py": "0f0687fd275daae3a53d3859a2b29a28659282e10d1a236f2919b237c48b7fa8",
     "tests/cpp_parity_live/_proc.py": "f8f9de5ecd3ae04464de545f94e26e54bda11f2b46bf0b8603ed667c425aea60",
     "tests/cpp_parity_live/generate_phase2_goldens.py": "40923c4e8be7f9bedcf3578ce8fbf5bbde64f91491060af6366f42271dd47343",
+    "tests/cpp_parity_live/generate_phase5_goldens.py": "6f165537112c127d7954e79e9ca1950c6acbee8776be526e2d5d94ac0d059290",
     "tests/cpp_parity_live/test_cpp_harness_contract.py": "27f6d5628836fa05cc82f7e7cffeff715df2d4760cd508bb660e51b6ba27457e",
     "tests/cpp_parity_live/tolerance_policy.json": "cad4e68f0e138b71ca7fd22e15326c35ea454dafc904e1f9af2882cf9cd6ab23"
   },
   "generator_toolchain": "cmake=cmake version 4.2.3-msvc3; ninja=1.12.1",
-  "harness_mode": "mortality",
+  "harness_mode": "soil_campbell",
   "input_csv_sha256": {
-    "mortality_in.csv": "3c70678dc3775e0800d324b192ac86d734f1f4c23f3bc029ad2d7562ef467696"
+    "soil_campbell_in.csv": "adb561016ca645a16f2565471f08a04ec755e2c8865b64d7247b0957c2cf291b"
   },
   "output_csv_sha256": {
-    "mortality.csv": "e24f5260c5ef435283ac4da377ff7e92feed5b4bc48d3166f7f2a1a4d76f9748"
+    "soil_campbell_field.csv": "884e4645263e8feb11aa6b3446b474d348e1a4ce063135769ba8cb8dac96120e",
+    "soil_campbell_summary.csv": "ca8d220817ae9ebd3f193b133f000aa8e643d2b54bbdbbbafffacc7991c691cf"
   },
   "overlay_combined_digest": "e1d8b652bbe25485c896c56d918207d0af9f9e68f672d6c5b42f2e7dd3e5185f",
   "overlay_file_digests": {
@@ -43,15 +46,12 @@
     "unstaged": true,
     "untracked": true
   },
-  "schema_version": "2",
-  "side_file_sha256": {
-    "species_table": {
-      "path": "src/pyfofem/supporting_data/FOFEM6.7/FOF_SPP.CSV",
-      "sha256": "c830ba2218194953e2f44c5d2cbe598b6304bf2554f5330ffe12b61977655b71"
-    }
-  },
+  "schema_version": "1",
+  "side_file_sha256": {},
   "tolerance_policy_reference": [
-    "mortality.CroSco"
+    "soil_campbell_p5.duff",
+    "soil_campbell_p5.nonduff",
+    "soil_campbell_p5.noig"
   ],
   "upstream_cpp_sha": "78f97f093ee7d1c77b3cd2622b2bd7248036c1e4"
 }

@@ -81,14 +81,17 @@ DEFAULT_DATASET = "phase2"
 #: Every golden dataset this module knows how to build/validate a manifest
 #: for. ``phase2`` is the frozen canonical single-row-per-mode dataset;
 #: ``phase4`` is the Tier-2 scenario-matrix dataset (see
-#: ``_phase4_contract.py``). Both use the same six qualified harness modes.
-VALID_DATASETS = frozenset({"phase2", "phase4"})
+#: ``_phase4_contract.py``), reusing the same six qualified harness modes;
+#: ``phase5`` is the ``soil_campbell`` scenario-matrix dataset (see
+#: ``_phase5_contract.py``) — the one dataset with its own harness mode
+#: rather than reusing the Phase 2 six.
+VALID_DATASETS = frozenset({"phase2", "phase4", "phase5"})
 
 #: Human-readable label per dataset, used in error text only. Kept
 #: separate from the dataset key so the Phase 2 wording that existing
 #: approved tests assert on ("canonical Phase 2 scenario contract")
-#: stays byte-stable while Phase 4 gets its own label.
-DATASET_LABELS = {"phase2": "Phase 2", "phase4": "Phase 4"}
+#: stays byte-stable while Phase 4/5 get their own labels.
+DATASET_LABELS = {"phase2": "Phase 2", "phase4": "Phase 4", "phase5": "Phase 5"}
 
 #: This module's own generation-time dependencies. Hashed into a manifest
 #: whenever the parent repo is dirty (uncommitted), since a dirty-tree
@@ -112,6 +115,7 @@ TOLERANCE_POLICY_PATH = os.path.join(
 
 VALID_HARNESS_MODES = frozenset({
     "consume", "litter_eq", "shrub_herb_eq", "mortality", "bark_thick", "canopy_cover",
+    "soil_campbell",
 })
 
 #: The input/output schema version each harness mode declares. This is
@@ -128,6 +132,16 @@ VALID_HARNESS_MODES = frozenset({
 #: ``density_tpa`` column (``d_MIS.f_Den``, required by ``ValidInput``
 #: at ``fof_mrt.cpp:1854-1856`` for every CroDam row) and renamed the
 #: misnamed ``ckr_pct`` to ``ckr_rating``.
+#:
+#: ``soil_campbell`` (Phase 5) is at v1. Its schema appends three columns
+#: (``duff_load_tac``, ``duff_consumed_pct``, ``duff_moist_pct``) beyond
+#: the 13 the approved ``gate0/05-harness-contract.md`` §7 contract
+#: listed — a Phase 5 item-1 audit finding, not a silent redesign:
+#: ``SD_Init()`` (``fof_sd.cpp:258-261``) reads ``d_SI.f_DufLoaPre`` /
+#: ``f_DufConPer`` / ``f_DufMoi`` on the Duff route, and ``SI_Init()``
+#: (``fof_sh.cpp:221-231``) never initialises any of the three — without
+#: them the Duff route ran on uninitialised memory. See the Phase 5
+#: report for the full evidence trail.
 MODE_SCHEMA_VERSIONS = {
     "consume": "1",
     "litter_eq": "1",
@@ -135,6 +149,7 @@ MODE_SCHEMA_VERSIONS = {
     "mortality": "2",
     "bark_thick": "1",
     "canopy_cover": "1",
+    "soil_campbell": "1",
 }
 
 #: Every schema version any mode declares. Used only for the coarse
@@ -158,6 +173,7 @@ MODE_OUTPUT_SUFFIXES = {
     "mortality": ("",),
     "bark_thick": ("",),
     "canopy_cover": ("_trees", "_stands", "_groups"),
+    "soil_campbell": ("_summary", "_field"),
 }
 
 #: Modes whose golden requires exactly one species-table side file.
@@ -392,6 +408,10 @@ def canonical_divergence_keys(dataset: str, mode: str) -> List[str]:
         # module, which imports _harness_support, which imports THIS module.
         from tests.cpp_parity_live._phase4_contract import phase4_divergence_keys
         return phase4_divergence_keys(mode)
+    if dataset == "phase5":
+        # Imported lazily for the same reason as phase4 above.
+        from tests.cpp_parity_live._phase5_contract import phase5_divergence_keys
+        return phase5_divergence_keys(mode)
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
@@ -412,6 +432,13 @@ def canonical_policy_keys(dataset: str, mode: str, policy: dict) -> List[str]:
     if dataset == "phase4":
         from tests.cpp_parity_live._phase4_contract import phase4_policy_keys
         keys = phase4_policy_keys(mode)
+        for key in keys:
+            section, _, route = key.partition(".")
+            policy[section][route]
+        return keys
+    if dataset == "phase5":
+        from tests.cpp_parity_live._phase5_contract import phase5_policy_keys
+        keys = phase5_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
@@ -536,7 +563,7 @@ def generator_source_files_for_dataset(dataset: str) -> List[str]:
     """
     Return the absolute paths whose bytes determine *dataset*'s goldens.
 
-    :param dataset: ``"phase2"`` or ``"phase4"``.
+    :param dataset: ``"phase2"``, ``"phase4"``, or ``"phase5"``.
     :returns: Absolute paths, in the dataset's declared order.
     :raises KeyError: If *dataset* is unknown.
     """
@@ -549,6 +576,14 @@ def generator_source_files_for_dataset(dataset: str) -> List[str]:
         return [
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
             for rel in GENERATOR_SOURCE_FILES_RELATIVE
+        ]
+    if dataset == "phase5":
+        from tests.cpp_parity_live._phase5_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE as _P5_FILES,
+        )
+        return [
+            os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
+            for rel in _P5_FILES
         ]
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 

@@ -1,0 +1,15 @@
+#fofem-harness,soil_campbell,1
+case_id,expect_error,brn_ignited,soil_type,moist_cond,duff_dep_pre_in,duff_dep_pos_in,soil_moist_pct,wl_efficiency,hs_efficiency,n_steps,fi_series_path,fi_hs_series_path,duff_load_tac,duff_consumed_pct,duff_moist_pct
+SOI-NOD-01,0,YES,Fine-Silt,Dry,0,0,10,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0
+SOI-NOD-02,0,YES,Loamy-Skeletal,Wet,0,0,20,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0
+SOI-NOD-03,0,YES,Fine,Moderate,0,0,15,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0
+SOI-NOD-04,0,YES,Coarse-Silt,VeryDry,0,0,5,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0
+SOI-NOD-05,0,YES,Coarse-Loamy,Dry,0,0,12,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0
+SOI-NOD-06,0,YES,Coarse-Silt,VeryDry,0,0,0,0.25,0.05,20,fi_wl.csv,fi_hs.csv,0,-1,0
+SOI-DUF-01,0,YES,Fine-Silt,Dry,2,1,10,-1,-1,20,fi_wl.csv,fi_hs.csv,5,50,60
+SOI-DUF-02,0,YES,Loamy-Skeletal,Wet,3,1.5,20,-1,-1,20,fi_wl.csv,fi_hs.csv,8,40,70
+SOI-DUF-03,0,YES,Fine,Moderate,1.5,0.5,15,-1,-1,20,fi_wl.csv,fi_hs.csv,3,60,55
+SOI-DUF-04,0,YES,Coarse-Silt,VeryDry,2,1,5,-1,-1,20,fi_wl.csv,fi_hs.csv,5,50,45
+SOI-DUF-05,0,YES,Coarse-Loamy,Dry,2.5,1,12,-1,-1,20,fi_wl.csv,fi_hs.csv,6,45,50
+SOI-DUF-06,0,YES,Coarse-Silt,VeryDry,2,0.05,5,-1,-1,20,fi_wl.csv,fi_hs.csv,5,97.5,45
+SOI-NOIG-01,0,NO,Fine-Silt,Dry,0,0,10,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0

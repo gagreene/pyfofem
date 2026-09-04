@@ -79,6 +79,32 @@ CORE_TESTS: List[str] = [
     # git-trackability proof (check-ignore, dry-run add, stale/extra file
     # audit). Filesystem/git-plumbing only - no live C++ build.
     "tests/unit/test_phase4_golden_tracking.py",
+    # Phase 5: explicit dataset-mode-ownership guard proving Phase 2/Phase 4
+    # own exactly the six original modes and Phase 5 owns exactly
+    # soil_campbell. Static membership + source-scan only - no live C++
+    # build, no golden data read.
+    "tests/unit/test_phase5_dataset_ownership.py",
+    # Phase 5 Part 3: soil_heat_campbell Python contract + source-relation
+    # coverage (class (a)/(b) only - class (c) lives in the sibling
+    # characterization module below, per F-52). Pure Python/SciPy, no live
+    # C++ build, no golden data read.
+    "tests/unit/test_phase5_soil_campbell_contract.py",
+    # Phase 5 Part 3 scientific-triage pass (F-52): class (c)
+    # cross-implementation CHARACTERIZATION (not parity) for
+    # soil_heat_campbell against the committed Phase 5 golden - reads
+    # committed golden CSVs, no live C++ build.
+    "tests/unit/test_phase5_soil_campbell_characterization.py",
+    # Phase 5 Part 3: fail-closed completeness + git-trackability coverage
+    # for the committed Phase 5 golden tree, mirroring
+    # test_phase4_golden_tracking.py's state-independent contract.
+    # Filesystem/git-plumbing only - no live C++ build.
+    "tests/unit/test_phase5_golden_tracking.py",
+    # Phase 5 correction pass (item-3): AST-based guard preventing
+    # test_phase5_soil_campbell_characterization.py from regressing to a
+    # raw hardcoded pytest.approx()/sanity-envelope tolerance literal
+    # instead of the two named constants in _phase5_contract.py. Pure
+    # source-file static analysis - no live C++ build, no golden data read.
+    "tests/unit/test_phase5_contract_hygiene.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
@@ -97,6 +123,11 @@ FULL_EXTRA_TESTS: List[str] = [
     # dataset field, and proof the Phase 2 tree is never touched). Needs the
     # live build.
     "tests/cpp_parity_live/test_generate_phase4_goldens.py",
+    # Phase 5 Part 3: driver tests for the Phase 5 soil_campbell golden
+    # generator (pinned-SHA gate, determinism, corrupted/missing/extra/
+    # mismatched committed files, dataset field, and proof the Phase 2/
+    # Phase 4 trees are never touched). Needs the live build.
+    "tests/cpp_parity_live/test_generate_phase5_goldens.py",
 ]
 
 #: Environment variable set on the pytest subprocess when ``--installed-only``

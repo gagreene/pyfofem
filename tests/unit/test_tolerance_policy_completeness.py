@@ -62,16 +62,31 @@ _PHASE4_SECTION_TO_MODE = {f"{mode}_p4": mode for mode in PHASE4_MODES}
 
 #: (mode, suffix) pairs whose real header is read from a per-mode-only
 #: (not per-file) generated golden, i.e. every declared output file of
-#: every mode MODE_OUTPUT_SUFFIXES knows about. Excludes "_components",
-#: which is covered by a dedicated component-resolution test instead of
-#: the generic column->covers_columns coverage test (it is long-format:
-#: the same four generic value columns repeat per component row, so
-#: "coverage" means resolving real (component, value_column) pairs, not
-#: matching a fixed column name).
+#: every Phase 2/Phase 4-owned mode MODE_OUTPUT_SUFFIXES knows about.
+#: Excludes "_components", which is covered by a dedicated
+#: component-resolution test instead of the generic
+#: column->covers_columns coverage test (it is long-format: the same four
+#: generic value columns repeat per component row, so "coverage" means
+#: resolving real (component, value_column) pairs, not matching a fixed
+#: column name).
+#:
+#: Deliberately scoped to ``PHASE4_MODES`` (the six modes Phase 2 AND
+#: Phase 4 both own — see ``_phase4_contract.PHASE4_MODES`` docstring),
+#: not to the raw ``MODE_OUTPUT_SUFFIXES.items()``. ``soil_campbell`` is a
+#: Phase 5-owned mode whose golden CSVs only ever exist under
+#: ``phase5/soil_campbell/`` (never ``phase2/`` or ``phase4/``); iterating
+#: the unscoped dict here would make this module go looking for
+#: ``phase2/soil_campbell/soil_campbell_summary.csv`` and
+#: ``phase4/soil_campbell/soil_campbell_summary.csv``, paths that must
+#: structurally never exist. This filter is the Phase 2/4 half of the
+#: explicit dataset-mode-ownership guard; see
+#: ``test_phase5_dataset_ownership.py`` for the exact-membership proof of
+#: all three dataset/mode sets.
 _WIDE_FORMAT_OUTPUT_FILES = [
     (mode, suffix)
     for mode, suffixes in MODE_OUTPUT_SUFFIXES.items()
     for suffix in suffixes
+    if mode in PHASE4_MODES
     if not (mode == "consume" and suffix == "_components")
 ]
 
