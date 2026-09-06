@@ -3,29 +3,30 @@
   "build_flags": "CMAKE_BUILD_TYPE=Debug CMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /W3 /GR /EHsc CMAKE_CXX_FLAGS_DEBUG=/MDd /Zi /Ob0 /Od /RTC1",
   "build_type": "Debug",
   "compiler_identity": "Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35728 for x64",
+  "dataset": "phase6",
   "documented_expected_divergences": [
-    "canopy_cover.all: known_divergent \u2014 Three independent divergences identified in the Gate 0 crosswalk: (a) C++ zeroes a tree's contribution when f_Hgt<=0 OR f_Dia<=0; Python excludes only dbh<=0/NaN and still credits crown area to a zero/negative-height tree; (b) Python's species-to-equation mapping depends on a caller-supplied tree_code_dict \u2014 with the default None, every tree is assigned equation 39 ('Other'), which does not match C++'s per-species FVS index lookup; (c) Python assumes one tree per acre per record while C++ callers supply an explicit per-acre count. None of these are numeric-tolerance-bridgeable; each requires a Python-side fix or an explicit input-contract change before any atol/rtol is meaningful. (gate0/03-cpp-crosswalk.md (Row 2 calc_canopy_cover, 'Known differences'))"
+    "consume_p6.default-mismatch-control: known_divergent \u2014 Phase 6 investigation A NEGATIVE CONTROL: 'default-mismatch-control' deliberately sets ef_flame_group=2, ef_smolder_group=5, ef_duff_group=8 (Phase 4's own emis-expanded-g258 configuration) - mismatched groups, unlike the 3 default-equiv-g* scenarios. Compared against Python calc_smoke_emissions(mode='default', ef_group=2) (the naive single-group choice a caller might make from the flame group alone), measured maximum relative difference 0.53 (53%) - a real, large, EXPECTED divergence that exists BY DESIGN to prove this dataset's comparison methodology genuinely discriminates non-equivalent configurations, not merely that any expanded configuration happens to agree with any default call regardless of group. This is not a defect and no tolerance is recorded to absorb it. (gate0/04-findings.md:F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV-NEGCTRL; tests/unit/test_phase6_default_emissions_equivalence.py::test_mismatched_group_expanded_diverges_from_python_default)"
   ],
-  "generated_utc": "2026-09-06T00:38:24.301581+00:00",
-  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpadxqjh33\\canopy_cover\\canopy_cover_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpadxqjh33\\canopy_cover\\canopy_cover --species-csv C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\src\\pyfofem\\supporting_data\\FOFEM6.7\\FOF_SPP.CSV",
+  "generated_utc": "2026-09-06T00:41:03.591127+00:00",
+  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmps313c7yg\\consume\\consume_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmps313c7yg\\consume\\consume",
   "generator_source_sha256": {
     "tests/cpp_parity_live/_golden_manifest.py": "c8af83a24bdee586c778c6edd8471e0b45d7238863715e3b0ca0cd7b72cf6bfc",
     "tests/cpp_parity_live/_harness_support.py": "5ab95174cf9d5021fb98d888a09b2d270c011a7fb5cf44c00549e2e131db9b94",
-    "tests/cpp_parity_live/_output_contract.py": "bfaf3ca9e858c348260bc90d3dd203a57303d115f3e7a9314458f450bceb2c27",
+    "tests/cpp_parity_live/_phase6_contract.py": "88ed3c56886baff4a3dd57e68e51ad70dc41b3769cb21f57866699ddcdc911f2",
     "tests/cpp_parity_live/_proc.py": "12fe2d955f69ad0b9fb34d2aad1015908743450ed37503e610267c7c3f1626a1",
     "tests/cpp_parity_live/generate_phase2_goldens.py": "40923c4e8be7f9bedcf3578ce8fbf5bbde64f91491060af6366f42271dd47343",
+    "tests/cpp_parity_live/generate_phase6_goldens.py": "9932ab98bdde92b560a182245c25f9b258366ee65f22cb873daff33b0c2fab10",
     "tests/cpp_parity_live/test_cpp_harness_contract.py": "27f6d5628836fa05cc82f7e7cffeff715df2d4760cd508bb660e51b6ba27457e",
     "tests/cpp_parity_live/tolerance_policy.json": "7bd085527c81ef5db746a0aa66acbc4b1091546ba7c942d9394c379f68fb613c"
   },
   "generator_toolchain": "cmake=cmake version 4.2.3-msvc3; ninja=1.12.1",
-  "harness_mode": "canopy_cover",
+  "harness_mode": "consume",
   "input_csv_sha256": {
-    "canopy_cover_in.csv": "45aa4c796496ebb1ce2f7d36dd237841b758551b0cb5102b6bdd37c792b34296"
+    "consume_in.csv": "006c757dfe6e5c47c5efa1274f171daeea9c13ee7c60fb34e9fa976bfaa49750"
   },
   "output_csv_sha256": {
-    "canopy_cover_groups.csv": "387ee948bca5d3a3fb3ecd339a844d481ae556eeec2a31c1035fa448822b3fd2",
-    "canopy_cover_stands.csv": "b160d392911d011e29ad65dd1ca751189a8b7b967900ac6e1c2aa16738a9c0ca",
-    "canopy_cover_trees.csv": "cfe3faa2d57306e243a69461e54c19e16c768442ff8cdb2e5b97a35e5bda579d"
+    "consume_components.csv": "8ef3f341af43ddda864fb32d54f3e2d443250cbf7defb60582638bef65e32dbf",
+    "consume_summary.csv": "4caab2fb7f45a8f29c1a894ce2f12ab8a33b9e39c2343e5ec5c102139c750da9"
   },
   "overlay_combined_digest": "e1d8b652bbe25485c896c56d918207d0af9f9e68f672d6c5b42f2e7dd3e5185f",
   "overlay_file_digests": {
@@ -47,13 +48,16 @@
   },
   "schema_version": "1",
   "side_file_sha256": {
-    "species_table": {
-      "path": "src/pyfofem/supporting_data/FOFEM6.7/FOF_SPP.CSV",
-      "sha256": "c830ba2218194953e2f44c5d2cbe598b6304bf2554f5330ffe12b61977655b71"
+    "emission_factor_table": {
+      "path": "reference/fofem_cpp/FOF_UNIX/Emission_Factors.csv",
+      "sha256": "4dec3f4d0afba3859f7d5aef8a3e3e27794c2e5bdd8799a9d94071d3c6b1a640"
     }
   },
   "tolerance_policy_reference": [
-    "canopy_cover.all"
+    "consume_p6.default-equiv-g1",
+    "consume_p6.default-equiv-g3",
+    "consume_p6.default-equiv-g8",
+    "consume_p6.default-mismatch-control"
   ],
   "upstream_cpp_sha": "78f97f093ee7d1c77b3cd2622b2bd7248036c1e4"
 }

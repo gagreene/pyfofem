@@ -84,14 +84,20 @@ DEFAULT_DATASET = "phase2"
 #: ``_phase4_contract.py``), reusing the same six qualified harness modes;
 #: ``phase5`` is the ``soil_campbell`` scenario-matrix dataset (see
 #: ``_phase5_contract.py``) — the one dataset with its own harness mode
-#: rather than reusing the Phase 2 six.
-VALID_DATASETS = frozenset({"phase2", "phase4", "phase5"})
+#: rather than reusing the Phase 2 six; ``phase6`` is the Phase 6
+#: investigation-A default-emissions-equivalence dataset (see
+#: ``_phase6_contract.py``) — reuses the already-qualified ``consume`` mode
+#: unchanged, exactly like Phase 4.
+VALID_DATASETS = frozenset({"phase2", "phase4", "phase5", "phase6"})
 
 #: Human-readable label per dataset, used in error text only. Kept
 #: separate from the dataset key so the Phase 2 wording that existing
 #: approved tests assert on ("canonical Phase 2 scenario contract")
-#: stays byte-stable while Phase 4/5 get their own labels.
-DATASET_LABELS = {"phase2": "Phase 2", "phase4": "Phase 4", "phase5": "Phase 5"}
+#: stays byte-stable while Phase 4/5/6 get their own labels.
+DATASET_LABELS = {
+    "phase2": "Phase 2", "phase4": "Phase 4", "phase5": "Phase 5",
+    "phase6": "Phase 6",
+}
 
 #: This module's own generation-time dependencies. Hashed into a manifest
 #: whenever the parent repo is dirty (uncommitted), since a dirty-tree
@@ -412,6 +418,9 @@ def canonical_divergence_keys(dataset: str, mode: str) -> List[str]:
         # Imported lazily for the same reason as phase4 above.
         from tests.cpp_parity_live._phase5_contract import phase5_divergence_keys
         return phase5_divergence_keys(mode)
+    if dataset == "phase6":
+        from tests.cpp_parity_live._phase6_contract import phase6_divergence_keys
+        return phase6_divergence_keys(mode)
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
@@ -439,6 +448,13 @@ def canonical_policy_keys(dataset: str, mode: str, policy: dict) -> List[str]:
     if dataset == "phase5":
         from tests.cpp_parity_live._phase5_contract import phase5_policy_keys
         keys = phase5_policy_keys(mode)
+        for key in keys:
+            section, _, route = key.partition(".")
+            policy[section][route]
+        return keys
+    if dataset == "phase6":
+        from tests.cpp_parity_live._phase6_contract import phase6_policy_keys
+        keys = phase6_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
@@ -584,6 +600,14 @@ def generator_source_files_for_dataset(dataset: str) -> List[str]:
         return [
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
             for rel in _P5_FILES
+        ]
+    if dataset == "phase6":
+        from tests.cpp_parity_live._phase6_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE as _P6_FILES,
+        )
+        return [
+            os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
+            for rel in _P6_FILES
         ]
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 

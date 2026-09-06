@@ -154,6 +154,7 @@ def run_bounded(
         timeout: float,
         cwd: Optional[str] = None,
         env: Optional[Dict[str, str]] = None,
+        stdin: Optional[int] = None,
 ) -> BoundedResult:
     """
     Run *args* with a hard *timeout* and attempt to terminate the parent
@@ -165,13 +166,21 @@ def run_bounded(
     :param cwd: Working directory for the child.
     :param env: Environment for the child (``None`` inherits this
         process's environment, matching ``subprocess.run``'s default).
+    :param stdin: Passed straight through to ``subprocess.Popen``'s own
+        ``stdin=`` argument. ``None`` (the default) preserves this
+        function's original behavior exactly — the child inherits this
+        process's stdin, identical to never passing the argument at all.
+        Pass ``subprocess.DEVNULL`` to give the child a closed/empty
+        stdin (e.g. so a diagnostic-path ``getchar()`` in the pinned
+        FOF_DLL source cannot block waiting for console input — see
+        ``massman_fof_dll_probe.py``).
     :return: A :class:`BoundedResult` with ``returncode``/``stdout``/
         ``stderr``.
     :raises ProcTimeout: If *timeout* elapses. The exception message
         includes every PID that was targeted for the kill.
     """
     proc = subprocess.Popen(
-        list(args), cwd=cwd, env=env,
+        list(args), cwd=cwd, env=env, stdin=stdin,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
     )
     try:

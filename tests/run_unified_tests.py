@@ -68,6 +68,11 @@ CORE_TESTS: List[str] = [
     # the same rule that puts the other golden-CSV-driven modules here.
     "tests/unit/test_phase4_consumption_parity.py",
     "tests/unit/test_phase4_emissions_parity.py",
+    # Phase 6 investigation A: default-emissions-equivalence full-pipeline
+    # comparison (F-54) against the committed Phase 6 consume golden. Reads
+    # committed CSVs only - no live C++ build needed at test-run time,
+    # exactly like the Phase 4/5 golden-driven modules above/below.
+    "tests/unit/test_phase6_default_emissions_equivalence.py",
     "tests/unit/test_phase4_mortality_parity.py",
     "tests/unit/test_phase4_tree_structure_parity.py",
     # Phase 4 correction pass: AST-based meta-test that no Phase 4 test
@@ -99,12 +104,32 @@ CORE_TESTS: List[str] = [
     # test_phase4_golden_tracking.py's state-independent contract.
     # Filesystem/git-plumbing only - no live C++ build.
     "tests/unit/test_phase5_golden_tracking.py",
+    # Phase 6 investigation A: completeness + git-trackability coverage for
+    # the committed Phase 6 golden tree, mirroring test_phase4/5_golden_
+    # tracking.py's state-independent contract. Filesystem/git-plumbing
+    # only - no live C++ build.
+    "tests/unit/test_phase6_golden_tracking.py",
     # Phase 5 correction pass (item-3): AST-based guard preventing
     # test_phase5_soil_campbell_characterization.py from regressing to a
     # raw hardcoded pytest.approx()/sanity-envelope tolerance literal
     # instead of the two named constants in _phase5_contract.py. Pure
     # source-file static analysis - no live C++ build, no golden data read.
     "tests/unit/test_phase5_contract_hygiene.py",
+    # Phase 6 investigation B: comprehensive Python contract/source-relation
+    # coverage for soil_heat_massman() (Massman HMV, simplified). No C++
+    # build, no golden data here - the pinned FOF_DLL solver DOES build/
+    # link/run (see tests/cpp_parity_live/massman_fof_dll_probe.py, run
+    # manually, never part of this suite), but produces non-finite output
+    # under documented-bounds-compliant inputs (F-55/F-57/F-58), so this
+    # module carries zero class (c) tests for a scientific, not a build,
+    # reason.
+    "tests/unit/test_massman_hmv_contract.py",
+    # Phase 6 probe-hardening pass: contract tests for
+    # massman_fof_dll_probe.py's fail-closed orchestration, using
+    # injected/mocked BoundedResult values. Every run_bounded() call is
+    # monkeypatched with a stub - no live C++ build, no real compiler
+    # invoked, safe on any machine regardless of MSVC availability.
+    "tests/cpp_parity_live/test_massman_fof_dll_probe.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
@@ -128,6 +153,11 @@ FULL_EXTRA_TESTS: List[str] = [
     # mismatched committed files, dataset field, and proof the Phase 2/
     # Phase 4 trees are never touched). Needs the live build.
     "tests/cpp_parity_live/test_generate_phase5_goldens.py",
+    # Phase 6 investigation A: driver tests for the default-emissions-
+    # equivalence consume golden generator (pinned-SHA gate, determinism,
+    # corrupted/missing/extra/mismatched committed files, dataset field, and
+    # proof the Phase 2/4/5 trees are never touched). Needs the live build.
+    "tests/cpp_parity_live/test_generate_phase6_goldens.py",
 ]
 
 #: Environment variable set on the pytest subprocess when ``--installed-only``

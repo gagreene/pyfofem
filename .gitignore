@@ -69,6 +69,11 @@ credentials.json
 # tree - never merged with phase2/ or phase4/.
 !tests/test_data/test_golden_output/phase5/**/*.csv
 
+# Phase 6 committed C++-oracle golden dataset (investigation A default-
+# emissions-equivalence consume scenarios). Same narrow negation, its own
+# sibling tree - never merged with phase2/, phase4/, or phase5/.
+!tests/test_data/test_golden_output/phase6/**/*.csv
+
 # Testing data (keep sample data in supporting_data only)
 src/pyfofem/reference_docs/
 
@@ -83,6 +88,11 @@ src/pyfofem/reference_docs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# massman_fof_dll_probe.py's own disposable build scratch area (rooted
+# under the repo per the Phase 6 authorized filesystem boundary, never
+# the system/user temp directory)
+/tests/cpp_parity_live/.massman_probe_scratch/
 
 # mypy
 .mypy_cache/

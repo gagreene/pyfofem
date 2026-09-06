@@ -200,3 +200,36 @@ def test_run_bounded_returns_normally_on_success():
 def test_run_bounded_captures_nonzero_exit():
     result = run_bounded([sys.executable, "-c", "import sys; sys.exit(3)"], timeout=10)
     assert result.returncode == 3
+
+
+def test_run_bounded_default_stdin_still_inherits_this_processs_stdin():
+    """Phase 6 probe-hardening pass: the new ``stdin`` parameter must
+    preserve ``run_bounded``'s original behaviour by default. There is no
+    portable way to assert "inherits this process's stdin" directly from
+    a child process, so this instead proves the negative space: omitting
+    ``stdin`` is byte-for-byte equivalent to explicitly passing ``None``
+    (Popen's own default), never accidentally closing or redirecting it."""
+    omitted = run_bounded([sys.executable, "-c", "print('ok')"], timeout=10)
+    explicit_none = run_bounded(
+        [sys.executable, "-c", "print('ok')"], timeout=10, stdin=None,
+    )
+    assert omitted.returncode == explicit_none.returncode == 0
+    assert omitted.stdout == explicit_none.stdout
+
+
+def test_run_bounded_stdin_devnull_gives_the_child_a_closed_stdin():
+    """Phase 6 probe-hardening pass: ``stdin=subprocess.DEVNULL`` must
+    reach the real child process, proven by a child that tries to read a
+    line from stdin and reports what it got — with a closed/empty stdin,
+    ``sys.stdin.readline()`` returns ``''`` (EOF) immediately rather than
+    blocking, which is exactly the property ``massman_fof_dll_probe.py``
+    relies on to prevent the pinned source's diagnostic ``getchar()``
+    path from ever hanging."""
+    import subprocess
+
+    result = run_bounded(
+        [sys.executable, "-c", "import sys; print(repr(sys.stdin.readline()))"],
+        timeout=10, stdin=subprocess.DEVNULL,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == "''"

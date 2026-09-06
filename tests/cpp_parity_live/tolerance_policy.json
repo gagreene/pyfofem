@@ -1093,6 +1093,107 @@
       "traceability": "development/plans/2026-08-26-comprehensive-test-suite-plan.md Risks section (burnup separability resolved as NOT demonstrated); gate0/07-branch-traceability.csv BR-BRN-NOMINAL"
     }
   },
+  "consume_p6": {
+    "default-equiv-g1": {
+      "atol": null,
+      "column_group": "consume_p6_default_equivalence_flaming_smoldering_totals",
+      "covers_columns": [
+        "PM10F",
+        "PM10S",
+        "PM25F",
+        "PM25S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S"
+      ],
+      "justification": "Phase 6 investigation A (harness-contract sec 8.3 same-group experiment): consume golden 'default-equiv-g1' sets ef_flame_group=ef_smolder_group=ef_duff_group=1 and critical_intensity_kw_m=50 (>=0, selects ES_Calc_NEW via the faithful CM_Mngr -> BCM_Mngr -> Burnup pipeline). Python calc_smoke_emissions(mode='default', ef_group=1) is fed this golden row's own FlaCon/SmoCon/DufCon; all 14 flaming/smoldering totals agree after F-32's SI normalisation, measured maximum relative difference 1.79e-07 - the same order of magnitude as the pre-existing legacy/expanded full-pipeline tolerance (consume_p4.emissions_legacy, 5e-07), reused verbatim here rather than invented. This IS a full-pipeline equivalence claim under a same-group configuration, proven by executing the real compiled pipeline - it is NOT a demonstration that calc_smoke_emissions equals an isolated ES_Calc_NEW call (no such isolated invocation exists, harness-contract sec 8.1/8.2).",
+      "rtol": 5e-07,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-32,F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV; tests/unit/test_phase6_default_emissions_equivalence.py::test_same_group_expanded_matches_python_default",
+      "unit": "dimensionless (relative difference, after the F-32 SI normalisation)"
+    },
+    "default-equiv-g3": {
+      "atol": null,
+      "column_group": "consume_p6_default_equivalence_flaming_smoldering_totals",
+      "covers_columns": [
+        "PM10F",
+        "PM10S",
+        "PM25F",
+        "PM25S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S"
+      ],
+      "justification": "Phase 6 investigation A (harness-contract sec 8.3 same-group experiment): consume golden 'default-equiv-g3' sets ef_flame_group=ef_smolder_group=ef_duff_group=3 and critical_intensity_kw_m=50 (>=0, selects ES_Calc_NEW via the faithful CM_Mngr -> BCM_Mngr -> Burnup pipeline). Python calc_smoke_emissions(mode='default', ef_group=3) is fed this golden row's own FlaCon/SmoCon/DufCon; all 14 flaming/smoldering totals agree after F-32's SI normalisation, measured maximum relative difference 1.63e-07 - the same order of magnitude as the pre-existing legacy/expanded full-pipeline tolerance (consume_p4.emissions_legacy, 5e-07), reused verbatim here rather than invented. This IS a full-pipeline equivalence claim under a same-group configuration, proven by executing the real compiled pipeline - it is NOT a demonstration that calc_smoke_emissions equals an isolated ES_Calc_NEW call (no such isolated invocation exists, harness-contract sec 8.1/8.2).",
+      "rtol": 5e-07,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-32,F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV; tests/unit/test_phase6_default_emissions_equivalence.py::test_same_group_expanded_matches_python_default",
+      "unit": "dimensionless (relative difference, after the F-32 SI normalisation)"
+    },
+    "default-equiv-g8": {
+      "atol": null,
+      "column_group": "consume_p6_default_equivalence_flaming_smoldering_totals",
+      "covers_columns": [
+        "PM10F",
+        "PM10S",
+        "PM25F",
+        "PM25S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S"
+      ],
+      "justification": "Phase 6 investigation A (harness-contract sec 8.3 same-group experiment): consume golden 'default-equiv-g8' sets ef_flame_group=ef_smolder_group=ef_duff_group=8 and critical_intensity_kw_m=50 (>=0, selects ES_Calc_NEW via the faithful CM_Mngr -> BCM_Mngr -> Burnup pipeline). Python calc_smoke_emissions(mode='default', ef_group=8) is fed this golden row's own FlaCon/SmoCon/DufCon; all 14 flaming/smoldering totals agree after F-32's SI normalisation, measured maximum relative difference 2.01e-07 - the same order of magnitude as the pre-existing legacy/expanded full-pipeline tolerance (consume_p4.emissions_legacy, 5e-07), reused verbatim here rather than invented. This IS a full-pipeline equivalence claim under a same-group configuration, proven by executing the real compiled pipeline - it is NOT a demonstration that calc_smoke_emissions equals an isolated ES_Calc_NEW call (no such isolated invocation exists, harness-contract sec 8.1/8.2).",
+      "rtol": 5e-07,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-32,F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV; tests/unit/test_phase6_default_emissions_equivalence.py::test_same_group_expanded_matches_python_default",
+      "unit": "dimensionless (relative difference, after the F-32 SI normalisation)"
+    },
+    "default-mismatch-control": {
+      "atol": null,
+      "column_group": "consume_p6_default_equivalence_flaming_smoldering_totals",
+      "covers_columns": [
+        "PM10F",
+        "PM10S",
+        "PM25F",
+        "PM25S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S"
+      ],
+      "justification": "Phase 6 investigation A NEGATIVE CONTROL: 'default-mismatch-control' deliberately sets ef_flame_group=2, ef_smolder_group=5, ef_duff_group=8 (Phase 4's own emis-expanded-g258 configuration) - mismatched groups, unlike the 3 default-equiv-g* scenarios. Compared against Python calc_smoke_emissions(mode='default', ef_group=2) (the naive single-group choice a caller might make from the flame group alone), measured maximum relative difference 0.53 (53%) - a real, large, EXPECTED divergence that exists BY DESIGN to prove this dataset's comparison methodology genuinely discriminates non-equivalent configurations, not merely that any expanded configuration happens to agree with any default call regardless of group. This is not a defect and no tolerance is recorded to absorb it.",
+      "rtol": null,
+      "status": "known_divergent",
+      "traceability": "gate0/04-findings.md:F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV-NEGCTRL; tests/unit/test_phase6_default_emissions_equivalence.py::test_mismatched_group_expanded_diverges_from_python_default"
+    }
+  },
   "litter_eq": {
     "997": {
       "atol": null,
