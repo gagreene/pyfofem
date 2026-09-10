@@ -74,6 +74,12 @@ credentials.json
 # sibling tree - never merged with phase2/, phase4/, or phase5/.
 !tests/test_data/test_golden_output/phase6/**/*.csv
 
+# Phase 7 committed C++-oracle golden dataset (item E additional
+# run_burnup scenarios: rotten/sound-mix, calm-wind, hot-ambient,
+# long-residence-time consume rows). Same narrow negation, its own
+# sibling tree - never merged with phase2/, phase4/, phase5/, or phase6/.
+!tests/test_data/test_golden_output/phase7/**/*.csv
+
 # Testing data (keep sample data in supporting_data only)
 src/pyfofem/reference_docs/
 
@@ -93,6 +99,14 @@ htmlcov/
 # under the repo per the Phase 6 authorized filesystem boundary, never
 # the system/user temp directory)
 /tests/cpp_parity_live/.massman_probe_scratch/
+
+# Phase 7's own disposable scratch area (tests/cpp_parity_live/_scratch.py),
+# rooted under the repo per the Phase 7 correction pass's authorized
+# filesystem boundary - golden generation, --verify-only, generator-driver
+# tests, golden-tracking tests, and the gen_burnup_in_file/fire-bounds/
+# Git-environment-independence tests all use this instead of the system/
+# user temp directory or pytest's built-in tmp_path.
+/tests/.phase7_scratch/
 
 # mypy
 .mypy_cache/

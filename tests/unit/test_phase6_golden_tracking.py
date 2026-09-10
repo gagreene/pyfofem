@@ -36,6 +36,7 @@ from __future__ import annotations
 import os
 
 from tests._support import PROJECT_ROOT
+from tests.cpp_parity_live._golden_manifest import git_safe_directory_value
 from tests.cpp_parity_live._phase6_contract import (
     _required_golden_files,
     golden_dir,
@@ -43,6 +44,7 @@ from tests.cpp_parity_live._phase6_contract import (
     PHASE6_MODES,
 )
 from tests.cpp_parity_live._proc import BoundedResult, run_bounded
+from tests.cpp_parity_live._scratch import scratch_tempdir
 
 #: Real, present-on-disk PHASE6_MODES ``golden_dir()``s. Read once at
 #: collection time so a whole-tree traversal is not repeated per test.
@@ -108,13 +110,63 @@ def _check_ignore_no_index(paths: list, cwd: str = PROJECT_ROOT) -> set:
 
 def _git(*args: str, cwd: str = PROJECT_ROOT) -> BoundedResult:
     """
-    Run a bounded ``git`` subprocess against the real project repository.
+    Run a bounded ``git`` subprocess, qualified with a per-command
+    ``-c safe.directory=<forward-slash form of cwd>`` override so it
+    succeeds regardless of the running account's global Git
+    configuration or the repository's file ownership - never written to
+    any config file.
+
+    **Final acceptance-gate correction (2026-09-09)**: reproduced
+    directly under forced ownership mistrust
+    (``GIT_TEST_ASSUME_DIFFERENT_OWNER=1``) that calls against the real
+    project repository failed with ``fatal: detected dubious ownership``
+    before this fix. The trusted path is *cwd* itself, never an
+    unconditional :data:`~tests._support.PROJECT_ROOT`, so this helper
+    stays correct if a future test passes a non-default ``cwd`` too -
+    reuses the established
+    :func:`~tests.cpp_parity_live._golden_manifest.git_safe_directory_value`
+    helper rather than duplicating its forward-slash normalization logic.
 
     :param args: ``git`` subcommand and arguments.
     :param cwd: Working directory for the subprocess.
     :returns: The :class:`~tests.cpp_parity_live._proc.BoundedResult`.
     """
-    return run_bounded(["git", *args], timeout=_GIT_TIMEOUT_S, cwd=cwd)
+    safe_directory = git_safe_directory_value(cwd)
+    return run_bounded(
+        ["git", "-c", f"safe.directory={safe_directory}", *args],
+        timeout=_GIT_TIMEOUT_S, cwd=cwd,
+    )
+
+
+def test_git_helper_succeeds_against_the_real_project_under_forced_ownership_mistrust(
+        monkeypatch,
+):
+    """
+    ``_git()`` must succeed against the REAL project repository (a
+    read-only ``rev-parse``) even when Git's dubious-ownership check is
+    forced via ``GIT_TEST_ASSUME_DIFFERENT_OWNER=1`` with blank,
+    repository-local global/system config - the exact Phase 7
+    acceptance-gate failure independent review reported, reproduced
+    directly before this fix (``fatal: detected dubious ownership in
+    repository at '<PROJECT_ROOT>'``).
+
+    :param monkeypatch: Pytest fixture; used only to set 3 environment
+        variables for this test's own subprocess calls, auto-restored on
+        teardown.
+    :returns: None.
+    """
+    with scratch_tempdir("phase6_golden_tracking_ownership") as base:
+        blank_global = os.path.join(base, "blank_global.gitconfig")
+        blank_system = os.path.join(base, "blank_system.gitconfig")
+        open(blank_global, "w", encoding="utf-8").close()
+        open(blank_system, "w", encoding="utf-8").close()
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", blank_global)
+        monkeypatch.setenv("GIT_CONFIG_SYSTEM", blank_system)
+
+        result = _git("rev-parse", "HEAD")
+        assert result.returncode == 0, result.stderr
+        assert len(result.stdout.strip()) == 40
 
 
 def test_phase6_golden_files_are_not_gitignored():

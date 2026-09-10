@@ -73,6 +73,24 @@ CORE_TESTS: List[str] = [
     # committed CSVs only - no live C++ build needed at test-run time,
     # exactly like the Phase 4/5 golden-driven modules above/below.
     "tests/unit/test_phase6_default_emissions_equivalence.py",
+    # Phase 7 item E: additional run_burnup()/burnup() scientific-parity
+    # comparison (rotten/sound-mix, calm-wind, hot-ambient, long-residence
+    # -time) against the committed Phase 7 consume golden. Reads
+    # committed CSVs only - no live C++ build needed at test-run time,
+    # exactly like the Phase 4/6 golden-driven modules above.
+    "tests/unit/test_phase7_run_burnup_parity.py",
+    # Phase 7 item E: fail-closed golden-tree completeness plus
+    # git-trackability proof for the Phase 7 dataset, mirroring
+    # test_phase4/5/6_golden_tracking.py's state-independent contract.
+    # Filesystem/git-plumbing only - no live C++ build.
+    "tests/unit/test_phase7_golden_tracking.py",
+    # Phase 7 correction pass item 4: repository-local scratch-directory
+    # contract tests (_scratch.py) - filesystem-only, no live C++ build.
+    "tests/unit/test_phase7_scratch.py",
+    # Phase 7 correction pass item 6: AST-based meta-test proving the
+    # complete Phase 7 file surface contains no imperative pytest.skip()
+    # calls and no skip/skipif markers. Pure source-file static analysis.
+    "tests/unit/test_phase7_contract_hygiene.py",
     "tests/unit/test_phase4_mortality_parity.py",
     "tests/unit/test_phase4_tree_structure_parity.py",
     # Phase 4 correction pass: AST-based meta-test that no Phase 4 test
@@ -130,6 +148,32 @@ CORE_TESTS: List[str] = [
     # monkeypatched with a stub - no live C++ build, no real compiler
     # invoked, safe on any machine regardless of MSVC availability.
     "tests/cpp_parity_live/test_massman_fof_dll_probe.py",
+    # Phase 7 item A: executable coverage for every real burnup_error code
+    # _run_burnup_cell() can return - 10-16, 20-29, 90, 91, 99, all 20
+    # codes with no carve-out - plus a completeness meta-test. Codes
+    # 21/26/27 are genuinely reachable (not unreachable, as an earlier,
+    # RETRACTED draft of this coverage originally claimed - see F-59,
+    # gate0/04-findings.md): _check_fuel() reads the bound for each
+    # FuelParticle attribute from the mutable module-level _FUEL_BOUNDS
+    # dict on every call, so patching only the applicable bound entry
+    # (never the validation/translation logic itself) drives the real
+    # codes. Pure Python, no live C++ build.
+    "tests/unit/test_run_burnup_cell_error_codes.py",
+    # Phase 7 item B: characterization of the three inconsistent fire-
+    # environment bounds-handling paths (_check_fire/_run_burnup_cell/
+    # gen_burnup_in_file), including the exact fistart boundary and its
+    # float neighbors. Pure Python, no live C++ build.
+    "tests/unit/test_fire_environment_bounds.py",
+    # Phase 7 item D: gen_burnup_in_file() content/field-order/numeric-
+    # serialization/boundary/failure-mode coverage. Pure Python, no live
+    # C++ build.
+    "tests/unit/test_gen_burnup_in_file.py",
+    # Phase 7 item C: 2D-input regression coverage for the former
+    # atleast_1d -> ravel bug class, organized by public API family
+    # (mortality/consumption/orchestrator), plus calc_carbon's
+    # deliberately different shape-preserving contract. Pure Python, no
+    # live C++ build.
+    "tests/unit/test_2d_input_regression.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
@@ -158,6 +202,18 @@ FULL_EXTRA_TESTS: List[str] = [
     # corrupted/missing/extra/mismatched committed files, dataset field, and
     # proof the Phase 2/4/5 trees are never touched). Needs the live build.
     "tests/cpp_parity_live/test_generate_phase6_goldens.py",
+    # Phase 7 item E: driver tests for the additional run_burnup golden
+    # generator (pinned-SHA gate, determinism, corrupted/missing/extra/
+    # mismatched committed files, dataset field, and proof the Phase 2/4/
+    # 5/6 trees are never touched). Needs the live build.
+    "tests/cpp_parity_live/test_generate_phase7_goldens.py",
+    # Phase 7 narrow correction pass item 1: proves every Git invocation in
+    # tests/prepare_cpp_reference.py (clone, refresh fetch/checkout/reset,
+    # _print_status()'s rev-parse) succeeds under Git's dubious-ownership
+    # check via GIT_TEST_ASSUME_DIFFERENT_OWNER=1, including a real
+    # subprocess run of the full Phase 7 generator-driver suite under that
+    # hostile environment. Needs the live build (same as the module above).
+    "tests/unit/test_prepare_cpp_reference_git_ownership.py",
 ]
 
 #: Environment variable set on the pytest subprocess when ``--installed-only``

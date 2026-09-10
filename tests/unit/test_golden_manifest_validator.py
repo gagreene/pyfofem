@@ -23,7 +23,7 @@ import os
 
 import pytest
 
-from tests._support import PROJECT_ROOT
+from tests._support import CPP_REFERENCE_DIR, PROJECT_ROOT
 from tests.cpp_parity_live._golden_manifest import (
     EXPECTED_SPECIES_TABLE_REPO_PATH,
     GENERATOR_SOURCE_FILES,
@@ -32,12 +32,14 @@ from tests.cpp_parity_live._golden_manifest import (
     REQUIRED_FIELDS,
     REQUIRED_OVERLAY_FILES,
     VALID_HARNESS_MODES,
+    _run_git,
     build_manifest,
     check_pinned_sha,
     compute_overlay_digests,
     current_upstream_sha,
     divergences_for_keys,
     git_dirty_status,
+    git_safe_directory_value,
     load_tolerance_policy,
     to_repo_relative,
     validate_manifest,
@@ -179,6 +181,85 @@ def test_git_dirty_status_detects_staged_file(tmp_path):
     status = git_dirty_status(str(tmp_path))
     assert status["dirty"] is True
     assert status["staged"] is True
+
+
+def test_git_safe_directory_value_uses_forward_slashes():
+    """
+    Phase 7 correction pass (2026-09-07) item 1: :func:`git_safe_directory_value`
+    must normalize every path to forward slashes for BOTH the parent
+    repository and the pinned ``reference/fofem_cpp`` submodule - a raw
+    Windows backslash path (e.g. ``PROJECT_ROOT``/``CPP_REFERENCE_DIR``
+    as plain string constants) is not recognized by git as matching the
+    checkout for ``safe.directory`` purposes, the exact gap independent
+    review reproduced directly.
+    """
+    for path in (PROJECT_ROOT, CPP_REFERENCE_DIR):
+        value = git_safe_directory_value(path)
+        assert "\\" not in value, (path, value)
+        assert value == os.path.abspath(path).replace(os.sep, "/")
+
+
+def test_run_git_prepends_the_safe_directory_override_for_dash_c_calls():
+    """``_run_git(["-C", <dir>, ...])`` must prepend
+    ``-c safe.directory=<forward-slash form of dir>`` automatically -
+    verified by inspecting the real subprocess argv via a passthrough
+    spy on ``run_bounded`` (delegating to the real implementation so the
+    call still genuinely executes), not by reading the source."""
+    import tests.cpp_parity_live._golden_manifest as gm
+
+    captured = {}
+    real_run_bounded = gm.run_bounded
+
+    def _spy(args, **kwargs):
+        captured["args"] = list(args)
+        return real_run_bounded(args, **kwargs)
+
+    original = gm.run_bounded
+    gm.run_bounded = _spy
+    try:
+        _run_git(["-C", PROJECT_ROOT, "rev-parse", "HEAD"])
+    finally:
+        gm.run_bounded = original
+
+    args = captured["args"]
+    assert args[0] == "git"
+    assert args[1] == "-c"
+    assert args[2] == f"safe.directory={git_safe_directory_value(PROJECT_ROOT)}"
+    assert "\\" not in args[2]
+
+
+def test_git_operations_succeed_against_the_parent_repo_without_relying_on_global_config():
+    """
+    Phase 7 correction pass (2026-09-07) item 1: ``_run_git`` against the
+    PARENT repository must succeed even when the account's global/system
+    Git configuration is entirely blanked out (``GIT_CONFIG_GLOBAL``
+    pointed at a nonexistent/empty file, ``GIT_CONFIG_NOSYSTEM=1``) -
+    proving the per-command ``safe.directory`` override, not any
+    pre-existing global config entry, is what makes the call succeed.
+
+    This does not reproduce a genuine cross-account ownership mismatch
+    (impossible to simulate safely on this single-owner development
+    machine without changing real filesystem ownership) - it proves the
+    narrower, directly testable property this fix actually depends on:
+    the override works independently of global configuration content.
+    """
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    sha = _run_git(["-C", PROJECT_ROOT, "rev-parse", "HEAD"], env=env).strip()
+    assert len(sha) == 40
+
+
+def test_git_operations_succeed_against_the_submodule_without_relying_on_global_config():
+    """Same proof as
+    :func:`test_git_operations_succeed_against_the_parent_repo_without_relying_on_global_config`,
+    for the pinned ``reference/fofem_cpp`` submodule specifically - the
+    other call site independent review named directly."""
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    sha = _run_git(["-C", CPP_REFERENCE_DIR, "rev-parse", "HEAD"], env=env).strip()
+    assert sha == PINNED_UPSTREAM_SHA
 
 
 def test_load_tolerance_policy_has_every_mode():

@@ -916,6 +916,21 @@ a raised message string in one place without updating the other can silently
 misclassify (or fail to classify) a failure as `BurnupError=99` ("unexpected
 burnup exception").
 
+**Phase 7 item A (2026-09-06, corrected in the same-named correction pass)
+added executable coverage for every registered code in this table** —
+`tests/unit/test_run_burnup_cell_error_codes.py`, 23 cases, driving the
+real, unmodified `_run_burnup_cell()` through a genuine triggering `ckw`
+dict or a legitimate module-level-constant monkeypatch (never a mock of
+the matching logic itself), plus a completeness meta-test cross-checking
+the full `_BURNUP_LIMIT_ERROR` table with no "unreachable" carve-out.
+Codes 21/26/27 (`ash`/`cheat`/`condry`) were originally, and incorrectly,
+reported as structurally unreachable (F-59) — that claim was retracted
+after independent review showed `_check_fuel()` reads the *bound* for
+each attribute from the mutable module-level `_FUEL_BOUNDS` dict on
+every call, so patching only the applicable bound entry (not the
+hardcoded value) drives the real codes; see F-59's retraction in
+`gate0/04-findings.md` for the full evidence.
+
 ### 18. `soil_heat_massman()` is not integrated into `run_fofem_emissions()`
 
 Only `soil_heat_campbell()` is called from the orchestrator's per-cell
@@ -1002,6 +1017,15 @@ as the single source of truth is a real behavior change for at least
 `_run_burnup_cell()`'s current lower-bound-rejection cases (previously
 returned a `burnup_error` code, would instead raise
 `BurnupValidationError`).
+
+**Phase 7 item B (2026-09-06) characterized all three paths with real
+executable tests** — `tests/unit/test_fire_environment_bounds.py`, 37
+cases, including `_FIRE_BOUNDS['fistart']`'s exact 40.0/1.0e5 boundary
+plus `np.nextafter` float neighbors on all three paths, and one
+cross-path test proving all three genuinely disagree on the identical
+out-of-range `fistart` value. Current-behavior characterization only —
+no strict xfail, since no "correct" consolidated contract has been
+approved yet (this remains an open decision, unchanged by Phase 7).
 
 ### 24. No `_FIRE_BOUNDS` entry for C++'s duff-loading bounds
 

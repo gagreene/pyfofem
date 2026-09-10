@@ -87,16 +87,19 @@ DEFAULT_DATASET = "phase2"
 #: rather than reusing the Phase 2 six; ``phase6`` is the Phase 6
 #: investigation-A default-emissions-equivalence dataset (see
 #: ``_phase6_contract.py``) — reuses the already-qualified ``consume`` mode
-#: unchanged, exactly like Phase 4.
-VALID_DATASETS = frozenset({"phase2", "phase4", "phase5", "phase6"})
+#: unchanged, exactly like Phase 4; ``phase7`` is the Phase 7 item E
+#: additional-``run_burnup``-scenarios dataset (see ``_phase7_contract.py``)
+#: — also reuses the already-qualified ``consume`` mode unchanged, exactly
+#: like Phase 4/6.
+VALID_DATASETS = frozenset({"phase2", "phase4", "phase5", "phase6", "phase7"})
 
 #: Human-readable label per dataset, used in error text only. Kept
 #: separate from the dataset key so the Phase 2 wording that existing
 #: approved tests assert on ("canonical Phase 2 scenario contract")
-#: stays byte-stable while Phase 4/5/6 get their own labels.
+#: stays byte-stable while Phase 4/5/6/7 get their own labels.
 DATASET_LABELS = {
     "phase2": "Phase 2", "phase4": "Phase 4", "phase5": "Phase 5",
-    "phase6": "Phase 6",
+    "phase6": "Phase 6", "phase7": "Phase 7",
 }
 
 #: This module's own generation-time dependencies. Hashed into a manifest
@@ -252,11 +255,38 @@ def _is_safe_repo_relative_path(rel_path: str) -> bool:
     return normalized == root or normalized.startswith(root + os.sep)
 
 
-def _run_git(args: List[str]) -> str:
+def _run_git(args: List[str], *, env: Optional[Dict[str, str]] = None) -> str:
     """Run a git command via the bounded/tree-killing subprocess helper and
     return its stdout, raising like ``subprocess.check_output`` would on a
-    nonzero exit (``run_bounded`` itself does not raise on nonzero exit)."""
-    result = run_bounded(["git"] + args, timeout=TIMEOUT_GIT_S)
+    nonzero exit (``run_bounded`` itself does not raise on nonzero exit).
+
+    Phase 7 correction pass (2026-09-07): when *args* opens with
+    ``["-C", <dir>, ...]`` (every call site in this module does), a
+    PER-COMMAND ``-c safe.directory=<forward-slash form of dir>`` is
+    prepended automatically — so this function never depends on the
+    running account's global Git configuration already trusting either
+    this checkout or the pinned ``reference/fofem_cpp`` submodule (git's
+    own "dubious ownership" safety check fails closed for EVERY
+    subcommand, not only index-writing ones, when the process does not
+    own the repository). This is process-local config for this one
+    invocation only — it never writes to any config file and never adds
+    either repository to global configuration. See
+    :func:`git_safe_directory_value` for why the value must be
+    forward-slash-normalized rather than a raw Windows path.
+
+    :param args: ``git`` subcommand and arguments.
+    :param env: Optional environment override, passed straight through to
+        :func:`~tests.cpp_parity_live._proc.run_bounded` (``None``
+        preserves this function's original behaviour exactly — the
+        child inherits this process's own environment). Used by tests
+        to prove this function's own safe-directory override works
+        regardless of what the account's global Git configuration
+        contains, without ever writing to it.
+    """
+    safe_dir_prefix: List[str] = []
+    if len(args) >= 2 and args[0] == "-C":
+        safe_dir_prefix = ["-c", f"safe.directory={git_safe_directory_value(args[1])}"]
+    result = run_bounded(["git"] + safe_dir_prefix + args, timeout=TIMEOUT_GIT_S, env=env)
     if result.returncode != 0:
         raise RuntimeError(
             f"git {' '.join(args)} failed (exit {result.returncode}): {result.stderr}"
@@ -421,6 +451,9 @@ def canonical_divergence_keys(dataset: str, mode: str) -> List[str]:
     if dataset == "phase6":
         from tests.cpp_parity_live._phase6_contract import phase6_divergence_keys
         return phase6_divergence_keys(mode)
+    if dataset == "phase7":
+        from tests.cpp_parity_live._phase7_contract import phase7_divergence_keys
+        return phase7_divergence_keys(mode)
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
@@ -455,6 +488,13 @@ def canonical_policy_keys(dataset: str, mode: str, policy: dict) -> List[str]:
     if dataset == "phase6":
         from tests.cpp_parity_live._phase6_contract import phase6_policy_keys
         keys = phase6_policy_keys(mode)
+        for key in keys:
+            section, _, route = key.partition(".")
+            policy[section][route]
+        return keys
+    if dataset == "phase7":
+        from tests.cpp_parity_live._phase7_contract import phase7_policy_keys
+        keys = phase7_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
@@ -609,6 +649,14 @@ def generator_source_files_for_dataset(dataset: str) -> List[str]:
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
             for rel in _P6_FILES
         ]
+    if dataset == "phase7":
+        from tests.cpp_parity_live._phase7_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE as _P7_FILES,
+        )
+        return [
+            os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
+            for rel in _P7_FILES
+        ]
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
@@ -647,6 +695,28 @@ def git_dirty_status(repo_dir: str) -> Dict[str, Any]:
         "untracked": untracked,
         "porcelain": out,
     }
+
+
+def git_safe_directory_value(path: str) -> str:
+    """
+    Return *path* resolved to an absolute path with every separator
+    normalized to a forward slash, suitable as a ``-c safe.directory=``
+    config value on every platform.
+
+    Git's "dubious ownership" check matches a configured
+    ``safe.directory`` value against its own internally-normalized
+    (forward-slash) form of the repository path, even on Windows — a
+    raw Windows path with backslashes (e.g. ``os.path.abspath()``'s own
+    native return form, or ``PROJECT_ROOT``/``CPP_REFERENCE_DIR`` as
+    plain string constants) is NOT recognized as matching the checkout,
+    so a per-command ``-c safe.directory=<backslash path>`` override is
+    silently ineffective. Independent review reproduced this exact
+    failure mode directly (Phase 7 correction pass, 2026-09-07).
+
+    :param path: Directory path (repository root or submodule root).
+    :return: Absolute, forward-slash-normalized path.
+    """
+    return os.path.abspath(path).replace(os.sep, "/")
 
 
 def load_tolerance_policy() -> Dict[str, Any]:

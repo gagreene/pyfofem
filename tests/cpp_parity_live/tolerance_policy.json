@@ -1194,6 +1194,220 @@
       "traceability": "gate0/04-findings.md:F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV-NEGCTRL; tests/unit/test_phase6_default_emissions_equivalence.py::test_mismatched_group_expanded_diverges_from_python_default"
     }
   },
+  "consume_p7": {
+    "woody_small": {
+      "atol": 1e-06,
+      "column_group": null,
+      "covers_columns": [
+        "LitPre",
+        "LitCon",
+        "LitPos",
+        "DW1Pre",
+        "DW1Con",
+        "DW1Pos",
+        "DW10Pre",
+        "DW10Con",
+        "DW10Pos",
+        "HerPre",
+        "HerCon",
+        "HerPos",
+        "ShrPre",
+        "ShrCon",
+        "ShrPos",
+        "FolPre",
+        "FolCon",
+        "FolPos",
+        "BraPre",
+        "BraCon",
+        "BraPos"
+      ],
+      "justification": "Phase 7 correction pass item 2 (2026-09-06): litter/1-hr/10-hr woody/herb/shrub/crown-foliage/crown-branch pre/con/pos are computed by consm_litter/consm_shrub/consm_canopy-equivalent equation routes that do not depend on Burnup's per-particle woody-fuel simulation at all (F-G: only litter is consumed inside Burnup, and even it matches exactly here), so they are identical between run_fofem_emissions() and the pinned CM_Mngr->BCM_Mngr pipeline regardless of the fire-environment/rotten-sound-mix variations Phase 7's 4 scenarios exercise. Measured EXACT match (max |diff|=0.0) across all 4 scenarios (rot-snd-mix/calm-wind/hot-amb-duff/long-igtime) for every one of these 21 columns. atol=1e-6 absorbs floating-point representation noise only, not a real tolerance.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_woody_small_and_nonburnup_components_match_cpp",
+      "unit": "T/ac"
+    },
+    "dw100": {
+      "atol": 0.05,
+      "column_group": null,
+      "covers_columns": [
+        "DW100Pre",
+        "DW100Con",
+        "DW100Pos"
+      ],
+      "justification": "Phase 7 correction pass item 2 (2026-09-06): 100-hr woody fuel IS consumed inside Burnup's per-particle simulation, so a small, real, scheme-level (numerical-integration) difference is expected and already established generically by the canonical consume.DW100Con entry (atol=0.05). Measured directly for Phase 7's own 4 scenarios: |diff| = 0.0 (hot-amb-duff), 0.0125 (long-igtime), 0.0130 (rot-snd-mix), 0.0427 (calm-wind) - all comfortably inside atol=0.05, reusing the canonical bound because Phase 7's own measured maximum (0.0427) independently falls within it, not because the canonical value was blindly copied.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_dw100_matches_cpp_within_the_established_scheme_tolerance",
+      "unit": "T/ac"
+    },
+    "woody_1000hr": {
+      "atol": 0.02,
+      "column_group": null,
+      "covers_columns": [
+        "SndDW1kPre",
+        "SndDW1kCon",
+        "SndDW1kPos",
+        "RotDW1kPre",
+        "RotDW1kCon",
+        "RotDW1kPos"
+      ],
+      "justification": "Phase 7 correction pass item 2/3 (2026-09-06): CORRECTS the original Phase 7 pass's mis-attribution of this comparison to F-23 (Northeast-only; these scenarios are region=InteriorWest, outside F-23's scope entirely - see BR-BUP-ROT-SND-MIX's own traceability notes). Root cause of the ORIGINAL huge measured divergence (Python 0.706/1.051 vs golden 0.026/0.086 T/ac) was a TEST-CODE bug: run_fofem_emissions()'s AGGREGATE dw1000s/dw1000r parameters silently route the ENTIRE load into the SMALLEST (3-6 in, SAV=39.4) granular sub-class by default (pyfofem.py:461,463 - see F-60), not the intended 20+ in class (SAV=5.91) the golden's snd_dw20_tac/rot_dw20_tac columns actually populate - a ~6.7x SAV difference drastically changes drying/ignition speed. Using the CORRECT granular dw20s/dw20r parameters (matching the golden's own populated columns 1:1) closes the gap to a small, real, scheme-level difference: measured |diff| = 0.00245 (SndDW1kCon), 0.00203 (RotDW1kCon) for rot-snd-mix (the only scenario with nonzero values - the other 3 are exact 0.0=0.0 matches), both comfortably inside atol=0.02 - the SAME bound the canonical consume.SndDW1kCon entry already establishes generically, reused here because Phase 7's own measurement independently falls within it.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-60; gate0/07-branch-traceability.csv BR-BUP-ROT-SND-MIX; tests/unit/test_phase7_run_burnup_parity.py::test_rot_snd_mix_woody_1000hr_matches_cpp_with_correct_size_class_mapping",
+      "unit": "T/ac"
+    },
+    "duff": {
+      "atol": 0.05,
+      "column_group": null,
+      "covers_columns": [
+        "DufPre",
+        "DufCon",
+        "DufPos",
+        "DufDepPre",
+        "DufDepCon",
+        "DufDepPos"
+      ],
+      "justification": "Phase 7 correction pass item 3 (2026-09-06): the ORIGINAL Phase 7 pass's DufCon comparison was unknowingly unfair - the canonical base row (and therefore all 4 Phase 7 scenarios, inherited unchanged) used duff_moist_method=NFDR, but run_fofem_emissions() has NO parameter to select NFDR at all: it always computes duff consumption via consm_duff(duff_moist_cat='edm'), Python's own spelling of C++'s ENTIRE route (F-22's own note: \"'edm' is the C++ ENTIRE case\"). See F-61. None of Phase 7's 4 scenarios targets duff-moisture-method routing, so their own duff_moist_method column was corrected to ENTIRE (matching what Python always computes) - a golden-scenario-input correction, not a production or tolerance change. With matched methods: DufCon/DufPre/DufPos are an EXACT match (|diff|=0.0) in all 4 scenarios; DufDepCon/DufDepPos differ by a constant 0.0311 (duff-depth reduction is computed via a different but Burnup-adjacent route) - comfortably inside atol=0.05.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-61; gate0/07-branch-traceability.csv BR-BUP-ROT-SND-MIX; tests/unit/test_phase7_run_burnup_parity.py::test_duff_matches_cpp_with_the_corrected_entire_duff_moisture_method",
+      "unit": "T/ac (DufDep* in inches)"
+    },
+    "duff_percent": {
+      "atol": null,
+      "column_group": null,
+      "covers_columns": [
+        "DufPer"
+      ],
+      "justification": "run_fofem_emissions() does not expose a percent-duff-consumed field at all (confirmed by dumping its complete result-dict key set) - only the absolute DufCon/DufPre/DufPos, both of which ARE compared directly and match exactly (see the 'duff' route above). DufPer = DufCon/DufPre*100 is trivially derivable by a caller from fields already verified; no comparison is attempted on the unexposed derived field itself.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_python_does_not_expose_a_percent_duff_consumed_field",
+      "unit": "percent"
+    },
+    "totals": {
+      "atol": 0.1,
+      "column_group": null,
+      "covers_columns": [
+        "TotPre",
+        "TotCon",
+        "TotPos"
+      ],
+      "justification": "run_fofem_emissions() does not expose an aggregate Tot*/*Con/*Pos field either; the test DERIVES it by summing the 11 already-compared component Pre/Con/Pos fields (Lit+DW1+DW10+DW100+SndDW1k+RotDW1k+Duf+Her+Shr+Fol+Bra), confirmed to be exactly how the golden's own TotPre is composed (measured: summing Python's 11 Pre values reproduces the golden's TotPre to the last decimal in all 4 scenarios). TotCon/TotPos inherit the small residual woody-fuel scheme differences already bounded by the 'dw100'/'woody_1000hr' routes above; measured max |diff| across all 4 scenarios is 0.0656 (calm-wind), comfortably inside atol=0.1.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_derived_totals_match_cpp",
+      "unit": "T/ac"
+    },
+    "fladur": {
+      "atol": 30.0,
+      "column_group": null,
+      "covers_columns": [
+        "FlaDur"
+      ],
+      "justification": "Reuses the pre-existing canonical consume.FlaDur atol=30.0 s verbatim, justified by Phase 7's OWN measured evidence (not a blind copy): FlaDur matches exactly (|diff|=0.0) for rot-snd-mix/hot-amb-duff/long-igtime and differs by 15.0 s for calm-wind - all comfortably inside atol=30.0.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "gate0/04-findings.md:F-23; tests/unit/test_phase7_run_burnup_parity.py::test_calm_wind_fladur_matches_cpp,test_hot_amb_duff_fladur_matches_cpp,test_long_igtime_fladur_matches_cpp,test_rot_snd_mix_fladur_matches_cpp",
+      "unit": "seconds"
+    },
+    "flame_smolder_consumption_nominal": {
+      "atol": 0.1,
+      "column_group": "consume_p7_flame_smolder_consumption_split",
+      "covers_columns": [
+        "FlaCon",
+        "SmoCon"
+      ],
+      "justification": "Applies to rot-snd-mix and calm-wind (nominal ig_time_s=60, nominal-to-cool ambient_temp_c): FlaCon/SmoCon (the flaming/smoldering split of TotCon) match closely - measured |diff| (FlaCon/SmoCon): rot-snd-mix 0.0268/0.0093, calm-wind 0.0176/0.0603, both comfortably inside atol=0.1. See flame_smolder_consumption_affected_scenarios below for the SEPARATE, substantially larger divergence measured for hot-amb-duff/long-igtime specifically (F-62) - these two routes share column_group because they classify the SAME two columns for DIFFERENT scenario subsets, exactly as consume_p4's own multi-route columns already do.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_flame_smolder_split_matches_cpp_for_nominal_duration_scenarios",
+      "unit": "T/ac"
+    },
+    "flame_smolder_consumption_affected_scenarios": {
+      "atol": null,
+      "column_group": "consume_p7_flame_smolder_consumption_split",
+      "covers_columns": [
+        "FlaCon",
+        "SmoCon"
+      ],
+      "justification": "F-62 (gate0/04-findings.md): for hot-amb-duff and long-igtime specifically, FlaCon/SmoCon diverge substantially even though the underlying TotCon these two fields split does NOT (see 'totals' route above - the aggregate matches closely; only the flaming-vs-smoldering ALLOCATION differs). Measured |diff|: hot-amb-duff 2.497/2.497, long-igtime 1.997/2.010 T/ac - far beyond any defensible tolerance. Root cause not fully isolated within this pass's scope (would require a burnup()-vs-bur_brn.cpp time-stepping/duff-coupling architecture comparison of the depth F-17's soil-model comparison required). Phase 7 correction pass (2026-09-07) item 3: the original 'both scenarios extend the effective simulated burn duration' hypothesis is CORRECTED by direct executable evidence already present in the committed golden (FlaDur+SmoDur per scenario, no new instrumentation): hot-amb-duff's total simulated duration (60+2280=2340 s) is the SHORTEST of all 4 scenarios, not extended, and long-igtime's total (199.9+2419.9=2619.8 s) is nearly identical to rot-snd-mix's nominal 2625 s - only the FlaDur/SmoDur split shifts, not the total. The duration-extension hypothesis is therefore refuted as a cause; these are neutrally 'the two scenarios exhibiting the measured split divergence' (hot-amb-duff: near-upper-bound ambient_temp_c; long-igtime: near-upper-bound ig_time_s), and the real mechanism remains unidentified. Pinned by 6 separate parametrized strict xfails (one per case_id x field combination), each independently proven to fail under --runxfail, not silently omitted.",
+      "rtol": null,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-62; tests/unit/test_phase7_run_burnup_parity.py::test_flame_smolder_split_should_match_cpp_for_the_affected_scenarios",
+      "unit": "T/ac"
+    },
+    "smoldering_duration_nominal": {
+      "atol": 60.0,
+      "column_group": "consume_p7_smoldering_duration",
+      "covers_columns": [
+        "SmoDur"
+      ],
+      "justification": "Applies to rot-snd-mix and calm-wind: SmoDur measured |diff| = 15.0 s (rot-snd-mix), 45.0 s (calm-wind), both comfortably inside atol=60.0 - the SAME bound the canonical consume.SmoDur entry already establishes generically, reused here because Phase 7's own measurement independently falls within it. See smoldering_duration_affected_scenarios below for hot-amb-duff/long-igtime's separate, far larger divergence (F-62).",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_flame_smolder_split_matches_cpp_for_nominal_duration_scenarios",
+      "unit": "seconds"
+    },
+    "smoldering_duration_affected_scenarios": {
+      "atol": null,
+      "column_group": "consume_p7_smoldering_duration",
+      "covers_columns": [
+        "SmoDur"
+      ],
+      "justification": "F-62 (gate0/04-findings.md): for hot-amb-duff and long-igtime, SmoDur diverges far beyond the nominal-duration bound: measured |diff| = 585.0 s (hot-amb-duff), 105.0 s (long-igtime). Same root cause/scope as flame_smolder_consumption_affected_scenarios above - not independently investigated further, not silently omitted. Phase 7 correction pass (2026-09-07) item 3: see that route's justification for the direct executable total-duration evidence (FlaDur+SmoDur) that REFUTES the original 'extends the effective simulated burn duration' hypothesis for both scenarios. Pinned by the same 6 parametrized strict xfails.",
+      "rtol": null,
+      "status": "known_divergent_strict_xfail",
+      "traceability": "gate0/04-findings.md:F-62; tests/unit/test_phase7_run_burnup_parity.py::test_flame_smolder_split_should_match_cpp_for_the_affected_scenarios",
+      "unit": "seconds"
+    },
+    "mineral_soil": {
+      "atol": 0.0001,
+      "column_group": null,
+      "covers_columns": [
+        "MSE"
+      ],
+      "justification": "Measured EXACT match (|diff| ~= 2.03e-06, floating-point representation noise only) across all 4 scenarios - fuel_cat=Natural/cover_group=GrassGroup routes through the same consm_mineral_soil equation path regardless of the fire-environment/woody-fuel variations these 4 scenarios exercise.",
+      "rtol": null,
+      "status": "verified",
+      "traceability": "tests/unit/test_phase7_run_burnup_parity.py::test_mineral_soil_exposure_matches_cpp",
+      "unit": "percent"
+    },
+    "emissions_mismatched_group": {
+      "atol": null,
+      "column_group": null,
+      "covers_columns": [
+        "PM25F",
+        "PM25S",
+        "PM10F",
+        "PM10S",
+        "CH4F",
+        "CH4S",
+        "COF",
+        "COS",
+        "CO2F",
+        "CO2S",
+        "NOXF",
+        "NOXS",
+        "SO2F",
+        "SO2S",
+        "PM25S_Duff",
+        "PM10S_Duff",
+        "CH4S_Duff",
+        "COS_Duff",
+        "CO2S_Duff",
+        "NOXS_Duff",
+        "SO2S_Duff"
+      ],
+      "justification": "All 4 Phase 7 scenarios use MISMATCHED ef_flame_group(3)/ef_smolder_group(7)/ef_duff_group(8) (inherited unchanged from the Phase 2 canonical base row; none of these 4 scenarios targets emission-factor-group routing at all). Phase 6's own investigation (F-54, gate0/04-findings.md) already established that Python's 'default' emissions mode only reproduces a same-group ES_Calc_NEW configuration, and that a mismatched-group comparison diverges by ~53% BY DESIGN (its own negative control) - re-deriving that same conclusion for these 4 scenarios would not be a new investigation, just a restatement of consume_p6.default-mismatch-control's own finding. No comparison is attempted here; use the phase6/consume dataset's own same-group scenarios for emissions-mode parity evidence.",
+      "rtol": null,
+      "status": "unverified",
+      "traceability": "gate0/04-findings.md:F-54; gate0/07-branch-traceability.csv BR-EMI-DEFAULT-EQUIV-NEGCTRL",
+      "unit": "lbs (imperial, per F-32 normalisation)"
+    }
+  },
   "litter_eq": {
     "997": {
       "atol": null,
