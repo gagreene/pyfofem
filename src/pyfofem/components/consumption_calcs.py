@@ -58,6 +58,12 @@ SOIL_HEAT_VARS = ['Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d']
 EQUATION_VARS = ['Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shrub-Equ']
 ERROR_VARS = ['BurnupLimitAdj', 'BurnupError']
 
+#: FOFEM's Pine Flatwoods equations work internally in Mg/ha while the
+#: surrounding consumption API uses T/ac for Imperial inputs. The pinned C++
+#: uses this rounded factor in ``Ton_To_Mega``/``Mega_To_Ton``
+#: (``fof_hsf.cpp:828-839``).
+T_ACRE_PER_MG_HECTARE = 0.446
+
 # ---------------------------------------------------------------------------
 # Categorical parameter lookup tables (int code → string label)
 # ---------------------------------------------------------------------------
@@ -665,7 +671,7 @@ def consm_herb(
     cvr_arr  = np.broadcast_to(cvr_arr,  (n,)) if cvr_arr.size  == 1 else cvr_arr
     sea_arr  = np.broadcast_to(sea_arr,  (n,)) if sea_arr.size  == 1 else sea_arr
 
-    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
     _grass_vals    = ('Grass', 'GG', 'GrassGroup')
 
     is_se         = reg_arr == 'SouthEast'
@@ -673,17 +679,19 @@ def consm_herb(
     is_flatwood   = np.isin(cvr_arr, _flatwood_vals)
 
     hlc = np.select(
-        [is_se, is_grass_spr, is_flatwood],
+        [is_flatwood, is_se, is_grass_spr],
         [
-            # Eq 222
-            -0.059 + (0.004 * pre_ll) + (0.917 * pre_hl),
-            # Eq 221 – 10% in Spring only
-            pre_hl * 0.1,
             # Eq 223
             ((pre_hl * 2.24) * 0.9944) / 2.24,
+            # Eq 222
+            -0.059 + (0.004 * pre_ll) + (0.917 * pre_hl),
+            # Eq 221 - 90% in Spring only (fof_hsf.cpp:352-358)
+            pre_hl * 0.9,
         ],
         default=pre_hl.copy(),  # Eq 22 – 100%
     )
+
+    hlc = np.clip(hlc, 0.0, pre_hl)
 
     if units == 'SI':
         hlc = hlc / 4.4609
@@ -708,7 +716,7 @@ def consm_litter(
         Most fuel consumption is simulated using Burnup. This function covers
         litter-specific override equations for Flatwoods and Southeast regions.
 
-    :param pre_ll: Pre-fire litter load (Mg/ha if ``units='SI'``, T/acre if
+    :param pre_ll: Pre-fire litter load (kg/m² if ``units='SI'``, T/acre if
         ``units='Imperial'``). Scalar or np.ndarray.
     :param l_moist: Litter moisture content (%). Scalar or np.ndarray.
     :param cvr_grp: Cover group name or integer code (see
@@ -737,15 +745,21 @@ def consm_litter(
     cvr_arr = np.broadcast_to(cvr_arr, (n,)) if cvr_arr.size == 1 else cvr_arr
     reg_arr = np.broadcast_to(reg_arr, (n,)) if reg_arr.size == 1 else reg_arr
 
-    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
     is_flatwood = np.isin(cvr_arr, _flatwood_vals)
     is_southeast = reg_arr == 'SouthEast'
+
+    pre_ll_mgha = pre_ll / T_ACRE_PER_MG_HECTARE
+    flatwood_consumed_tac = T_ACRE_PER_MG_HECTARE * np.square(
+        0.2871 + (0.9140 * np.sqrt(pre_ll_mgha)) - (0.0101 * l_moist)
+    )
+    flatwood_consumed_tac = np.minimum(flatwood_consumed_tac, pre_ll)
 
     llc = np.select(
         [is_flatwood, is_southeast],
         [
-            # Eq 997
-            np.power(0.2871 + (0.9140 * np.sqrt(pre_ll)) - (0.0101 * l_moist), 2),
+            # Eq 997 operates in Mg/ha before converting back to T/ac.
+            flatwood_consumed_tac,
             # Eq 998
             pre_ll * 0.8,
         ],
@@ -913,7 +927,7 @@ def consm_shrub(
     cvr_arr = np.broadcast_to(cvr_arr, (n,)) if cvr_arr.size == 1 else cvr_arr
     sea_arr = np.broadcast_to(sea_arr, (n,)) if sea_arr.size == 1 else sea_arr
 
-    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
 
     is_se       = reg_arr == 'SouthEast'
     is_pocosin  = np.isin(cvr_arr, ('Pocosin', 'PC'))
@@ -927,42 +941,61 @@ def consm_shrub(
     sea_fall    = sea_arr == 'Fall'
     sea_spr_sum = np.isin(sea_arr, ('Spring', 'Summer'))
 
-    # Eq 234 – SE non-Pocosin (requires optional params; fall back to nan)
-    if all(x is not None for x in (pre_ll, pre_dl, pre_rl, duff_moist, llc, ddc)):
-        combo = pre_ll + pre_dl
-        combo_safe = np.where(combo > 0, combo, np.nan)
-        denom_safe = np.where((pre_sl + pre_rl) > 0, (pre_sl + pre_rl), np.nan)
-        eq234 = (((3.2484 + (0.4322 * combo) + (0.6765 * (pre_sl + pre_rl)) -
-                   (0.0276 * duff_moist) - (5.0796 / combo_safe)) -
-                  (llc + ddc)) / denom_safe) * 100
+    # Eq 234 – SE non-Pocosin.  The direct C++ path first derives f_W with
+    # Equation_16, then Equ_234_Per returns a fraction.  Calc_Shrub converts
+    # that fraction to a consumed load and clamps it before deriving percent.
+    # The legacy optional arguments are retained for API compatibility; this
+    # source equation consumes only litter, duff, shrub, and duff moisture.
+    if all(x is not None for x in (pre_ll, pre_dl, duff_moist)):
+        woody_pre = pre_ll + pre_dl
+        woody_pre_safe = np.where(woody_pre > 0, woody_pre, np.nan)
+        fire_weight = (
+            3.4958 + (0.3833 * woody_pre) - (0.0237 * duff_moist) -
+            (5.6075 / woody_pre_safe)
+        )
+        shrub_safe = np.where(pre_sl > 0, pre_sl, np.nan)
+        eq234_fraction = (
+            (3.2484 + (0.4322 * woody_pre) + (0.6765 * pre_sl) -
+             (0.0276 * duff_moist) - (5.0796 / woody_pre_safe) - fire_weight) /
+            shrub_safe
+        )
+        eq234_load = pre_sl * np.clip(eq234_fraction, 0.0, 100.0)
     else:
-        eq234 = np.full(n, np.nan)
+        eq234_load = np.full(n, np.nan)
 
     # Eq 236 – Flatwood
     season_flag = np.where(sea_spr_sum, 1.0, 0.0)
-    eq236 = -0.1889 + (0.9049 * np.log(np.maximum(pre_sl, 1e-12))) + (0.0676 * season_flag)
-
-    slc = np.select(
+    pre_sl_mgha = pre_sl / T_ACRE_PER_MG_HECTARE
+    eq236_load_tac = T_ACRE_PER_MG_HECTARE * np.exp(
+        -0.1889 + (0.9049 * np.log(np.maximum(pre_sl_mgha, 1e-12))) +
+        (0.0676 * season_flag)
+    )
+    eq236_load_tac = np.minimum(eq236_load_tac, pre_sl)
+    consumed_load = np.select(
         [
-            is_se & is_pocosin & sea_spr_win,        # Eq 233
-            is_se & is_pocosin & sea_sum_fal,        # Eq 235
-            is_se & ~is_pocosin,                     # Eq 234
             is_sage & sea_fall,                      # Eq 233
             is_sage & ~sea_fall,                     # Eq 232
             is_flatwood,                             # Eq 236
             is_shrubgrp,                             # Eq 231
+            is_se & is_pocosin & sea_spr_win,        # Eq 233
+            is_se & is_pocosin & sea_sum_fal,        # Eq 235
+            is_se & ~is_pocosin,                     # Eq 234
         ],
         [
-            np.full(n, 90.0),
-            np.full(n, 80.0),
-            eq234,
-            np.full(n, 90.0),
-            np.full(n, 50.0),
-            eq236,
-            np.full(n, 80.0),
+            pre_sl * 0.9,
+            pre_sl * 0.5,
+            eq236_load_tac,
+            pre_sl * 0.8,
+            pre_sl * 0.9,
+            pre_sl * 0.8,
+            eq234_load,
         ],
-        default=np.full(n, 60.0),  # Eq 23
+        default=pre_sl * 0.6,  # Eq 23
     )
+
+    consumed_load = np.clip(consumed_load, 0.0, pre_sl)
+    slc = np.zeros_like(pre_sl)
+    np.divide(100.0 * consumed_load, pre_sl, out=slc, where=pre_sl > 0)
 
     return float(slc[0]) if scalar_input else slc
 

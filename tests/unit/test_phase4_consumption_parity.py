@@ -108,6 +108,10 @@ ATOL_PERCENT = phase4_tolerance("consume", "mineral_soil")[0]
 #: resolution.
 ATOL_LOAD = phase4_tolerance("consume", "herb")[0]
 
+#: The direct C++ shrub oracle serializes ``shrub_pct`` to four decimal
+#: places, so its centrally recorded comparison bound reflects that format.
+ATOL_SHRUB_PERCENT = phase4_tolerance("shrub_herb_eq", "shrub")[0]
+
 #: ``consm_duff``'s percent output (``pdc``) vs the golden's ``DufPer``:
 #: scenarios that DIVERGE, each with the finding it reproduces. Every other
 #: consume scenario agrees to within :data:`ATOL_PERCENT` (measured max |diff|
@@ -246,74 +250,6 @@ MSE_XFAIL = {
         "(fof_duf.cpp:388-389); Python returns the Eq-10 value 43.780100.",
     ),
 }
-
-#: ``consm_herb`` vs the ``shrub_herb_eq`` golden's ``herb_con_tac``:
-#: scenarios that DIVERGE. All others agree (measured max |diff| 5.6e-17).
-HERB_XFAIL = {
-    "shr23-herb221-iw-gg-spring": (
-        "F-35",
-        "Eq 221: C++ Herb_Eq221 consumes 90 % of the herb load "
-        "(fof_hsf.cpp:352-358, `f = f_Herb * 0.9`), Python consumes 10 % "
-        "(`pre_hl * 0.1`). Measured 0.450000 vs 0.050000 T/ac.",
-    ),
-    "shr236-herb223-se-pfw-summer": (
-        "F-11",
-        "Pine Flatwoods: C++ Calc_Herb tests PinFlaWoo FIRST "
-        "(fof_hsf.cpp:299-301) and uses Eq 223 (0.497200); Python's np.select "
-        "lists the SouthEast branch first, shadowing flatwoods, and uses "
-        "Eq 222 (0.407500).",
-    ),
-    "shr236-herb223-se-pfw-fall": (
-        "F-11",
-        "same inverted PinFlaWoo-vs-SouthEast precedence as the summer case; "
-        "herb Eq 223 carries no season term, so both seasons diverge "
-        "identically.",
-    ),
-    "herb222-se-clamp-low": (
-        "F-12",
-        "Eq 222 goes negative for a small herb load with no litter; C++ "
-        "clamps the result to 0 (fof_hsf.cpp:322-323), Python does not.",
-    ),
-    "herb222-se-clamp-high": (
-        "F-12",
-        "Eq 222 exceeds the pre-fire herb load for a large litter load; C++ "
-        "clamps the result to f_Herb (fof_hsf.cpp:320-321), Python does not.",
-    ),
-}
-
-#: ``consm_shrub`` vs the ``shrub_herb_eq`` golden's ``shrub_pct``: scenarios
-#: that DIVERGE. All others agree exactly (measured max |diff| 0.0).
-SHRUB_XFAIL = {
-    case: (
-        "F-13/F-14",
-        "SouthEast non-Pocosin Eq 234: C++ Shrub_Equ multiplies Equ_234_Per's "
-        "FRACTION by the shrub load and then clamps the consumed amount to "
-        "[0, f_Shrub] before deriving the percent; Python returns the same "
-        "expression scaled by 100 with no clamp, so it reports percentages "
-        "far above 100.",
-    )
-    for case in (
-        "shr234-herb222-se", "shr234-herb222-se-highlit",
-        "herb222-se-clamp-low", "herb222-se-clamp-high",
-    )
-}
-SHRUB_XFAIL.update({
-    case: (
-        "F-13/F-15",
-        "Pine Flatwoods Eq 236: C++ Calc_Shrub tests PinFlaWoo before "
-        "SouthEast (fof_hsf.cpp:141-165) and PFW_Shrub_Eq236 does the Mg/ha "
-        "round-trip and the exp(); Python's SouthEast branch shadows "
-        "flatwoods entirely, so the Eq-236 code is never even reached for a "
-        "SouthEast row.",
-    )
-    for case in ("shr236-herb223-se-pfw-summer", "shr236-herb223-se-pfw-fall")
-})
-SHRUB_XFAIL["zero-shrub-herb-crown"] = (
-    "F-38",
-    "Zero pre-fire shrub load: C++ Calc_Shrub sets consumed, post and "
-    "percent all to 0 when f_Shrub == 0 (fof_hsf.cpp:186-189); Python "
-    "returns the Eq-23 percentage 60.0 for a load that does not exist.",
-)
 
 
 
@@ -672,24 +608,11 @@ def test_every_phase4_manifest_is_structurally_valid(mode):
     "case_id,equ",
     [(case, equ) for case, equ, _l, _m, _b in LITTER_EQ_SCENARIOS],
 )
-def test_litter_equation_matches_cpp(case_id, equ, request):
+def test_litter_equation_matches_cpp(case_id, equ):
     """``consm_litter`` vs the ``litter_eq`` golden's ``con_tac``.
 
-    Equation 997 is a strict xfail on every scenario (F-07/F-08/F-10);
-    equation 998 agrees exactly.
+    Both equation 997 and equation 998 agree with the direct C++ oracle.
     """
-    if equ == "997":
-        request.node.add_marker(pytest.mark.xfail(
-            strict=True,
-            reason=(
-                "F-07/F-08/F-10: PFW_Litter_Eq997 converts to Mg/ha, "
-                "evaluates the polynomial there, converts back and caps the "
-                "result at the pre-fire load (fof_hsf.cpp:780-798); "
-                "consm_litter does none of the three. Measured |diff| up to "
-                "0.555994 T/ac and up to +92 % relative across this "
-                "scenario set."
-            ),
-        ))
     scenario = next(s for s in LITTER_EQ_SCENARIOS if s[0] == case_id)
     _case, _equ, load, moist, _branches = scenario
     row = golden_rows_by_case("litter_eq")[case_id]
@@ -744,9 +667,8 @@ def test_shrub_herb_crown_foliage_matches_cpp(case_id):
     "case_id",
     [case for case, _o, _b in SHRUB_HERB_EQ_SCENARIOS],
 )
-def test_shrub_herb_herb_consumption_matches_cpp(case_id, request):
+def test_shrub_herb_herb_consumption_matches_cpp(case_id):
     """``consm_herb`` vs the golden ``herb_con_tac`` (direct Calc_Herb)."""
-    _maybe_xfail(request, HERB_XFAIL, case_id)
     overrides = next(o for c, o, _b in SHRUB_HERB_EQ_SCENARIOS if c == case_id)
     row = golden_rows_by_case("shrub_herb_eq")[case_id]
     value = consm_herb(
@@ -778,9 +700,8 @@ def test_shrub_herb_scenarios_all_produced_an_ok_oracle_row():
     "case_id",
     [case for case, _o, _b in SHRUB_HERB_EQ_SCENARIOS],
 )
-def test_shrub_herb_shrub_percent_matches_cpp(case_id, request):
+def test_shrub_herb_shrub_percent_matches_cpp(case_id):
     """``consm_shrub`` vs the golden ``shrub_pct`` (direct Calc_Shrub)."""
-    _maybe_xfail(request, SHRUB_XFAIL, case_id)
     overrides = next(o for c, o, _b in SHRUB_HERB_EQ_SCENARIOS if c == case_id)
     row = golden_rows_by_case("shrub_herb_eq")[case_id]
     value = consm_shrub(
@@ -797,5 +718,5 @@ def test_shrub_herb_shrub_percent_matches_cpp(case_id, request):
         units="Imperial",
     )
     assert float(value) == pytest.approx(
-        float(row["shrub_pct"]), abs=ATOL_PERCENT
+        float(row["shrub_pct"]), abs=ATOL_SHRUB_PERCENT
     )

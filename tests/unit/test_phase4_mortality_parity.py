@@ -128,61 +128,12 @@ CPP_SR_BCT = {
     "109": (1.6779, -1.0299, 10.2855),
 }
 
-#: One Python-recognised species per bole-char equation. For equations 100-106
-#: and 108-109 this is the same species the tracked ``FOF_SPP.CSV`` assigns to
-#: that equation. Equation 107 is the exception: the CSV assigns it ``QUMO4``
-#: alone, which Python does not recognise at all, while Python assigns
-#: ``QUMI``/``QUPR4`` (which the CSV maps to crown-scorch equation 1) - see
-#: F-37 and :func:`test_bolchar_species_equation_mapping_source_relation`.
+#: One Python-recognised species per bole-char equation, matching the tracked
+#: ``FOF_SPP.CSV`` assignment for every equation.
 PY_BOLCHAR_REPRESENTATIVE = {
     "100": "ACRU", "101": "COFL2", "102": "NYSY", "103": "OXAR",
-    "104": "QUAL", "105": "QUCO2", "106": "QUMA3", "107": "QUMI",
+    "104": "QUAL", "105": "QUCO2", "106": "QUMA3", "107": "QUMO4",
     "108": "QUVE", "109": "SAAL5",
-}
-
-#: Bole-char equations whose Python coefficients DIVERGE from ``sr_BCT[]``.
-BOLCHAR_COEFFICIENT_XFAIL = {
-    "100": "Python's intercept is 2.3017; the pinned sr_BCT value is 2.3014.",
-    "102": "Python's intercept is -2.7899; the pinned sr_BCT value is "
-           "+2.7899 - a sign inversion, not a rounding difference.",
-    "107": "Python reuses equation 104's coefficients (-1.8137, -0.0603, "
-           "0.8666) for chestnut oak; the pinned sr_BCT values are "
-           "(-1.4416, -0.1469, 1.3159).",
-    "109": "Python reuses equation 104's coefficients (-1.8137, -0.0603, "
-           "0.8666) for sassafras; the pinned sr_BCT values are "
-           "(1.6779, -1.0299, 10.2855).",
-}
-
-#: ``mort_bolchar`` vs the golden ``prob``: scenarios that DIVERGE. The other
-#: 8 bole-char scenarios agree (measured max |diff| 5.0e-07).
-BOLCHAR_XFAIL = {
-    "bc100-acru-small": (
-        "F-36",
-        "equation 100's intercept differs (Python 2.3017 vs pinned sr_BCT "
-        "2.3014). Measured 0.727350 (C++) vs 0.727410 (Python), |diff| "
-        "5.97e-05. The same defect is present in bc100-acru but is not "
-        "marked there because at that scenario's probability (0.001836) the "
-        "difference is 6.5e-08, below the golden's own six-decimal "
-        "resolution - the coefficient divergence itself is instead pinned "
-        "unconditionally by "
-        "test_bolchar_coefficients_match_sr_bct_source_relation.",
-    ),
-    "bc102-nysy": (
-        "F-36",
-        "equation 102's intercept sign is inverted in Python (-2.7899 vs "
-        "the pinned +2.7899). Measured 4.4e-05 (C++) vs 1.66e-07 (Python).",
-    ),
-    "bc107-qumo4": (
-        "F-37",
-        "QUMO4 is the only species the tracked FOF_SPP.CSV assigns bole-char "
-        "equation 107, and mort_bolchar does not recognise it at all: it "
-        "prints a warning and returns NaN where C++ gives 0.009378.",
-    ),
-    "bc109-saal5": (
-        "F-36",
-        "equation 109 uses equation 104's coefficients in Python. Measured "
-        "0.005871 (C++) vs 0.113928 (Python), |diff| 0.108057.",
-    ),
 }
 
 #: ``mort_crcabe`` vs the golden ``prob``: scenarios that DIVERGE. Every
@@ -268,30 +219,10 @@ CRODAM_XFAIL = {
 CRCABE_BUD_KILL_EQUATION = "PK"
 
 #: ``mort_crnsch`` vs the golden ``prob``: scenarios that DIVERGE. The other
-#: 14 crown-scorch scenarios agree (measured max |diff| 5.4e-07).
+#: 17 crown-scorch scenarios agree (measured max |diff| 5.4e-07), including
+#: the three Black Hills ponderosa-pine flame-only cases enabled by the direct
+#: FOFEM ``Calc_Scorch`` route.
 CROSCO_XFAIL = {
-    "cs03-piab-dbh1": (
-        "F-48",
-        "the case-1-vs-case-3 DBH boundary. C++ case 3 takes the large-tree "
-        "branch only when `f_DBH > 1` (fof_mrt.cpp:381), so at DBH exactly 1 "
-        "it falls through to the small-tree rule and returns 1.000000; "
-        "Python's equation 3 uses `dbh_in >= 1` and returns 0.999049. "
-        "Measured |diff| 9.51e-04. The DBH=1.1 and DBH=12 partners in this "
-        "same scenario set agree, which isolates the boundary itself as the "
-        "cause. NOTE: F-48 originally also recorded that case 3's 0.8 floor "
-        "was untested because every case-3 probability was above 0.99. That "
-        "half is CLOSED - cs03-piab-floor08 now reaches the floor and agrees "
-        "exactly (see test_crnsch_case3_reaches_the_08_floor); only the "
-        "boundary defect remains open.",
-    ),
-    "cs05-pipa2": (
-        "F-49",
-        "equation 5 (longleaf pine, PINPAL). C++ divides the crown-scorch "
-        "term by 10 (`f = f_CK / 10.0`, fof_mrt.cpp:349) and uses the "
-        "quadratic bark coefficient 14.492 (fof_mrt.cpp:351); Python divides "
-        "by 100 and uses 14.429. Measured 0.994231 (C++) vs 9.57e-13 "
-        "(Python).",
-    ),
     "cs14-laoc": (
         "F-47",
         "equation 14 (western larch). C++ WesternLarch applies `dbh * "
@@ -310,29 +241,11 @@ CROSCO_XFAIL = {
     ),
     "cs04-potr5-lowsev": (
         "F-46",
-        "C++ case 4 derives the char height from the flame length "
-        "(fof_mrt.cpp:396-397). mort_crnsch cannot be driven that way: when "
-        "`scorch_ht` is not supplied it always calls "
-        "`calc_scorch_ht(fire_intensity, ...)`, which raises "
-        "`Exception('Must enter a surface fire intensity value...')` for a "
-        "flame-length-only call, so no comparable Python value exists.",
-    ),
-    "cs04-potr5-highsev": (
-        "F-46",
-        "same flame-length-only blocker as the low-severity partner.",
-    ),
-    "cs21-pipobh-seedling": (
-        "F-46",
-        "C++ equation 21 (Black Hills ponderosa pine) is driven by flame "
-        "length; mort_crnsch raises for a flame-length-only call.",
-    ),
-    "cs21-pipobh-sapling": (
-        "F-46",
-        "same flame-length-only blocker as the seedling case.",
-    ),
-    "cs21-pipobh-large": (
-        "F-46",
-        "same flame-length-only blocker as the seedling case.",
+        "RESOLVED Python behavior: the Aspen equation converts PyFOFEM's "
+        "metre-valued char height to centimetres, preserving a caller's flame "
+        "input. The remaining C++ comparison is a documented legacy rounding "
+        "difference: C++ round-trips flame through Calc_Scorch/Calc_Flame "
+        "before char derivation (fof_mrt.cpp:295-299, :406-414).",
     ),
 }
 
@@ -447,20 +360,14 @@ def _scenarios(equ_type, expect_error=None):
 
 
 @pytest.mark.parametrize("equation", sorted(CPP_SR_BCT))
-def test_bolchar_coefficients_match_sr_bct_source_relation(equation, request):
+def test_bolchar_coefficients_match_sr_bct_source_relation(equation):
     """
     Class (b) SOURCE-RELATION check, not executable parity.
 
     ``mort_bolchar``'s effective coefficients, recovered numerically, are
     compared against ``sr_BCT[]`` as hand-transcribed from the pinned
-    ``reference/fofem_cpp/FOF_UNIX/fof_mrt.cpp:2203-2216``. Four of the ten
-    equations diverge; each is a strict xfail naming F-36.
+    ``reference/fofem_cpp/FOF_UNIX/fof_mrt.cpp:2203-2216``.
     """
-    if equation in BOLCHAR_COEFFICIENT_XFAIL:
-        request.node.add_marker(pytest.mark.xfail(
-            strict=True,
-            reason=f"F-36: {BOLCHAR_COEFFICIENT_XFAIL[equation]}",
-        ))
     recovered = _bolchar_python_coefficients(PY_BOLCHAR_REPRESENTATIVE[equation])
     assert recovered == pytest.approx(
         CPP_SR_BCT[equation],
@@ -473,7 +380,6 @@ def test_bolchar_coefficients_match_sr_bct_source_relation(equation, request):
 )
 def test_bolchar_probability_matches_cpp(case_id, request):
     """``mort_bolchar`` vs the manifested ``mortality`` golden's ``prob``."""
-    _maybe_xfail(request, BOLCHAR_XFAIL, case_id)
     overrides = dict(_scenarios("BolCha"))[case_id]
     row = golden_rows_by_case("mortality")[case_id]
     value = float(mort_bolchar(
@@ -485,30 +391,13 @@ def test_bolchar_probability_matches_cpp(case_id, request):
     assert value == pytest.approx(float(row["prob"]), abs=ATOL_PROB)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-37: mort_bolchar's species masks disagree with the tracked "
-        "FOF_SPP.CSV. It does not recognise QUMO4 (the only species the "
-        "table assigns bole-char equation 107) and additionally claims "
-        "QUMI/QUPR4 for equation 107, QUBI/QUGA4/QUGAG2/QUGAS for equation "
-        "104 and QUKE/QUVEM for equation 108 - all six of which the table "
-        "assigns to crown-scorch equation 1."
-    ),
-)
 def test_bolchar_species_equation_mapping_source_relation():
     """
     Class (b) SOURCE-RELATION check, not executable parity.
 
-    Every species the tracked ``FOF_SPP.CSV`` assigns a bole-char equation
-    must be recognised by ``mort_bolchar``. ``QUMO4`` - the only species the
-    table assigns equation 107 - is not, so this is a strict xfail (F-37).
-
-    Asserts the DESIRED behaviour: ``QUMO4`` and ``QUMI`` both carry equation
-    107 in the tracked table, so a correct implementation must return the
-    SAME probability for both. Currently ``mort_bolchar("QUMO4", ...)``
-    returns NaN (species unrecognised), so the first assertion genuinely
-    executes and genuinely fails - it is not vacuous.
+    ``QUMO4`` is the only species the tracked ``FOF_SPP.CSV`` assigns to
+    bole-char equation 107. It must be recognised, while ``QUMI`` remains a
+    crown-scorch species and must not be routed to the chestnut-oak equation.
     """
     dbh_cm, char_m = 30.0, 2.0
     qumo4 = float(mort_bolchar("QUMO4", dbh_cm, char_m))
@@ -517,10 +406,7 @@ def test_bolchar_species_equation_mapping_source_relation():
         "mort_bolchar must recognise QUMO4 (bole-char equation 107 per the "
         "tracked FOF_SPP.CSV), not return NaN"
     )
-    assert qumo4 == pytest.approx(qumi), (
-        "QUMO4 and QUMI both map to bole-char equation 107 in the tracked "
-        "table, so they must produce identical probabilities"
-    )
+    assert math.isnan(qumi), "QUMI is not assigned a bole-char equation"
 
 
 def test_bolchar_unsupported_species_prints_and_returns_nan(capsys):
@@ -615,6 +501,151 @@ def test_crcabe_probability_matches_cpp(case_id, request):
     assert value == pytest.approx(float(row["prob"]), abs=ATOL_PROB)
 
 
+@pytest.mark.parametrize(
+    ("severity", "canonical"),
+    [
+        ("l", "low"),
+        ("Low", "low"),
+        ("L", "low"),
+        ("h", "high"),
+        ("High", "high"),
+        ("H", "high"),
+    ],
+)
+def test_crnsch_aspen_severity_accepts_case_and_abbreviation(severity, canonical):
+    """
+    Equation 4 accepts C++'s case-insensitive low/high severity selectors.
+
+    ``MRT_Calc`` selects the low equation for ``Low`` or ``L`` through
+    case-insensitive comparisons (``fof_mrt.cpp:395-401``). Python accepts
+    those forms plus their lowercase equivalents, while preserving the
+    documented low/high selection.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    common = {
+        "dbh": 25.0,
+        "ht": 15.0,
+        "crown_depth": 6.0,
+        "bark_thickness": 1.0,
+        "char_ht": 2.0,
+        "scorch_ht": 5.0,
+        "flame_length": 1.0,
+    }
+    value = float(mort_crnsch("POTR5", aspen_sev=severity, **common))
+    expected = float(mort_crnsch("POTR5", aspen_sev=canonical, **common))
+
+    assert value == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize("severity", ["", "medium", "unknown", None])
+def test_crnsch_aspen_severity_rejects_invalid_selector(severity):
+    """Equation 4 rejects severity selectors outside the low/high contract.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    with pytest.raises(ValueError, match="aspen_sev"):
+        mort_crnsch(
+            "POTR5",
+            dbh=25.0,
+            ht=15.0,
+            crown_depth=6.0,
+            bark_thickness=1.0,
+            char_ht=2.0,
+            scorch_ht=5.0,
+            flame_length=1.0,
+            aspen_sev=severity,
+        )
+
+
+def test_crnsch_black_hills_no_crown_scorch_is_zero_percent():
+    """
+    Equation 21 floors crown-length scorch at zero when scorch misses crown.
+
+    ``Eq21_BlkHilPiPo`` sets its local ``f_CLS`` to zero unless scorch height
+    exceeds crown-base height (``fof_mrt.cpp:477-481``).  This mature-tree
+    fixture has a 6 m crown base and 3 m scorch height, so the Black Hills
+    equation must receive 0%, not the physically invalid -75% produced by an
+    unguarded fraction.  The final public result is also a probability.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    value = float(mort_crnsch(
+        "PIPO_BH",
+        dbh=20.0,
+        ht=10.0,
+        crown_depth=4.0,
+        bark_thickness=1.0,
+        scorch_ht=3.0,
+        flame_length=1.0,
+    ))
+    expected = 1.0 / (1.0 + math.exp(-(1.104 - (20.0 * 0.156))))
+
+    assert value == pytest.approx(expected, abs=1e-12)
+    assert 0.0 <= value <= 1.0
+
+
+def test_crnsch_black_hills_one_point_37_m_is_sapling():
+    """
+    Equation 21 routes the exact 1.37 m boundary to the sapling equation.
+
+    Pinned C++ uses ``f_Hgt < 1.37`` for seedlings and ``f_Hgt >= 1.37``
+    with DBH below 10.2 cm for saplings (``fof_mrt.cpp:483-488``).  The
+    boundary must therefore use the sapling coefficients, not the seedling
+    coefficients.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    value = float(mort_crnsch(
+        "PIPO_BH",
+        dbh=5.0,
+        ht=1.37,
+        crown_depth=0.5,
+        bark_thickness=1.0,
+        flame_length=1.0,
+    ))
+    expected = 1.0 / (1.0 + math.exp(-(-0.7661 + 2.7981 - (1.2487 * 1.37))))
+    seedling_value = 1.0 / (1.0 + math.exp(-(2.714 + 4.08 - (3.63 * 1.37))))
+
+    assert value == pytest.approx(expected, abs=1e-12)
+    assert value != pytest.approx(seedling_value, abs=1e-12)
+
+
+def test_crnsch_case1_small_tree_interpolation_matches_cpp():
+    """
+    Equation 1 implements C++'s complete DBH-under-one-inch fallback.
+
+    For a 0.5-inch ABAM tree taller than 3 ft with no crown scorch, C++
+    recalculates bark at one inch (bark equation 26 = 0.047 in) and applies
+    the height interpolation (``fof_mrt.cpp:364-379, 1416``). Supplied bark
+    thickness is deliberately different to prove this branch consults the
+    packaged C++ species-bark extraction.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    dbh_in = 0.5
+    height_ft = 4.0
+    value = float(mort_crnsch(
+        "ABAM",
+        dbh=dbh_in * IN_TO_CM,
+        ht=height_ft * FT_TO_M,
+        crown_depth=1.0 * FT_TO_M,
+        bark_thickness=0.5,
+        scorch_ht=0.0,
+        flame_length=1.0,
+    ))
+    bark_one_in = 0.047
+    base = 1.0 / (1.0 + math.exp(
+        -1.941 + (6.316 * (1.0 - math.exp(-bark_one_in)))
+    ))
+    height_factor = 1.0 - (
+        (height_ft - 3.0) / (((1.0 / dbh_in) * height_ft) - 3.0)
+    )
+    expected = base + ((1.0 - base) * height_factor)
+
+    assert value == pytest.approx(expected, abs=1e-12)
+
+
 def test_crnsch_case3_reaches_the_08_floor():
     """
     Case 3's 0.8 floor (``fof_mrt.cpp:391-392``) is reached and matched
@@ -664,6 +695,87 @@ def test_crnsch_case3_reaches_the_08_floor():
     )
 
 
+def test_crnsch_case3_small_tree_interpolation_matches_cpp():
+    """
+    Equation 3 implements C++'s complete DBH-at-most-one-inch branch.
+
+    For a 0.5-inch PIAB tree taller than 3 ft with no crown scorch, C++
+    recalculates bark at one inch (bark equation 8 = 0.029 in), applies the
+    height interpolation, then applies its 0.8 floor
+    (``fof_mrt.cpp:381-392, 1389``). Supplied bark thickness is deliberately
+    different to prove this branch uses the pinned one-inch coefficient.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    dbh_in = 0.5
+    height_ft = 4.0
+    value = float(mort_crnsch(
+        "PIAB",
+        dbh=dbh_in * IN_TO_CM,
+        ht=height_ft * FT_TO_M,
+        crown_depth=1.0 * FT_TO_M,
+        bark_thickness=0.5,
+        scorch_ht=0.0,
+        flame_length=1.0,
+    ))
+    bark_one_in = 0.029
+    base = 1.0 / (1.0 + math.exp(
+        -1.941 + (6.316 * (1.0 - math.exp(-bark_one_in)))
+    ))
+    height_factor = 1.0 - ((height_ft - 3.0) / (((1.0 / dbh_in) * height_ft) - 3.0))
+    expected = max(base + ((1.0 - base) * height_factor), 0.8)
+
+    assert value == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("alias", "representative"),
+    [
+        ("ABLO", "ABCO"),
+        ("ABLAA", "ABGR"),
+        ("ABMAC", "ABMA"),
+        ("ABMAM", "ABMA"),
+        ("ABMAS", "ABMA"),
+        ("ABMAS2", "ABMA"),
+        ("PICOB", "PIAL"),
+        ("PICOB2", "PIAL"),
+        ("PICOC", "PIAL"),
+        ("PICOC2", "PIAL"),
+        ("PICOM", "PIAL"),
+        ("PICOM4", "PIAL"),
+        ("PIPOW", "PIPO"),
+        ("PIPOW2", "PIPO"),
+        ("PSMEG", "PSME"),
+    ],
+)
+def test_crnsch_cpp_species_alias_routes_match_representative(alias, representative):
+    """
+    C++ crown-scorch aliases use their assigned mortality-equation family.
+
+    The pinned FOFEM species table assigns each listed alias to the same
+    ``CroSco`` equation as its representative (``FOF_SPP.CSV``; dispatched by
+    ``MRT_CalcMngr`` in ``fof_mrt.cpp:168-176``). Python must therefore apply
+    the identical equation for otherwise identical inputs.
+
+    :param alias: C++ species alias whose route is under test.
+    :param representative: Canonical species for the C++ equation family.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    inputs = {
+        "dbh": 25.0,
+        "ht": 15.0,
+        "crown_depth": 6.0,
+        "bark_thickness": 1.0,
+        "scorch_ht": 5.0,
+        "flame_length": 1.0,
+    }
+
+    actual = float(mort_crnsch(alias, **inputs))
+    expected = float(mort_crnsch(representative, **inputs))
+
+    assert actual == pytest.approx(expected, abs=1e-12)
+
+
 @pytest.mark.parametrize(
     "case_id", [case for case, _o in _scenarios("CroSco")]
 )
@@ -706,6 +818,81 @@ def test_crnsch_probability_matches_cpp(case_id, request):
         **fire_kwargs,
     ))
     assert value == pytest.approx(float(row["prob"]), abs=ATOL_PROB)
+
+
+@pytest.mark.parametrize(
+    "species",
+    [
+        "PIPOK", "PIPOBK", "PIPOB3K", "PIPOPK", "PIPOP2K", "PIPOSK",
+        "PIPOS2K", "PIJEK",
+    ],
+)
+def test_crnsch_rejects_species_assigned_cpp_crodam_equation(species):
+    """
+    PK species cannot silently fall through to crown-scorch Equation 19.
+
+    The pinned C++ table assigns each listed code ``PK``. Consequently,
+    ``MRT_CalcMngr`` rejects a ``CroSco`` request before calling
+    ``MRT_Calc`` (``fof_mrt.cpp:168-176``); Python raises an equivalent
+    input-contract error rather than applying the Ponderosa/Jeffrey formula.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    with pytest.raises(ValueError, match="PK cambium-kill"):
+        mort_crnsch(
+            species,
+            dbh=25.0,
+            ht=15.0,
+            crown_depth=6.0,
+            bark_thickness=1.0,
+            scorch_ht=5.0,
+            flame_length=1.0,
+        )
+
+
+def test_crnsch_supplied_flame_length_overrides_intensity_inputs():
+    """
+    ``mort_crnsch`` must preserve ``calc_scorch_ht``'s direct-flame priority.
+
+    The Black Hills seedling case is a real flame-driven C++ scenario. A
+    deliberately contradictory intensity/ambient/wind tuple must not alter its
+    result once the caller supplied flame length.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    case_id = "cs21-pipobh-seedling"
+    overrides = dict(_scenarios("CroSco"))[case_id]
+    bark_in = float(
+        golden_rows_by_case("bark_thick")[CROSCO_BARK_SOURCE[case_id]][
+            "bark_thick_in"
+        ]
+    )
+    height_m = float(_mortality_input(overrides, "ht_ft")) * FT_TO_M
+    crown_depth_m = (
+        height_m * float(_mortality_input(overrides, "crown_ratio_x10")) / 10.0
+    )
+    common = {
+        "bark_thickness": bark_in * IN_TO_CM,
+        "flame_length": float(_mortality_input(overrides, "fs_value_ft")) * FT_TO_M,
+    }
+    flame_only = float(mort_crnsch(
+        _mortality_input(overrides, "species"),
+        float(_mortality_input(overrides, "dbh_in")) * IN_TO_CM,
+        height_m,
+        crown_depth_m,
+        **common,
+    ))
+    competing_inputs = float(mort_crnsch(
+        _mortality_input(overrides, "species"),
+        float(_mortality_input(overrides, "dbh_in")) * IN_TO_CM,
+        height_m,
+        crown_depth_m,
+        fire_intensity=1000.0,
+        amb_t=60.0,
+        instand_ws=5.0,
+        **common,
+    ))
+    assert competing_inputs == pytest.approx(flame_only, abs=ATOL_PROB)
 
 
 @pytest.mark.xfail(

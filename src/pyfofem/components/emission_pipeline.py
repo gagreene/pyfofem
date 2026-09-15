@@ -247,7 +247,7 @@ def compute_equation_arrays(
     :return: Tuple of (lit_eq_arr, duf_con_eq_arr, duf_red_eq_arr, herb_eq_arr,
         shrub_eq_arr, mse_eq_arr) — equation-ID arrays, one entry per cell.
     """
-    fw = ("Flatwood", "Pine Flatwoods", "PFL", "PinFltwd")
+    fw = ("Flatwood", "Pine Flatwoods", "PFL", "PinFltwd", "PinFlaWoo")
     is_flatwood = np.isin(cvr_a, fw)
     is_se = reg_a == "SouthEast"
     is_ne = reg_a == "NorthEast"
@@ -470,7 +470,7 @@ def compute_pre_burnup_consumption(
     )
 
     # C++ Eq 234 parity for SouthEast non-Pocosin non-Flatwoods shrub.
-    fw = ("Flatwood", "Pine Flatwoods", "PFL", "PinFltwd")
+    fw = ("Flatwood", "Pine Flatwoods", "PFL", "PinFltwd", "PinFlaWoo")
     is_se_np = (
         (reg_a == "SouthEast")
         & ~np.isin(cvr_a, ("Pocosin", "PC"))

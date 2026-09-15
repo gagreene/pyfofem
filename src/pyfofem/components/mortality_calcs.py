@@ -11,6 +11,9 @@ Provides three mortality equations:
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
+import csv
+import os
+
 import numpy as np
 from typing import Optional, Union
 
@@ -23,6 +26,48 @@ from .tree_flame_calcs import (
     calc_scorch_ht,
     SPP_CODES,
 )
+
+
+def _load_equation_1_bark_thickness_per_inch() -> dict[str, float]:
+    """Load the pinned C++ Equation-1 species bark slopes.
+
+    :returns: Mapping of FOFEM species code to bark thickness in inches per
+        inch DBH, extracted from the pinned ``FOF_SPP.CSV`` species records
+        whose crown-scorch mortality equation is 1.
+    """
+    data_path = os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'supporting_data',
+        'fofem_crnsch_eq1_bark.csv',
+    )
+    with open(data_path, encoding='utf-8-sig', newline='') as data_file:
+        return {
+            row['fofem_cd']: float(row['bark_thickness_per_inch'])
+            for row in csv.DictReader(data_file)
+        }
+
+
+# The reference FOF_SPP.CSV is not packaged with PyFOFEM. This compact,
+# wheel-packaged extraction contains its 443 unique Equation-1 species rows.
+_EQUATION_1_BARK_THICKNESS_PER_INCH = _load_equation_1_bark_thickness_per_inch()
+
+
+# Pinned C++ ``SMT_CalcBarkThick`` coefficients (fof_mrt.cpp:1380-1439),
+# keyed to the Equation-3 spruce species.  They are used only for C++'s
+# small-tree fallback, which recalculates bark thickness at DBH = 1 inch.
+_EQUATION_3_BARK_THICKNESS_PER_INCH = {
+    'PIAB': 0.029,
+    'PICSPP': 0.034,
+    'PIGL': 0.025,
+    'PIMA': 0.032,
+    'PIMAM4': 0.032,
+    'PIPU': 0.031,
+    'PIPUA': 0.031,
+    'PIPUG3': 0.031,
+    'PIRU': 0.034,
+    'PISI': 0.027,
+}
 
 
 def mort_bolchar(
@@ -104,14 +149,14 @@ def mort_bolchar(
     mask_qual  = np.isin(spp, ['QUAL', 'QUALS', 'QUALS2', 'QUAL3', 'QUBI', 'QUGA4', 'QUGAG2', 'QUGAS'])
     mask_quco2 = np.isin(spp, ['QUCO2', 'QUCOC', 'QUCOT'])
     mask_quma3 = np.isin(spp, ['QUMA3', 'QUMAA2', 'QUMAA', 'QUMAM2'])
-    mask_qumi  = np.isin(spp, ['QUMI', 'QUPR4'])
+    mask_qumo4 = spp == 'QUMO4'
     mask_quve  = np.isin(spp, ['QUVE', 'QUVEM', 'QUKE'])
     mask_saal5 = spp == 'SAAL5'
 
     # FOFEM Eq 100 - Red Maple
     if np.any(mask_acru):
         Pm[mask_acru] = 1 / (1 + np.exp(
-            -(2.3017 + (-0.3267 * dbh[mask_acru]) + (1.1137 * char_ht[mask_acru]))))
+            -(2.3014 + (-0.3267 * dbh[mask_acru]) + (1.1137 * char_ht[mask_acru]))))
 
     # FOFEM Eq 101 - Flowering Dogwood
     if np.any(mask_cofl2):
@@ -121,7 +166,7 @@ def mort_bolchar(
     # FOFEM Eq 102 - Blackgum
     if np.any(mask_nysy):
         Pm[mask_nysy] = 1 / (1 + np.exp(
-            -(-2.7899 + (-0.5511 * dbh[mask_nysy]) + (1.2888 * char_ht[mask_nysy]))))
+            -(2.7899 + (-0.5511 * dbh[mask_nysy]) + (1.2888 * char_ht[mask_nysy]))))
 
     # FOFEM Eq 103 - Sourwood
     if np.any(mask_oxar):
@@ -144,9 +189,9 @@ def mort_bolchar(
             -(0.3714 + (-0.1005 * dbh[mask_quma3]) + (1.5577 * char_ht[mask_quma3]))))
 
     # FOFEM Eq 107 - Chestnut Oak
-    if np.any(mask_qumi):
-        Pm[mask_qumi] = 1 / (1 + np.exp(
-            -(-1.8137 + (-0.0603 * dbh[mask_qumi]) + (0.8666 * char_ht[mask_qumi]))))
+    if np.any(mask_qumo4):
+        Pm[mask_qumo4] = 1 / (1 + np.exp(
+            -(-1.4416 + (-0.1469 * dbh[mask_qumo4]) + (1.3159 * char_ht[mask_qumo4]))))
 
     # FOFEM Eq 108 - Black Oak
     if np.any(mask_quve):
@@ -156,11 +201,11 @@ def mort_bolchar(
     # FOFEM Eq 109 - Sassafras
     if np.any(mask_saal5):
         Pm[mask_saal5] = 1 / (1 + np.exp(
-            -(-1.8137 + (-0.0603 * dbh[mask_saal5]) + (0.8666 * char_ht[mask_saal5]))))
+            -(1.6779 + (-1.0299 * dbh[mask_saal5]) + (10.2855 * char_ht[mask_saal5]))))
 
     # Warn about any unsupported species
     mask_supported = (mask_acru | mask_cofl2 | mask_nysy | mask_oxar | mask_qual |
-                      mask_quco2 | mask_quma3 | mask_qumi | mask_quve | mask_saal5)
+                      mask_quco2 | mask_quma3 | mask_qumo4 | mask_quve | mask_saal5)
     if np.any(~mask_supported):
         unsupported = np.unique(spp[~mask_supported])
         print(f'Warning: BOLCHAR mortality model unavailable for species: {unsupported.tolist()}. '
@@ -277,14 +322,14 @@ def mort_crcabe(
     Pm = np.full(len(spp), np.nan)
 
     # --- Species masks ---
-    mask_abco = np.isin(spp, ['ABCO', 'ABCOC'])
-    mask_abgr = np.isin(spp, ['ABGR', 'ABGRI2', 'ABGRG', 'ABGRI', 'ABGRJ', 'ABLA', 'ABLAL'])
-    mask_abma = spp == 'ABMA'
+    mask_abco = np.isin(spp, ['ABCO', 'ABCOC', 'ABLO'])
+    mask_abgr = np.isin(spp, ['ABGR', 'ABGRI2', 'ABGRG', 'ABGRI', 'ABGRJ', 'ABLA', 'ABLAA', 'ABLAL'])
+    mask_abma = np.isin(spp, ['ABMA', 'ABMAC', 'ABMAM', 'ABMAS', 'ABMAS2'])
     mask_cade = np.isin(spp, ['CADE27', 'LIDE'])
     mask_pien = np.isin(spp, ['PIEN', 'PIENE', 'PIENM', 'PIENM2'])
     mask_laoc = spp == 'LAOC'
     mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEM'])
-    mask_pial = np.isin(spp, ['PIAL', 'PICO', 'PICOL', 'PICOL2'])
+    mask_pial = np.isin(spp, ['PIAL', 'PICO', 'PICOB', 'PICOB2', 'PICOC', 'PICOC2', 'PICOL', 'PICOL2', 'PICOM', 'PICOM4'])
     mask_pila = spp == 'PILA'
     mask_pipo = np.isin(spp, [
         'PIPO', 'PIPOK', 'PIPOB', 'PIPOBK', 'PIPOB2', 'PIPOB3', 'PIPOB3K',
@@ -415,7 +460,10 @@ def mort_crnsch(
     :param amb_t: Ambient air temperature (°C). Scalar or np.ndarray. Default
         25 °C. Used when estimating scorch height.
     :param flame_length: Flame length (m). Scalar or np.ndarray. Optional; if
-        not provided, derived from ``fire_intensity`` or ``char_ht``.
+        supplied while ``scorch_ht`` is omitted, FOFEM ``Calc_Scorch`` derives
+        scorch height from it and it takes precedence over ``fire_intensity``,
+        ``amb_t``, and ``instand_ws`` for that derivation. If not provided,
+        it is derived from ``fire_intensity`` or ``char_ht`` where possible.
     :param char_ht: Char height (m). Scalar or np.ndarray. Optional; if not
         provided, derived from ``flame_length``.
     :param scorch_ht: Scorch height (m). Scalar or np.ndarray. Optional; if not
@@ -423,14 +471,17 @@ def mort_crnsch(
         ``instand_ws``.
     :param instand_ws: In-stand windspeed (m/s). Scalar or np.ndarray.
         Default 1 m/s. Used when estimating scorch height.
-    :param aspen_sev: Aspen severity class for equation selection; ``'low'`` or
-        ``'high'``. Default ``'low'``.
+    :param aspen_sev: Aspen severity class for equation selection. Accepts
+        ``'low'``/``'l'`` or ``'high'``/``'h'``, case-insensitively. Default
+        ``'low'``.
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
         species code strings (e.g., ``{201: 'PIPO'}``).
 
-    :return: Mortality probability (float in [0, 1]). Returns a scalar ``float``
+    :returns: Mortality probability (float in [0, 1]). Returns a scalar ``float``
         when all primary inputs (``spp``, ``dbh``, ``ht``, ``crown_depth``) are
         scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
+    :raises ValueError: If a species has a C++ cambium-kill equation but no
+        crown-scorch equation.
     """
     # Detect whether the caller passed scalar inputs
     scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
@@ -455,10 +506,17 @@ def mort_crnsch(
         amb_t = np.full(len(spp), 25.0)
     else:
         amb_t = np.ravel(np.asarray(amb_t))
+    flame_length_supplied = flame_length is not None
     if flame_length is not None:
         flame_length = np.ravel(np.asarray(flame_length))
     if char_ht is not None:
         char_ht = np.ravel(np.asarray(char_ht))
+
+    if not isinstance(aspen_sev, str) or not aspen_sev:
+        raise ValueError("aspen_sev must be 'low'/'l' or 'high'/'h'")
+    aspen_sev = aspen_sev.lower()
+    if aspen_sev[0] not in {'l', 'h'}:
+        raise ValueError("aspen_sev must be 'low'/'l' or 'high'/'h'")
     if scorch_ht is not None:
         scorch_ht = np.ravel(np.asarray(scorch_ht))
     if instand_ws is None:
@@ -493,7 +551,10 @@ def mort_crnsch(
     if (flame_length is not None) and (char_ht is None):
         char_ht = calc_char_ht(flame_length)
     if scorch_ht is None:
-        scorch_ht = calc_scorch_ht(fire_intensity, amb_t, instand_ws)
+        if flame_length_supplied:
+            scorch_ht = calc_scorch_ht(flame_length=flame_length)
+        else:
+            scorch_ht = calc_scorch_ht(fire_intensity, amb_t, instand_ws)
 
     # Calculate cvs, cls
     _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
@@ -502,24 +563,37 @@ def mort_crnsch(
     Pm = np.zeros(len(spp), dtype=float)
 
     # Masks for species
-    mask_abco = np.isin(spp, ['ABCO', 'ABCOC'])
-    mask_abgr = np.isin(spp, ['ABGR', 'ABGRI2', 'ABGRG', 'ABGRI', 'ABGRJ', 'ABLA', 'ABLAL'])
-    mask_abma = spp == 'ABMA'
+    mask_abco = np.isin(spp, ['ABCO', 'ABCOC', 'ABLO'])
+    mask_abgr = np.isin(spp, ['ABGR', 'ABGRI2', 'ABGRG', 'ABGRI', 'ABGRJ', 'ABLA', 'ABLAA', 'ABLAL'])
+    mask_abma = np.isin(spp, ['ABMA', 'ABMAC', 'ABMAM', 'ABMAS', 'ABMAS2'])
     mask_cade = np.isin(spp, ['CADE27', 'LIDE'])
     mask_laoc = spp == 'LAOC'
-    mask_pial = np.isin(spp, ['PIAL', 'PICO', 'PICOL', 'PICOL2'])
+    mask_pial = np.isin(spp, [
+        'PIAL', 'PICO', 'PICOB', 'PICOB2', 'PICOC', 'PICOC2', 'PICOL',
+        'PICOL2', 'PICOM', 'PICOM4'
+    ])
     mask_spruce = np.isin(spp, ['PICSPP', 'PIMA', 'PIMAM4', 'PIPU', 'PIPUA', 'PIPUG3', 'PIAB', 'PIRU', 'PISI', 'PIGL'])
     mask_pien = np.isin(spp, ['PIEN', 'PIENE', 'PIENM', 'PIENM2'])
     mask_pila = spp == 'PILA'
     mask_pipa2 = spp == 'PIPA2'
     mask_pipo = np.isin(spp, [
-        'PIPO', 'PIPOK', 'PIPOB', 'PIPOBK', 'PIPOB2', 'PIPOB3', 'PIPOB3K',
-        'PIPOP', 'PIPOPK', 'PIPOP2', 'PIPOP2K', 'PIPOS', 'PIPOSK', 'PIPOS2', 'PIPOS2K',
-        'PIJE', 'PIJEK'
+        'PIPO', 'PIPOB', 'PIPOB2', 'PIPOB3', 'PIPOP', 'PIPOP2', 'PIPOS',
+        'PIPOS2', 'PIPOW', 'PIPOW2', 'PIJE'
+    ])
+    mask_pipo_crodam = np.isin(spp, [
+        'PIPOK', 'PIPOBK', 'PIPOB3K', 'PIPOPK', 'PIPOP2K', 'PIPOSK',
+        'PIPOS2K', 'PIJEK'
     ])
     mask_pipo_bh = spp == 'PIPO_BH'
     mask_aspen = np.isin(spp, ['POTR12', 'POTR5', 'POTRA', 'POTRC2', 'POTRM', 'POTRR', 'POTRV'])
-    mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEM'])
+    mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEG', 'PSMEM'])
+
+    if np.any(mask_pipo_crodam):
+        invalid_species = np.unique(spp[mask_pipo_crodam]).tolist()
+        raise ValueError(
+            f"Crown-scorch mortality is unavailable for {invalid_species}; "
+            "these species use C++'s PK cambium-kill equation."
+        )
 
     # FOFEM Eq 10 - White Fir
     if np.any(mask_abco):
@@ -552,12 +626,44 @@ def mort_crnsch(
     # FOFEM Eq 3 - All other spruce species
     if np.any(mask_spruce):
         dbh_in = dbh[mask_spruce] / 2.54
+        spruce_cvs = cvs[mask_spruce]
+        spruce_cls = cls[mask_spruce]
+        spruce_ht_ft = ht[mask_spruce] / 0.3048
+        spruce_codes = spp[mask_spruce]
+        large_tree = dbh_in > 1.0
+
+        # C++ uses the caller's tree-size bark thickness above 1 inch.
+        bark_in = bark_thickness[mask_spruce] / 2.54
         _Pm = 1 / (1 + np.exp(-1.941 +
-                              (6.316 * (1 - np.exp(-bark_thickness[mask_spruce] / 2.54))) -
-                              (np.power(cvs[mask_spruce], 2) * 0.000535)))
-        _Pm = np.where(dbh_in >= 1, np.maximum(_Pm, 0.8), _Pm)
-        _Pm = np.where((dbh_in < 1) & (cls[mask_spruce] > 50), 1, _Pm)
-        _Pm = np.where((dbh_in < 1) & (ht[mask_spruce] < (3 * 0.3048)), 1, _Pm)
+                              (6.316 * (1 - np.exp(-bark_in))) -
+                              (np.power(spruce_cvs, 2) * 0.000535)))
+
+        # For DBH <= 1 inch, C++ sets mortality to one for either >50% CLS
+        # or a tree shorter than 3 ft.  Otherwise it recalculates bark at
+        # exactly one inch and applies its small-tree height interpolation.
+        small_tree = ~large_tree
+        small_high_cls = small_tree & (spruce_cls > 50.0)
+        small_short = small_tree & (spruce_ht_ft < 3.0)
+        small_interpolate = small_tree & ~small_high_cls & ~small_short
+        _Pm = np.where(small_high_cls | small_short, 1.0, _Pm)
+        if np.any(small_interpolate):
+            bark_one_in = np.asarray([
+                _EQUATION_3_BARK_THICKNESS_PER_INCH[code]
+                for code in spruce_codes[small_interpolate]
+            ])
+            small_base = 1 / (1 + np.exp(
+                -1.941 + (6.316 * (1 - np.exp(-bark_one_in))) -
+                (np.power(spruce_cvs[small_interpolate], 2) * 0.000535)
+            ))
+            height_factor = 1 - (
+                (spruce_ht_ft[small_interpolate] - 3.0) /
+                (((1.0 / dbh_in[small_interpolate]) *
+                  spruce_ht_ft[small_interpolate]) - 3.0)
+            )
+            _Pm[small_interpolate] = small_base + ((1 - small_base) * height_factor)
+
+        # C++ applies the Equation-3 0.8 floor after every branch.
+        _Pm = np.maximum(_Pm, 0.8)
         Pm[mask_spruce] = _Pm
     # FOFEM Eq 15 - Engelmann spruce
     if np.any(mask_pien):
@@ -568,13 +674,24 @@ def mort_crnsch(
     # FOFEM Eq 5 - Longleaf Pine
     if np.any(mask_pipa2):
         barkT = 0.435 + (0.031 * dbh[mask_pipa2])
+        # Preserve the pinned C++ Longleaf adjustment at fof_mrt.cpp:340-360.
+        # Comment from the original C++ code:
+        # /* Change - 8-20-2012 */
+        # /* New formula from DL  */
+        # /* we were having trouble with this, the original paper was  */
+        # /* saying that proportion of crown scorch was 0->1 but we found */
+        # /* that we had to use a value at 1->10   */
+        # We initially divided CSV by 100 to scale the value from 0->1 per
+        # Wang et al. (2007), but we found that we had scale the value from
+        # 1->10 for it to generate Pm values between 0-100.
+        # This now mirrors what the C++ code does.
         Pm[mask_pipa2] = np.where(
             scorch_ht[mask_pipa2] == 0,
             0,
             1 / (1 + np.exp(0.169 +
                             (5.136 * barkT) +
-                            (14.429 * np.power(barkT, 2)) -
-                            (0.348 * np.power(cvs[mask_pipa2] / 100, 2))))
+                            (14.492 * np.power(barkT, 2)) -
+                            (0.348 * np.power(cvs[mask_pipa2] / 10, 2))))
         )
     # FOFEM Eq 19 - Ponderosa/Jeffrey Pine
     Pm[mask_pipo] = 1 / (1 + np.exp(-(-2.7103 + (np.power(cvs[mask_pipo], 3) * 0.000004093))))
@@ -587,14 +704,15 @@ def mort_crnsch(
         cbh_bh = ht_bh - crown_depth[mask_pipo_bh]
         scorch_ht_bh = scorch_ht[mask_pipo_bh]
         # Seedlings
-        mask_seed = ht_bh <= 1.37
+        # 1.37 m belongs to the sapling class when DBH is below 10.2 cm.
+        mask_seed = ht_bh < 1.37
         Pm[mask_pipo_bh] = np.where(
             mask_seed,
             1 / (1 + np.exp(-(2.714 + (4.08 * flame_bh) - (3.63 * ht_bh)))),
             Pm[mask_pipo_bh]
         )
         # Saplings
-        mask_sap = (ht_bh > 1.37) & (dbh_bh < 10.2)
+        mask_sap = (ht_bh >= 1.37) & (dbh_bh < 10.2)
         Pm[mask_pipo_bh] = np.where(
             mask_sap,
             1 / (1 + np.exp(-(-0.7661 + (2.7981 * flame_bh) - (1.2487 * ht_bh)))),
@@ -602,7 +720,12 @@ def mort_crnsch(
         )
         # Trees
         mask_tree = dbh_bh >= 10.2
-        cls_tree = ((scorch_ht_bh - cbh_bh) / (ht_bh - cbh_bh)) * 100
+        # Scorch below the crown base means 0% crown-length scorch, never a
+        # negative percent.
+        cls_tree = np.maximum(
+            ((scorch_ht_bh - cbh_bh) / (ht_bh - cbh_bh)) * 100,
+            0.0,
+        )
         Pm[mask_pipo_bh] = np.where(
             mask_tree,
             1 / (1 + np.exp(-(1.104 - (dbh_bh * 0.156) + (0.013 * cls_tree) + (0.001 * dbh_bh * cls_tree)))),
@@ -611,11 +734,14 @@ def mort_crnsch(
     # FOFEM Eq 4 - Aspen
     if np.any(mask_aspen):
         dbh_a = dbh[mask_aspen]
-        char_ht_a = char_ht[mask_aspen]
+        # Brown and DeByle (1987) specifies char height in inches. The C++
+        # expression converts its foot-valued char height through *12*2.54;
+        # PyFOFEM stores it in metres, so convert directly to centimetres.
+        char_ht_cm = char_ht[mask_aspen] * 100.0
         Pm[mask_aspen] = np.where(
-            aspen_sev == 'low',
-            1 / (1 + np.exp((0.251 * dbh_a) - (0.07 * char_ht_a * 12) - 4.407)),
-            1 / (1 + np.exp((0.0858 * dbh_a) - (0.118 * char_ht_a * 12) - 2.157))
+            aspen_sev[0] == 'l',
+            1 / (1 + np.exp((0.251 * dbh_a) - (0.07 * char_ht_cm) - 4.407)),
+            1 / (1 + np.exp((0.0858 * dbh_a) - (0.118 * char_ht_cm) - 2.157))
         )
     # FOFEM Eq 20 - Douglas-fir
     if np.any(mask_psme):
@@ -629,12 +755,38 @@ def mort_crnsch(
                    mask_pipo | mask_pipo_bh | mask_aspen | mask_psme)
     if np.any(mask_other):
         dbh_in = dbh[mask_other] / 2.54
+        other_cvs = cvs[mask_other]
+        other_cls = cls[mask_other]
+        other_ht_ft = ht[mask_other] / 0.3048
+        other_codes = spp[mask_other]
         _Pm = 1 / (1 + np.exp(-1.941 +
                               (6.316 * (1 - np.exp(-bark_thickness[mask_other] / 2.54))) -
-                              (np.power(cvs[mask_other], 2) * 0.000535)))
-        _Pm = np.where(dbh_in >= 1, _Pm, _Pm)
-        _Pm = np.where((dbh_in < 1) & (cls[mask_other] > 50), 1, _Pm)
-        _Pm = np.where((dbh_in < 1) & (ht[mask_other] < (3 * 0.3048)), 1, _Pm)
+                              (np.power(other_cvs, 2) * 0.000535)))
+        small_tree = dbh_in < 1.0
+        small_high_cls = small_tree & (other_cls > 50.0)
+        small_short = small_tree & (other_ht_ft < 3.0)
+        small_interpolate = small_tree & ~small_high_cls & ~small_short
+        _Pm = np.where(small_high_cls | small_short, 1.0, _Pm)
+        if np.any(small_interpolate):
+            # C++ invokes SMT_CalcBarkThick(species, 1, ...). It returns -1
+            # for an unknown code, so retain that numerical fallback here.
+            bark_one_in = np.asarray([
+                _EQUATION_1_BARK_THICKNESS_PER_INCH.get(code, -1.0)
+                for code in other_codes[small_interpolate]
+            ])
+            small_base = 1 / (1 + np.exp(
+                -1.941 + (6.316 * (1 - np.exp(-bark_one_in))) -
+                (np.power(other_cvs[small_interpolate], 2) * 0.000535)
+            ))
+            height_factor = 1 - (
+                (other_ht_ft[small_interpolate] - 3.0) /
+                (((1.0 / dbh_in[small_interpolate]) *
+                  other_ht_ft[small_interpolate]) - 3.0)
+            )
+            _Pm[small_interpolate] = small_base + ((1 - small_base) * height_factor)
         Pm[mask_other] = _Pm
 
+    # All mortality equations return probabilities. Preserve NaN values while
+    # enforcing the public [0, 1] range for every finite result.
+    Pm = np.clip(Pm, 0.0, 1.0)
     return float(Pm[0]) if scalar_input else Pm

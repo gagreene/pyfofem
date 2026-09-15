@@ -174,6 +174,40 @@ CORE_TESTS: List[str] = [
     # deliberately different shape-preserving contract. Pure Python, no
     # live C++ build.
     "tests/unit/test_2d_input_regression.py",
+    # Phase 8 item A: mixed-validity array isolation (burnup per-cell
+    # error isolation at the array level, plus mortality unsupported-
+    # species non-contamination). Pure Python, no live C++ build.
+    "tests/unit/test_phase8_array_isolation.py",
+    # Phase 8 item B: serial (num_workers=1) vs parallel (num_workers>1,
+    # ProcessPoolExecutor) equivalence for run_fofem_emissions(). Pure
+    # Python/multiprocessing, no live C++ build.
+    "tests/unit/test_phase8_serial_parallel_equivalence.py",
+    # Phase 8 item C: run_fofem_mortality() facade integration coverage
+    # (previously zero test coverage at any level). Pure Python, no live
+    # C++ build.
+    "tests/unit/test_phase8_mortality_facade.py",
+    # Phase 8 item D: moisture-regime integration matrix through
+    # run_fofem_emissions()/consm_duff(). Pure Python, no live C++ build.
+    "tests/unit/test_phase8_moisture_regime_integration.py",
+    # Phase 8 item E: SI/Imperial unit-system contract matrix. Pure
+    # Python, no live C++ build.
+    "tests/unit/test_phase8_unit_system_contract.py",
+    # Phase 8 item F: runner/discovery completeness - proves every test
+    # module is assigned to CORE or FULL exactly once and plain-pytest
+    # discovery matches this file's own registration. Pure Python
+    # introspection of this very module, no live C++ build.
+    "tests/unit/test_phase8_runner_completeness.py",
+    # Phase 8 item G: operational hardening (deterministic repeats,
+    # warning behavior, bounded runtime, child-process/scratch/file-
+    # handle cleanup, order independence, hostile-git-ownership support
+    # reused from Phase 7's established pattern). Pure Python
+    # introspection/execution, no live C++ build - the Phase 2-7 golden
+    # --verify-only gates this item also requires are exercised directly
+    # in the Phase 8 acceptance audit, not via a new CORE test module
+    # (they need the live build, which would break CORE's no-toolchain
+    # guarantee; the existing FULL_EXTRA_TESTS generator-driver modules
+    # already cover them as pytest nodes).
+    "tests/unit/test_phase8_operational_hardening.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [

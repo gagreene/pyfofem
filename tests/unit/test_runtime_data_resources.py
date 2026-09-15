@@ -11,7 +11,10 @@ scientific tables pyfofem actually reads, enumerated by
   ``SPP_CODES``, so a missing or malformed file breaks
   ``import pyfofem`` outright, not just one function.
 * ``src/pyfofem/supporting_data/emissions_factors.csv`` - read lazily
-  and cached by ``components/emission_calcs.py::_load_ef_csv``.
+    and cached by ``components/emission_calcs.py::_load_ef_csv``.
+* ``src/pyfofem/supporting_data/fofem_crnsch_eq1_bark.csv`` - read at
+    import time by ``components/mortality_calcs.py`` to reproduce C++
+    Equation 1's small-tree bark recalculation in installed artifacts.
 
 Verified from the loader source (not assumed): those are the only two
 data files any pyfofem module opens at runtime.
@@ -73,7 +76,7 @@ import pandas as pd
 import pytest
 
 import pyfofem
-from pyfofem.components import emission_calcs, tree_flame_calcs
+from pyfofem.components import emission_calcs, mortality_calcs, tree_flame_calcs
 from tests._support import PROJECT_ROOT
 from tests.cpp_parity_live._proc import run_bounded
 
@@ -129,6 +132,11 @@ _SPP_CSV_BYTES = 2699
 #: rather than silent drift.
 _SPP_MISSING_FOFEM_CD = {"JD", "JH"}
 
+#: Exact provenance of the wheel-packaged C++ Equation-1 bark extraction.
+_EQ1_BARK_CSV_SHA256 = "8E432FEF13026A9F7E89AE5518C88435E536A25BC209EAC2599E81A87041EFA0"
+_EQ1_BARK_CSV_BYTES = 7582
+_EQ1_BARK_ROWS = 443
+
 
 def _declared_package_data_patterns() -> list:
     """
@@ -163,6 +171,22 @@ def _declared_package_data_patterns() -> list:
     patterns = ast.literal_eval(entry.group(1))
     assert isinstance(patterns, list)
     return patterns
+
+
+def _equation_1_bark_csv_path() -> str:
+    """
+    Resolve the packaged Equation-1 bark extraction from its live loader.
+
+    :returns: Absolute, normalised resource path.
+    """
+    return os.path.normpath(
+        os.path.join(
+            os.path.dirname(os.path.abspath(mortality_calcs.__file__)),
+            "..",
+            "supporting_data",
+            "fofem_crnsch_eq1_bark.csv",
+        )
+    )
 
 
 def _emissions_csv_path() -> str:
@@ -373,12 +397,34 @@ def test_emissions_factors_sentinel_factor_values_are_intact():
         assert float(smouldering["CO"]) > float(flaming["CO"])
 
 
+def test_equation_1_bark_extraction_is_packaged_and_has_pinned_provenance():
+    """
+    Category (b). Pin the C++ Equation-1 bark extraction used at runtime.
+
+    It contains the 443 unique ``Mort == 1`` FOFEM codes from the pinned
+    species table, represented as the exact per-inch slopes selected by
+    ``SMT_CalcBarkThick``. This is a compact extraction rather than a copy
+    of the un-packaged vendor distribution.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    path = _equation_1_bark_csv_path()
+    frame = pd.read_csv(path)
+
+    assert os.path.getsize(path) == _EQ1_BARK_CSV_BYTES
+    assert _sha256_upper(path) == _EQ1_BARK_CSV_SHA256
+    assert list(frame.columns) == ["fofem_cd", "bark_thickness_per_inch"]
+    assert len(frame) == _EQ1_BARK_ROWS
+    assert frame["fofem_cd"].is_unique
+    assert float(frame.set_index("fofem_cd").loc["ABAM", "bark_thickness_per_inch"]) == pytest.approx(0.047)
+
+
 @pytest.mark.installed_artifact
 def test_loaders_resolve_resources_independently_of_the_working_directory():
     """
     Category (a). Prove in a **real child process**, started from an
     unrelated working directory with an empty ``PYTHONPATH``, that
-    importing ``pyfofem`` succeeds and that both runtime resources
+    importing ``pyfofem`` succeeds and that all runtime resources
     resolve to files inside the imported package's own directory.
 
     This is the check that distinguishes a package-relative
@@ -391,14 +437,17 @@ def test_loaders_resolve_resources_independently_of_the_working_directory():
     """
     probe = (
         "import os, pyfofem;"
-        "from pyfofem.components import emission_calcs, tree_flame_calcs;"
+        "from pyfofem.components import emission_calcs, mortality_calcs, tree_flame_calcs;"
         "pkg = os.path.dirname(os.path.abspath(pyfofem.__file__));"
         "ef = os.path.normpath(emission_calcs._EF_CSV_DEFAULT);"
         "spp = os.path.normpath(os.path.join("
         "os.path.dirname(os.path.abspath(tree_flame_calcs.__file__)),"
         "'..','supporting_data','species_codes_lut.csv'));"
-        "print(pkg);print(ef);print(spp);"
-        "print(os.path.isfile(ef), os.path.isfile(spp));"
+        "eq1 = os.path.normpath(os.path.join("
+        "os.path.dirname(os.path.abspath(mortality_calcs.__file__)),"
+        "'..','supporting_data','fofem_crnsch_eq1_bark.csv'));"
+        "print(pkg);print(ef);print(spp);print(eq1);"
+        "print(os.path.isfile(ef), os.path.isfile(spp), os.path.isfile(eq1));"
         "print(len(tree_flame_calcs.SPP_CODES), len(emission_calcs._load_ef_csv()))"
     )
     env = dict(os.environ)
@@ -412,25 +461,25 @@ def test_loaders_resolve_resources_independently_of_the_working_directory():
     )
     assert result.returncode == 0, result.stderr
 
-    package_dir, ef_path, spp_path, exists_line, sizes_line = (
+    package_dir, ef_path, spp_path, eq1_path, exists_line, sizes_line = (
         result.stdout.strip().splitlines()
     )
-    assert exists_line == "True True"
+    assert exists_line == "True True True"
     assert sizes_line == f"121 {_EF_PARSED_ROWS}"
-    for path in (ef_path, spp_path):
+    for path in (ef_path, spp_path, eq1_path):
         assert os.path.isabs(path)
         assert os.path.commonpath([package_dir, path]) == package_dir
 
 
-def test_packaging_config_ships_both_runtime_csvs_and_no_vendor_binaries():
+def test_packaging_config_ships_runtime_csvs_and_no_vendor_binaries():
     """
     Category (a). Assert from ``pyproject.toml`` - the packaging config,
-    not merely the checkout - that both runtime CSVs are declared as
+    not merely the checkout - that all runtime CSVs are declared as
     installed package data and that the declaration cannot pull in the
     bundled vendor distribution.
 
     ``[tool.setuptools.package-data] pyfofem = ["supporting_data/*.csv"]``
-    matches exactly the two runtime tables and, because the glob is not
+    matches exactly the three runtime tables and, because the glob is not
     recursive, matches nothing under ``supporting_data/FOFEM6.7/`` - so
     the tracked ``FOF_GUI.exe``, the two Microsoft DLLs and the help PDF
     stay out of the distribution. Gate 0 ``06-runtime-tables.md`` §3
@@ -451,7 +500,11 @@ def test_packaging_config_ships_both_runtime_csvs_and_no_vendor_binaries():
         if name.lower().endswith(".csv")
         and os.path.isfile(os.path.join(data_dir, name))
     )
-    assert matched == ["emissions_factors.csv", "species_codes_lut.csv"]
+    assert matched == [
+        "emissions_factors.csv",
+        "fofem_crnsch_eq1_bark.csv",
+        "species_codes_lut.csv",
+    ]
 
     for pattern in patterns:
         assert "**" not in pattern
@@ -499,16 +552,17 @@ def test_species_table_export_matches_the_file_on_disk():
 
 def test_species_table_loader_resolves_inside_the_installed_package():
     """
-    Category (a). The import-time species-table path must be absolute
-    and resolve to an existing file **inside the imported package's own
-    directory**, not relative to the repository or the working
-    directory. The same is asserted for the emission-factor loader's
-    module-level path constant.
+    Category (a). Every runtime-data path must resolve inside the imported
+    package, not relative to the repository or the working directory.
 
     :return: None. Raises via ``assert`` on mismatch.
     """
     package_dir = _package_dir()
-    for path in (_species_csv_path(), _emissions_csv_path()):
+    for path in (
+        _species_csv_path(),
+        _emissions_csv_path(),
+        _equation_1_bark_csv_path(),
+    ):
         assert os.path.isabs(path)
         assert os.path.isfile(path)
         assert os.path.commonpath([package_dir, path]) == package_dir

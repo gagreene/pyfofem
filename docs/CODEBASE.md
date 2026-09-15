@@ -27,6 +27,7 @@ pyfofem/
 |   `-- supporting_data/
 |       |-- species_codes_lut.csv      #    Species <-> FOFEM-code mapping (runtime table, in the wheel)
 |       |-- emissions_factors.csv      #    Emission-factor groups (runtime table, in the wheel)
+|       |-- fofem_crnsch_eq1_bark.csv  #    C++ Equation-1 small-tree bark slopes (runtime table, in the wheel)
 |       `-- FOFEM6.7/                  #    Bundled FOFEM data files (NOT in the wheel)
 |
 |-- reference/fofem_cpp/               # <- Official C++ FOFEM reference source
@@ -61,7 +62,7 @@ pyfofem/
 |   |   |                                         hand-derived vs pinned fof_mrt.cpp (no live parity)
 |   |   |-- test_utility_contracts.py  #    Phase 3: calc_carbon + get_moisture_regime
 |   |   |-- test_public_constants.py   #    Phase 3: all 11 exported constants/data objects
-|   |   |-- test_runtime_data_resources.py      # Phase 3: both runtime CSVs (schema/provenance/resource)
+|   |   |-- test_runtime_data_resources.py      # Phase 3: runtime CSVs (schema/provenance/resource)
 |   |   `-- test_burnup_component_api.py        # Phase 3: FuelParticle/BurnResult/BurnSummaryRow/
 |   |                                             BurnupValidationError/burnup
 |   |-- integration/                   #    Full-pipeline (`run_fofem_emissions`) tests
@@ -125,17 +126,23 @@ and that classification is the durable convention for this suite:
 
 | Module | Covers | Category mix |
 |---|---|---|
-| `unit/test_tree_flame_contracts.py` | `calc_scorch_ht` (eq 8/9/10), `calc_flame_length` (Byram/Butler/Thomas/char-height) | all (a) |
+| `unit/test_tree_flame_contracts.py` | `calc_scorch_ht` (FOFEM `Calc_Scorch` flame conversion plus eq 8/9/10), `calc_flame_length` (Byram/Butler/Thomas/char-height) | (a), plus (b) for the direct C++ flame conversion |
 | `unit/test_tree_flame_source_relations.py` | `calc_char_ht`, `calc_crown_length_vol_scorched` | (b) value tests, (a) shape/clamp/warning tests |
 | `unit/test_utility_contracts.py` | `calc_carbon`, `get_moisture_regime` | (b) carbon factors, (a) everything else |
 | `unit/test_public_constants.py` | all 11 exported constants/data objects | all (a) |
-| `unit/test_runtime_data_resources.py` | both runtime CSVs + packaging/resource resolution | (a), plus one (b) provenance digest |
+| `unit/test_runtime_data_resources.py` | runtime CSVs + packaging/resource resolution | (a), plus provenance digests |
 | `unit/test_burnup_component_api.py` | `FuelParticle`, `BurnResult`, `BurnSummaryRow`, `BurnupValidationError`, `burnup` | all (a) |
 
-**Why `calc_scorch_ht`/`calc_flame_length` are never compared to C++.**
+**Tree/flame C++ relationship and non-parity routes.**
+When `calc_scorch_ht` receives `flame_length`, PyFOFEM converts metres to
+feet, applies FOFEM's exact `Calc_Scorch` relationship at
+`fof_util.cpp:89-102`, and converts the result back to metres. That direct
+flame-length input takes precedence over intensity, ambient temperature, and
+in-stand wind. The discussion below applies only to the intensity routes.
+
 `fof_util.cpp:95-102` `Calc_Scorch` converts *flame length to scorch
 height* and `fof_util.cpp:111-118` `Calc_Flame` converts *scorch height
-back to flame length*; Python takes fire intensity (plus optional
+back to flame length*. For its intensity-only routes, Python takes fire intensity (plus optional
 ambient temperature and in-stand wind) and uses Byram/Butler/Thomas.
 Different APIs — not parity oracles (Gate 0 `03-cpp-crosswalk.md` rows
 6-7). `calc_char_ht` and `calc_crown_length_vol_scorched` have pinned
@@ -144,7 +151,7 @@ intermediates `f_Fl`/`f_CK`/`f_CSL` are `MRT_Calc` **locals** absent
 from `d_MO` (finding F-30), so they get source-relation tests only.
 
 **Runtime-resource-loading pattern (verified, not assumed).** Neither
-loader uses `importlib.resources`. Both build a path from the defining
+loader uses `importlib.resources`. All three build a path from the defining
 module's own `__file__`:
 
 - `components/tree_flame_calcs.py` — `os.path.join(os.path.dirname(__file__),
@@ -153,9 +160,13 @@ module's own `__file__`:
 - `components/emission_calcs.py` — `_EF_CSV_DEFAULT`, same construction,
   read lazily and cached by `_load_ef_csv()`.
 
+- `components/mortality_calcs.py` uses the same package-relative construction
+  to load `fofem_crnsch_eq1_bark.csv` at import time for Equation 1's
+  DBH-under-one-inch bark fallback.
+
 That is *package*-relative, not repo-relative, so it resolves correctly
 from an installed wheel and is independent of the process's working
-directory. `unit/test_runtime_data_resources.py` asserts both properties,
+directory. `unit/test_runtime_data_resources.py` asserts these properties,
 including a real child-process probe launched from an unrelated working
 directory with `PYTHONPATH` cleared (bounded and process-tree-cleaned via
 `tests/cpp_parity_live/_proc.run_bounded`). The one case the `__file__`
@@ -176,7 +187,7 @@ this is recorded as a known limitation, not a defect.
    **outside** the checkout, install only the wheel plus `pytest`/`psutil`,
    then run `--suite core --installed-only` and `--suite full
    --installed-only` with that interpreter. The wheel's contents are also
-   asserted to be exactly the two runtime CSVs with no `.exe`/`.dll`/
+   asserted to be exactly the three runtime CSVs with no `.exe`/`.dll`/
    `.pdf`/`.ico`/`.lnk`/`.bat` — the packaging-config half of that
    assertion is in-suite
    (`unit/test_runtime_data_resources.py::test_packaging_config_ships_both_runtime_csvs_and_no_vendor_binaries`),
@@ -475,6 +486,169 @@ deliberate gap rather than left to look like a lost finding. **F-45 is the
 first finding in this register to be marked RESOLVED**; its original analysis
 is preserved verbatim inside the entry, followed by what the correction pass
 changed and measured.
+
+#### Phase 8 test architecture (2026-09-10) — integration hardening
+
+Phase 8 is the final implementation phase of the comprehensive test-suite
+plan (see `development/plans/2026-08-26-comprehensive-test-suite-plan.md`).
+It adds 7 `tests/unit/` modules, all registered in `CORE_TESTS` (pure Python,
+no live C++ build needed):
+
+- `test_phase8_array_isolation.py` (item A) — mixed-validity array isolation:
+  burnup per-cell error isolation at the array level (a bad cell cannot
+  contaminate a valid cell, and reordering cells preserves results after
+  restoring order), plus mortality unsupported-species non-contamination and
+  no-persistent-accumulator proofs.
+- `test_phase8_serial_parallel_equivalence.py` (item B) — the FIRST test
+  coverage anywhere in this repository for `run_fofem_emissions(num_workers>1)`
+  (`ProcessPoolExecutor`); proves serial/parallel scientific and per-cell-error
+  equivalence, deterministic repeats, output ordering, and child-process
+  cleanup. Marked `@pytest.mark.multiprocessing` (the marker was registered in
+  `pyproject.toml` but never previously applied anywhere).
+- `test_phase8_mortality_facade.py` (item C) — `run_fofem_mortality()` facade
+  coverage (previously **zero** coverage at any level); covers all three
+  dispatch keys, case-insensitivity, invalid/missing/malformed arguments,
+  parameter forwarding, and reconciles the facade's own docstring `Examples::`
+  block against its real `(mort_function, params)` signature (F-65).
+- `test_phase8_moisture_regime_integration.py` (item D) — moisture-regime
+  behavior through `run_fofem_emissions()`/`consm_duff()`, not just the
+  already-unit-tested `get_moisture_regime()` utility itself.
+- `test_phase8_unit_system_contract.py` (item E) — SI/Imperial contract
+  matrix across `run_fofem_emissions()`, `calc_smoke_emissions()`, and the
+  `consm_*` family; found F-63 (SI-units docstring mismatch) and F-66 (a
+  real, silently-wrong-result case-sensitivity defect: `units='si'` lowercase
+  is NOT recognized by any `consm_*` function's exact-case `'SI'` check, even
+  though `run_fofem_emissions()`'s own recognition is case-insensitive).
+- `test_phase8_runner_completeness.py` (item F) — proves
+  `run_unified_tests.py`'s existing `_validate_suite_coverage()` mechanism
+  (recursive-glob-based, not marker/naming-based) holds for the real
+  configuration, plus exactly-once CORE/FULL assignment and plain-pytest-vs-
+  runner discovery agreement.
+- `test_phase8_operational_hardening.py` (item G) — deterministic repeats,
+  warning-count baseline, evidence-based runtime bound, hostile-Git-ownership
+  support (reusing the pattern every phase's golden-tracking module already
+  established), order-independence, and no-checkout-debris proofs. Existing
+  Phase 2-7 golden `--verify-only` gates are re-run directly in the Phase 8
+  acceptance audit, not duplicated as a new CORE test (that would require the
+  live build, breaking CORE's no-toolchain guarantee).
+
+**Findings.** Phase 8 added 4 finding IDs: F-63 (`consm_duff()`/
+`consm_litter()` SI-units docstring mismatch), F-64 (a benign, environment-
+specific pytest-`faulthandler` "access violation" dump reproducibly triggered
+by the first-ever `num_workers>1` coverage — no process crash or wrong
+result), F-65 (`run_fofem_mortality()`'s broken documented `Examples::` call
+form), and F-66 (the `units='si'` lowercase silent-wrong-result defect),
+bringing the tracked total to 66. No traceability-CSV rows were added — all
+four are Python-contract/documentation findings with no distinct C++
+scientific branch, following the same precedent F-33/F-34 established.
+
+> **HISTORICAL — superseded 2026-09-10 (Phase 8 correction pass, responding
+> to independent review).** Two claims above were corrected, not merely
+> restated:
+>
+> 1. **F-64 was not "benign" merely because pytest exited 0.** The prior
+>    pass's own module docstrings called it that without direct proof. The
+>    correction pass instead structurally ELIMINATED the trigger: every
+>    ``run_fofem_emissions(num_workers>1)`` call previously made directly
+>    from a collected pytest node now runs through a non-collected driver
+>    (`tests/cpp_parity_live/phase8_parallel_driver.py`) invoked as a PLAIN
+>    ``python`` subprocess via `tests/cpp_parity_live/_phase8_driver_support.py`
+>    (itself wrapping `tests/cpp_parity_live/_proc.py::run_bounded` with an
+>    explicit timeout and closed stdin). Direct evidence: the identical
+>    production call, run repeatedly (5/5) via a bare `python` subprocess
+>    with no pytest/`faulthandler` involved, produces ZERO stderr output and
+>    exits 0 every time - only invoking it from INSIDE a process where
+>    pytest's own `faulthandler.enable()` has already installed a low-level
+>    Windows exception handler produces the dump. What remains genuinely
+>    UNKNOWN (not claimed either way): the exact underlying condition that
+>    handler was intercepting. See `gate0/04-findings.md` F-64 for the full,
+>    corrected record.
+> 2. **F-66 does get its own traceability row.** Independent review
+>    determined it is a real, silently-wrong numeric-result defect (not
+>    documentation/tooling), so it does not follow the F-33/F-34 no-row
+>    precedent — `BR-UNIT-SI-CASE` was added to
+>    `gate0/07-branch-traceability.csv` (128 rows total, 46 `XFAIL-STRICT`).
+>
+> See `.claude/CLAUDE.md`'s Decisions Log for the complete, itemized
+> correction-pass record (all 9 required corrections).
+
+**Second Phase 8 correction pass (2026-09-11), responding to another
+independent review** — 7 further items closed, all documentation-only
+production-wise (test/docs edits only): (1) the NorthEast cover-group
+labels used by the moisture-regime cross-product
+(`test_phase8_moisture_regime_integration.py`) were unrecognized by
+`consm_duff()`'s own `_REDJAC`/`_BALSAM` sets and silently fell through to
+the generic fallback — fixed to the accepted `'RedJacPin'`/`'BalBRWSpr'`
+labels, with a new executable discrimination test proving each reaches
+its own distinct branch; the 96-case and 24-case matrices (including the
+ordering invariant) were re-run with the corrected labels and continue to
+pass. (2) The Phase 8 driver protocol (`_phase8_driver_support.py`) is
+now an exact, fully-enforced schema — exactly one stdout line, stderr
+exactly empty, `ok` a genuine JSON boolean, success/error payload key
+sets exact, `error_type`/`error_message` typed as strings — with focused
+regression tests for every rejection path; the stale
+`test_phase8_parallel_driver_contract.py` reference in
+`phase8_parallel_driver.py` (a module that does not exist) was corrected.
+(3) The AST hygiene scan (`_direct_num_workers_gt1_calls`) now fails
+closed on any `num_workers` value that is not provably the literal `1`
+(a name, an expression, a literal other than `1`), not merely a literal
+constant; new meta-tests prove it rejects a literal `2`, a name, and an
+expression, while accepting absent `num_workers` and literal `1`. (4)
+The forward/reversed file-order test now goes through the SAME fail-
+closed `_assert_no_debris_and_clean_pytest_run` infrastructure every
+other subprocess call in `test_phase8_operational_hardening.py` uses,
+rather than a raw, unprotected `run_bounded` call. (5) The "bounded
+representative call" test now runs the representative burnup call
+through the Phase 8 driver (`run_phase8_batch`) with the evidence-based
+bound as the driver subprocess's own timeout, plus a new deterministic
+timeout-path regression using the `PHASE8_DRIVER_SIMULATE_SLEEP_S` test-
+only hook. (6) F-66's scope was reconciled with executed evidence: three
+new independent, single-scenario strict-`xfail` nodes
+(`consm_duff`/`consm_herb`/`consm_shrub`) close the gap between the
+finding's claim and what was actually executed under lowercase `'si'`;
+all verified genuinely XFAIL normally and genuinely FAILING under
+`--runxfail`. `BR-UNIT-SI-CASE`'s content was updated to cite all 5 now-
+executed discriminating routes (row/status counts unchanged at 128/46).
+(7) Wording corrected: "serial" now describes the COMPUTATION (a
+single-process loop inside `run_fofem_emissions()`), never the PROCESS
+PLACEMENT — both `num_workers=1` and `num_workers=2` calls in
+`test_phase8_serial_parallel_equivalence.py` run inside the same kind of
+bounded driver subprocess. Full validation: plain `pytest -q` **1502
+passed, 138 xfailed** (baseline 1490/135, delta +12 passed/+3 xfailed,
+fully reconciled); `--suite core` **1133 passed, 137 xfailed**; `--suite
+full` **1502 passed, 138 xfailed** (matches plain); isolated-wheel
+core/full match exactly; all five phases' `--verify-only` gates show
+only the pre-existing, already-documented provenance-metadata-only
+pattern (zero scientific CSV drift; no generator-source file was
+touched this pass). See `.claude/CLAUDE.md`'s Decisions Log for the
+complete, itemized record.
+
+**Third Phase 8 mechanical correction pass (2026-09-11)** — two narrow
+findings closed: (1) `invoke_phase8_driver()`'s error-path check
+(`result.returncode != 0`) accepted ANY nonzero code alongside an
+`ok: false` payload; now requires exactly `result.returncode == 1` (the
+documented protocol), with 4 new regression tests (accepts rc=1, rejects
+rc=0/rc=2/a negative Windows-crash-style code). (2)
+`_assert_no_debris_and_clean_pytest_run()` previously took its post-run
+snapshots only after `run_bounded()` returned normally, so a genuine
+hang (`ProcTimeout`) skipped both post-run snapshots and every debris
+comparison entirely; it now catches `ProcTimeout` around the subprocess
+call, always runs both post-run snapshots and the comparison, and either
+re-raises the original `ProcTimeout` unchanged (no debris) or raises a
+combined `AssertionError ... from` the original `ProcTimeout` (debris
+alongside a timeout, both causes preserved via chaining). Two new
+regression tests use a synthetic hanging pytest target (never a
+genuinely slow scientific call) to prove both outcomes, including
+confirmed process-tree termination and cleanup of the deliberately
+created debris file. Full validation: focused suite **207 passed, 6
+xfailed** (baseline 201/6, +6/+0 exact); plain `pytest -q` **1508 passed,
+138 xfailed** (baseline 1502/138, +6/+0 exact); `--suite core` **1139
+passed, 137 xfailed**; `--suite full` **1508 passed, 138 xfailed**
+(matches plain); all five `--verify-only` gates show zero scientific CSV
+drift (no generator-source file touched); isolated-wheel re-verify
+reasoned-and-skipped (zero files under `src/pyfofem/` touched — only test
+support/test files). See `.claude/CLAUDE.md`'s Decisions Log for the
+complete record.
 
 ## Architecture Overview
 
@@ -1157,8 +1331,4 @@ replaced by a structural lookup.
 | Cover-type auto-lookup (SAF/NVCS/FCC) |  Not started | C++: `CVT_*.cpp` / `fof_fccs.csv` |
 | Weight distribution (1000-hr  size classes) |  Not started | C++: `cr_WD` in `d_CI` |
 | Duration units reconciliation (sec vs min) |  Done | `_burnup_durations()` and `run_fofem_emissions()` now return seconds  Gotcha #15 resolved |
-
-
-
-
 

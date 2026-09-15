@@ -55,6 +55,7 @@ credentials.json
 *.csv
 !fuel_analyst/supporting_data/plant_photoload.csv
 !fuel_analyst/supporting_data/tree_parameters.csv
+!src/pyfofem/supporting_data/fofem_crnsch_eq1_bark.csv
 
 # Phase 4 committed C++-oracle golden dataset (scientific input/output CSVs
 # only - manifests are .json and were never matched by the *.csv rule

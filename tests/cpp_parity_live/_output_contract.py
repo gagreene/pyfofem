@@ -162,7 +162,7 @@ PHASE2_CANONICAL_ROUTE_KEYS: Dict[str, Tuple[str, ...]] = {
 #: Interior-West rows merely because those findings share output columns.
 PHASE2_CANONICAL_DIVERGENCE_KEYS: Dict[str, Tuple[str, ...]] = {
     "consume": (),
-    "litter_eq": ("997",),
+    "litter_eq": (),
     "shrub_herb_eq": (),
     "mortality": ("CroSco",),
     "bark_thick": ("all",),

@@ -287,9 +287,14 @@ def test_divergences_for_keys_excludes_verified_and_unverified():
 
 def test_divergences_for_keys_includes_known_divergent():
     policy = load_tolerance_policy()
-    out = divergences_for_keys(policy, ["litter_eq.997"])
+    out = divergences_for_keys(
+        policy, ["consume_p7.flame_smolder_consumption_affected_scenarios"]
+    )
     assert len(out) == 1
-    assert out[0].startswith("litter_eq.997: known_divergent_strict_xfail")
+    assert out[0].startswith(
+        "consume_p7.flame_smolder_consumption_affected_scenarios: "
+        "known_divergent_strict_xfail"
+    )
 
 
 def test_manifest_empty_divergences_rejected_when_scenario_has_one(sample_manifest):

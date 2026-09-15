@@ -101,6 +101,16 @@ PHASE7_MENTION_EXCLUSIONS = frozenset({
         # not covered here either") - Phase 7 itself never edited this
         # file's executable content.
         ("tests", "unit", "test_burnup_component_api.py"),
+        # Phase 8's own files. Both merely CITE Phase 7 work as context
+        # (test_phase8_array_isolation.py's docstring points at "Phase 7
+        # item A" as the sibling per-cell-error-code coverage it builds
+        # on; test_phase8_operational_hardening.py's docstring names
+        # "the Phase 7 acceptance-gate correction" as the origin of the
+        # hostile-Git-ownership pattern it reuses) - neither file was
+        # itself edited by Phase 7, so neither belongs in
+        # PHASE7_MODULE_PATHS.
+        ("tests", "unit", "test_phase8_array_isolation.py"),
+        ("tests", "unit", "test_phase8_operational_hardening.py"),
     )
 })
 

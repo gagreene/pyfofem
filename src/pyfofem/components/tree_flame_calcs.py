@@ -271,18 +271,31 @@ def calc_flame_length(
 
 
 def calc_scorch_ht(
-        sfi: Union[float, np.ndarray],
+        sfi: Optional[Union[float, np.ndarray]] = None,
         amb_t: Optional[Union[float, np.ndarray]] = None,
         instand_ws: Optional[Union[float, np.ndarray]] = None,
+        flame_length: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
     Van Wagner (1973) & Alexander (1982/85) lethal scorch height model.
 
-    :param sfi: Surface fire intensity (kW/m), scalar or np.ndarray
+    When *flame_length* is supplied it takes precedence over every other
+    input. The conversion operates in feet internally; PyFOFEM accepts
+    and returns meters.
+
+    :param sfi: Surface fire intensity (kW/m), scalar or np.ndarray. Required
+        only when *flame_length* is not supplied.
     :param amb_t: Ambient temperature (C), scalar or np.ndarray, optional
     :param instand_ws: Instantaneous windspeed (m/s), scalar or np.ndarray, optional
-    :return: Scorch height (m), scalar or np.ndarray
+    :param flame_length: Flame length (m), scalar or np.ndarray. When supplied,
+        overrides *sfi*, *amb_t*, and *instand_ws*.
+    :returns: Scorch height (m), scalar or np.ndarray.
     """
+    if flame_length is not None:
+        flame_ft = np.asarray(flame_length) / 0.3048
+        scorch_ft = np.power(np.power(flame_ft / 0.45, 2.174), 0.667)
+        return scorch_ft * 0.3048
+
     sfi = np.asarray(sfi)
     if np.any(sfi == None):
         raise Exception('Must enter a surface fire intensity value to estimate scorch height (fn _calc_scorch_ht)')
