@@ -376,6 +376,28 @@ def test_bolchar_coefficients_match_sr_bct_source_relation(equation):
 
 
 @pytest.mark.parametrize(
+    "species",
+    ["QUBI", "QUGA4", "QUGAG2", "QUGAS", "QUVEM", "QUKE"],
+)
+def test_bolchar_cpp_unassigned_species_return_nan(species, capsys):
+    """
+    Species without a C++ BOLCHAR assignment cannot use a nearby oak model.
+
+    The pinned ``FOF_SPP.CSV`` assigns every listed code crown-scorch
+    mortality (``Mort=1``), not a bole-char equation. They must follow the
+    unsupported-species contract instead of silently using a white- or
+    black-oak Keyser (2018) coefficient set.
+
+    :param species: FOFEM code lacking a BOLCHAR equation assignment.
+    :param capsys: Pytest fixture capturing the unsupported-species warning.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    value = float(mort_bolchar(species, 30.0, 2.0))
+    assert math.isnan(value)
+    assert "BOLCHAR mortality model unavailable" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
     "case_id", [case for case, _o in _scenarios("BolCha")]
 )
 def test_bolchar_probability_matches_cpp(case_id, request):
@@ -421,6 +443,121 @@ def test_bolchar_unsupported_species_prints_and_returns_nan(capsys):
     captured = capsys.readouterr()
     assert math.isnan(float(value))
     assert "BOLCHAR mortality model unavailable" in captured.out
+
+
+@pytest.mark.parametrize("crown_damage", [0.0, 100.0])
+def test_crcabe_crown_damage_accepts_cxx_boundaries(crown_damage):
+    """
+    The C++ direct crown-damage field accepts both inclusive endpoints.
+
+    :param crown_damage: Valid direct crown-damage endpoint percentage.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    value = mort_crcabe(
+        "PIPO",
+        dbh=30.0,
+        ht=20.0,
+        crown_depth=8.0,
+        ckr=2.0,
+        scorch_ht=12.0,
+        crown_damage=crown_damage,
+    )
+    assert math.isfinite(float(value))
+
+
+@pytest.mark.parametrize("species", ["ABCO", "PIPO"])
+def test_crcabe_crown_damage_override_matches_direct_cxx_field(species):
+    """
+    Direct crown damage overrides geometry for both CRCABE input families.
+
+    C++ passes one direct ``f_CrnDam`` field to equations that use either
+    crown-length (ABCO) or crown-volume (PIPO) damage. Different scorch
+    geometry must therefore produce the same result when that direct field is
+    supplied, and the result must match the corresponding published equation.
+
+    :param species: Representative C++ crown-length or crown-volume species.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    inputs = {
+        "dbh": 30.0,
+        "ht": 20.0,
+        "crown_depth": 8.0,
+        "ckr": 2.0,
+        "beetles": False,
+        "crown_damage": 30.0,
+    }
+    low_scorch = float(mort_crcabe(species, scorch_ht=2.0, **inputs))
+    high_scorch = float(mort_crcabe(species, scorch_ht=18.0, **inputs))
+    if species == "ABCO":
+        logit = -3.5964 + (30.0 ** 3 * 0.00000628) + (2.0 * 0.3019)
+        logit += 30.0 * 0.019 - 0.5209
+    else:
+        logit = -4.1914 + (30.0 ** 2 * 0.000376) + (2.0 * 0.5130)
+    expected = 1.0 / (1.0 + math.exp(-logit))
+    assert low_scorch == pytest.approx(expected, abs=1e-12)
+    assert high_scorch == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize("crown_damage", [-0.01, 100.01, math.nan, math.inf, -math.inf])
+def test_crcabe_crown_damage_rejects_nonfinite_or_out_of_range_values(crown_damage):
+    """
+    The direct C++ crown-damage field accepts only finite percentages 0â€“100.
+
+    :param crown_damage: Invalid direct crown-damage input.
+    :returns: None. Raises via ``pytest.raises`` on mismatch.
+    """
+    with pytest.raises(ValueError, match="crown_damage must be finite"):
+        mort_crcabe(
+            "PIPO",
+            dbh=30.0,
+            ht=20.0,
+            crown_depth=8.0,
+            ckr=2.0,
+            scorch_ht=12.0,
+            crown_damage=crown_damage,
+        )
+
+
+@pytest.mark.parametrize(
+    ("alias", "representative", "cvk"),
+    [
+        ("PSMEG", "PSME", None),
+        ("PIPOW", "PIPO", None),
+        ("PIPOW2", "PIPO", None),
+        ("PIPOWK", "PIPOK", 40.0),
+        ("PIPOW2K", "PIPOK", 40.0),
+    ],
+)
+def test_crcabe_cpp_species_alias_routes_match_representative(
+        alias,
+        representative,
+        cvk,
+):
+    """
+    CRCABE aliases use the C++ equation family assigned in ``FOF_SPP.CSV``.
+
+    The pinned table assigns ``PSMEG`` to Douglas-fir, the two non-K Washoe
+    pine codes to PP, and the K-suffixed Washoe codes to PK. This test only
+    verifies recognition and family coefficients; PP/PK input-contract policy
+    remains covered separately.
+
+    :param alias: C++ species alias whose route is under test.
+    :param representative: Canonical FOFEM code for the equation family.
+    :param cvk: Crown-volume-killed input for the PK branch, if applicable.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    inputs = {
+        "dbh": 30.0,
+        "ht": 20.0,
+        "crown_depth": 8.0,
+        "ckr": 2.0,
+        "scorch_ht": 12.0,
+        "beetles": False,
+        "cvk": cvk,
+    }
+    actual = float(mort_crcabe(alias, **inputs))
+    expected = float(mort_crcabe(representative, **inputs))
+    assert actual == pytest.approx(expected, abs=1e-12)
 
 
 @pytest.mark.parametrize("term", sorted(CPP_PFI_DBH_COEFFICIENTS))
@@ -486,6 +623,65 @@ def test_crcabe_exact_dbh_coefficient_recovers_cpp(case_id, term):
         "recover the C++ value, so the rounded coefficient is not the whole "
         "cause"
     )
+
+
+@pytest.mark.parametrize(
+    "species",
+    [
+        "PIJEK", "PIPOB3K", "PIPOBK", "PIPOK", "PIPOP2K", "PIPOPK",
+        "PIPOS2K", "PIPOSK", "PIPOWK", "PIPOW2K",
+    ],
+)
+def test_crcabe_pk_species_require_crown_volume_killed(species):
+    """
+    FOFEM PK codes reject a missing crown-volume-killed value.
+
+    ``sr_EFR[]`` in the pinned C++ source requires ``kil ckr btl`` for PK,
+    unlike PP's ``vol ckr btl`` requirements. Python must not silently route a
+    PK code to the scorch equation merely because ``cvk`` was omitted.
+
+    :param species: FOFEM species code assigned to the PK equation.
+    :returns: None. Raises via ``assert`` or ``pytest.raises`` on mismatch.
+    """
+    with pytest.raises(ValueError, match="cvk.*PK species"):
+        mort_crcabe(
+            species,
+            dbh=30.0,
+            ht=20.0,
+            crown_depth=8.0,
+            ckr=2.0,
+            scorch_ht=12.0,
+        )
+
+
+@pytest.mark.parametrize(
+    "species",
+    [
+        "PIJE", "PIPO", "PIPOB", "PIPOB2", "PIPOB3", "PIPOP", "PIPOP2",
+        "PIPOS", "PIPOS2", "PIPOW", "PIPOW2", "PIPO_BH",
+    ],
+)
+def test_crcabe_pp_species_ignore_crown_volume_killed(species):
+    """
+    FOFEM PP codes keep the scorch equation even when ``cvk`` is supplied.
+
+    The C++ species table, rather than runtime data presence, determines the
+    PP route. A bud-kill value therefore cannot switch a PP species to PK.
+
+    :param species: FOFEM species code assigned to the PP equation.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    inputs = {
+        "dbh": 30.0,
+        "ht": 20.0,
+        "crown_depth": 8.0,
+        "ckr": 2.0,
+        "scorch_ht": 12.0,
+        "beetles": False,
+    }
+    without_cvk = float(mort_crcabe(species, **inputs))
+    with_cvk = float(mort_crcabe(species, cvk=40.0, **inputs))
+    assert with_cvk == pytest.approx(without_cvk, abs=1e-12)
 
 
 @pytest.mark.parametrize(

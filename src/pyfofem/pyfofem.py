@@ -968,18 +968,18 @@ def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.nda
 
     Available mortality functions:
 
-    +-------------+----------------------------------------------+
-    | Key         | Model                                        |
-    +=============+==============================================+
-    | ``bolchar`` | Bole char model (BOLCHAR; Keyser 2018).      |
-    |             | For broadleaf hardwood species.              |
-    +-------------+----------------------------------------------+
-    | ``crnsch``  | Crown scorch model (CRNSCH).                 |
-    |             | For conifers and general species.            |
-    +-------------+----------------------------------------------+
-    | ``crcabe``  | Cambium kill model (CRCABE; Hood & Lutes     |
-    |             | 2017). For conifer species only.             |
-    +-------------+----------------------------------------------+
+    +-------------+-----------------------------------------------+
+    | Key         | Model                                         |
+    +=============+===============================================+
+    | ``bolchar`` | Bole char model (BOLCHAR; Keyser et al. 2018).|
+    |             | For broadleaf hardwood species.               |
+    +-------------+-----------------------------------------------+
+    | ``crnsch``  | Crown scorch model (CRNSCH).                  |
+    |             | For conifers and general species.             |
+    +-------------+-----------------------------------------------+
+    | ``crcabe``  | Cambium kill model (CRCABE; Hood & Lutes      |
+    |             | 2017). For conifer species only.              |
+    +-------------+-----------------------------------------------+
 
     :param mort_function: Name of the mortality sub-model to use.
         One of ``'bolchar'``, ``'crnsch'``, or ``'crcabe'``

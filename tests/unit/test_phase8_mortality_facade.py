@@ -128,6 +128,21 @@ def test_facade_bolchar_mixed_valid_and_unsupported_species_rows():
     assert result[1] == pytest.approx(run_fofem_mortality('bolchar', _bolchar_params()))
 
 
+def test_facade_crcabe_crown_damage_override_forwards_verbatim():
+    """
+    The facade exposes CRCABE's direct C++-style crown-damage input.
+
+    Forwarding a direct ``crown_damage`` value must produce the exact direct
+    ``mort_crcabe`` result, rather than silently dropping the public option.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    params = _crcabe_params(crown_damage=30.0)
+    facade_value = run_fofem_mortality('crcabe', params)
+    direct_value = mort_crcabe(**params)
+    assert facade_value == pytest.approx(direct_value, abs=1e-12)
+
+
 def test_facade_crcabe_mixed_valid_and_unsupported_species_rows():
     """Phase 8 correction pass item 6: the mixed-validity check must
     also cover ``crcabe`` (not only ``bolchar``) - ``mort_crcabe`` has

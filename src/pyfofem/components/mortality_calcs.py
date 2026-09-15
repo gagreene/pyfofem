@@ -89,11 +89,11 @@ def mort_bolchar(
         - Flowering dogwood – COFL2
         - Blackgum         – NYSY, NYSYB, NYSYC, NYSYD, NYSYT, NYSYU, NYUR2, NYBI
         - Sourwood         – OXAR
-        - White oak        – QUAL, QUALS, QUALS2, QUAL3, QUBI, QUGA4, QUGAG2, QUGAS
+        - White oak        – QUAL, QUALS, QUALS2, QUAL3
         - Scarlet oak      – QUCO2, QUCOC, QUCOT
         - Blackjack oak    – QUMA3, QUMAA2, QUMAA, QUMAM2
-        - Chestnut oak     – QUMI, QUPR4
-        - Black oak        – QUVE, QUVEM, QUKE
+        - Chestnut oak     – QUMO4
+        - Black oak        – QUVE
         - Sassafras        – SAAL5
 
     :param spp: Species code(s) (str, int, or np.ndarray). A single string or
@@ -146,11 +146,11 @@ def mort_bolchar(
     mask_cofl2 = spp == 'COFL2'
     mask_nysy  = np.isin(spp, ['NYSY', 'NYSYB', 'NYSYC', 'NYSYD', 'NYSYT', 'NYSYU', 'NYUR2', 'NYBI'])
     mask_oxar  = spp == 'OXAR'
-    mask_qual  = np.isin(spp, ['QUAL', 'QUALS', 'QUALS2', 'QUAL3', 'QUBI', 'QUGA4', 'QUGAG2', 'QUGAS'])
+    mask_qual  = np.isin(spp, ['QUAL', 'QUALS', 'QUALS2', 'QUAL3'])
     mask_quco2 = np.isin(spp, ['QUCO2', 'QUCOC', 'QUCOT'])
     mask_quma3 = np.isin(spp, ['QUMA3', 'QUMAA2', 'QUMAA', 'QUMAM2'])
     mask_qumo4 = spp == 'QUMO4'
-    mask_quve  = np.isin(spp, ['QUVE', 'QUVEM', 'QUKE'])
+    mask_quve  = spp == 'QUVE'
     mask_saal5 = spp == 'SAAL5'
 
     # FOFEM Eq 100 - Red Maple
@@ -224,6 +224,7 @@ def mort_crcabe(
         beetles: Union[bool, np.ndarray] = False,
         cvk: Optional[Union[float, np.ndarray]] = None,
         tree_code_dict: dict = None,
+        crown_damage: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
     FOFEM cambium kill / post-fire mortality model (CRCABE).
@@ -234,18 +235,20 @@ def mort_crcabe(
     with a printed warning.
 
     Available species:
-        - White fir              – ABCO, ABCOC
-        - Grand/Subalpine fir    – ABGR, ABGRI2, ABGRG, ABGRI, ABGRJ, ABLA, ABLAL
-        - Red fir                – ABMA
+        - White fir              – ABCO, ABCOC, ABLO
+        - Grand/Subalpine fir    – ABGR, ABGRI2, ABGRG, ABGRI, ABGRJ, ABLA, ABLAA,
+          ABLAL
+        - Red fir                – ABMA, ABMAC, ABMAM, ABMAS, ABMAS2
         - Incense Cedar          – CADE27, LIDE
         - Engelmann spruce       – PIEN, PIENE, PIENM, PIENM2
         - Western Larch          – LAOC
-        - Douglas-fir            – PSME, PSMEF, PSMEM
-        - Whitebark/Lodgepole pine – PIAL, PICO, PICOL, PICOL2
+        - Douglas-fir            – PSME, PSMEF, PSMEG, PSMEM
+        - Whitebark/Lodgepole pine – PIAL, PICO, PICOB, PICOB2, PICOC, PICOC2,
+          PICOL, PICOL2, PICOM, PICOM4
         - Sugar pine             – PILA
         - Ponderosa/Jeffrey pine – PIPO, PIPOK, PIPOB, PIPOBK, PIPOB2, PIPOB3,
           PIPOB3K, PIPOP, PIPOPK, PIPOP2, PIPOP2K, PIPOS, PIPOSK, PIPOS2,
-          PIPOS2K, PIPO_BH, PIJE, PIJEK
+          PIPOS2K, PIPOW, PIPOW2, PIPOWK, PIPOW2K, PIPO_BH, PIJE, PIJEK
 
     :param spp: Species code(s) (str, int, or np.ndarray). A single string or
         int may be passed for a single tree. If int, codes are mapped to FOFEM
@@ -262,17 +265,26 @@ def mort_crcabe(
         ``False``. Species-specific ``atk`` factor values are assigned
         internally. Relevant beetle species: Ambrosia, Red turpentine, Mountain
         pine, Douglas-fir beetle, IPS.
-    :param cvk: Percent total crown volume killed by bud kill (%). Used only
-        for Ponderosa/Jeffrey pine; selects the ``PK`` (bud-kill) equation over
-        the ``PP`` (scorch) equation when provided. Scalar or np.ndarray of the
-        same length as ``spp``. Default ``None`` (uses scorch-based equation).
+    :param cvk: Percent total crown volume killed by bud kill (%). Required for
+        species that FOFEM assigns to the ``PK`` (bud-kill) equation; ignored
+        for species assigned to the ``PP`` (scorch) equation. Scalar or
+        np.ndarray of the same length as ``spp``. Default ``None``.
     :param tree_code_dict: Optional dict mapping numeric species codes to FOFEM
         species code strings (e.g., ``{201: 'PIPO'}``).
+    :param crown_damage: Direct C++-style crown damage percent (0â€“100). When
+        supplied, this replaces geometry-derived crown-volume/crown-length
+        scorch for non-PK CRCABE equations. PK species continue to require
+        ``cvk``. Scalar or np.ndarray of the same length as ``spp``. Default
+        ``None`` derives the value from ``scorch_ht``, ``ht``, and
+        ``crown_depth``.
 
     :return: Mortality probability (float in [0, 1], or ``np.nan`` for
         unsupported species). Returns a scalar ``float`` when all primary inputs
         (``spp``, ``dbh``, ``ht``, ``crown_depth``, ``ckr``, ``scorch_ht``) are
         scalars, otherwise a 1D ``np.ndarray`` of the same length as the inputs.
+    :raises ValueError: If a FOFEM ``PK`` species lacks crown-volume-killed
+        input.
+    :raises ValueError: If ``crown_damage`` is non-finite or outside 0â€“100.
     """
     # Detect whether the caller passed scalar inputs
     scalar_input = (_is_scalar(spp) and _is_scalar(dbh) and _is_scalar(ht)
@@ -315,8 +327,20 @@ def mort_crcabe(
     else:
         spp = spp.astype(str)
 
-    # Calculate crown volume scorched (cvs, %) and crown length scorched (cls, %)
-    _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
+    # C++ accepts Crn Dam% directly. Preserve geometry-derived input as the
+    # default convenience path, while allowing callers to provide that field
+    # verbatim for the non-PK equations that consume it.
+    if crown_damage is None:
+        _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
+    else:
+        crown_damage_arr = np.broadcast_to(
+            np.asarray(crown_damage, dtype=float), spp.shape
+        ).copy()
+        if (not np.all(np.isfinite(crown_damage_arr))
+                or np.any((crown_damage_arr < 0.0) | (crown_damage_arr > 100.0))):
+            raise ValueError("crown_damage must be finite and in the range 0 to 100.")
+        cvs = crown_damage_arr
+        cls = crown_damage_arr
 
     # Output array – NaN by default (unsupported species remain NaN)
     Pm = np.full(len(spp), np.nan)
@@ -328,13 +352,18 @@ def mort_crcabe(
     mask_cade = np.isin(spp, ['CADE27', 'LIDE'])
     mask_pien = np.isin(spp, ['PIEN', 'PIENE', 'PIENM', 'PIENM2'])
     mask_laoc = spp == 'LAOC'
-    mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEM'])
+    mask_psme = np.isin(spp, ['PSME', 'PSMEF', 'PSMEG', 'PSMEM'])
     mask_pial = np.isin(spp, ['PIAL', 'PICO', 'PICOB', 'PICOB2', 'PICOC', 'PICOC2', 'PICOL', 'PICOL2', 'PICOM', 'PICOM4'])
     mask_pila = spp == 'PILA'
-    mask_pipo = np.isin(spp, [
-        'PIPO', 'PIPOK', 'PIPOB', 'PIPOBK', 'PIPOB2', 'PIPOB3', 'PIPOB3K',
-        'PIPOP', 'PIPOPK', 'PIPOP2', 'PIPOP2K', 'PIPOS', 'PIPOSK', 'PIPOS2', 'PIPOS2K', 'PIPO_BH',
-        'PIJE', 'PIJEK'
+    # The C++ ``Mort`` assignment selects PP versus PK. It is not selected by
+    # the optional presence of a crown-volume-killed value.
+    mask_pipo_pp = np.isin(spp, [
+        'PIJE', 'PIPO', 'PIPOB', 'PIPOB2', 'PIPOB3', 'PIPOP', 'PIPOP2',
+        'PIPOS', 'PIPOS2', 'PIPOW', 'PIPOW2', 'PIPO_BH',
+    ])
+    mask_pipo_pk = np.isin(spp, [
+        'PIJEK', 'PIPOB3K', 'PIPOBK', 'PIPOK', 'PIPOP2K', 'PIPOPK',
+        'PIPOS2K', 'PIPOSK', 'PIPOWK', 'PIPOW2K',
     ])
 
     # FOFEM Eq WF - White Fir (ambrosia beetle; atk: attacked=1, unattacked=-1)
@@ -392,27 +421,32 @@ def mort_crcabe(
             -(-2.7598 + (np.power(cls[mask_pila], 2) * 0.000642) +
               (np.power(ckr[mask_pila], 3) * 0.0386) + (atk * 0.8485))))
 
-    # FOFEM Eq PP / PK - Ponderosa / Jeffrey Pine
-    # (mountain pine, red turpentine, or ips beetle; atk: attacked=1, unattacked=0)
-    # Uses PK (cvk-based) equation where cvk is provided, otherwise PP (scorch-based).
-    if np.any(mask_pipo):
-        atk = np.where(beetles[mask_pipo], 1, 0).astype(float)
-        cvk_sub = cvk_arr[mask_pipo]
-        has_cvk = ~np.isnan(cvk_sub)
-        _Pm = np.empty(int(np.sum(mask_pipo)))
-        # PP equation (scorch-based)
-        _Pm[~has_cvk] = 1 / (1 + np.exp(
-            -(-4.1914 + (np.power(cvs[mask_pipo][~has_cvk], 2) * 0.000376) +
-              (ckr[mask_pipo][~has_cvk] * 0.5130) + (atk[~has_cvk] * 1.5873))))
-        # PK equation (cvk/bud-kill-based)
-        _Pm[has_cvk] = 1 / (1 + np.exp(
-            -(-3.5729 + (np.power(cvk_sub[has_cvk], 2) * 0.000567) +
-              (ckr[mask_pipo][has_cvk] * 0.4573) + (atk[has_cvk] * 1.6075))))
-        Pm[mask_pipo] = _Pm
+    # FOFEM Eq PP - Ponderosa / Jeffrey pine scorch route.
+    # Mountain pine, red turpentine, or IPS beetle; atk: attacked=1, unattacked=0.
+    if np.any(mask_pipo_pp):
+        atk = np.where(beetles[mask_pipo_pp], 1, 0).astype(float)
+        Pm[mask_pipo_pp] = 1 / (1 + np.exp(
+            -(-4.1914 + (np.power(cvs[mask_pipo_pp], 2) * 0.000376) +
+              (ckr[mask_pipo_pp] * 0.5130) + (atk * 1.5873))))
+
+    # FOFEM Eq PK - Ponderosa / Jeffrey pine bud-kill route.
+    if np.any(mask_pipo_pk):
+        missing_cvk = mask_pipo_pk & np.isnan(cvk_arr)
+        if np.any(missing_cvk):
+            missing_species = np.unique(spp[missing_cvk]).tolist()
+            raise ValueError(
+                "Crown-volume-killed input (cvk) is required for FOFEM PK "
+                f"species: {missing_species}."
+            )
+        atk = np.where(beetles[mask_pipo_pk], 1, 0).astype(float)
+        Pm[mask_pipo_pk] = 1 / (1 + np.exp(
+            -(-3.5729 + (np.power(cvk_arr[mask_pipo_pk], 2) * 0.000567) +
+              (ckr[mask_pipo_pk] * 0.4573) + (atk * 1.6075))))
 
     # Warn about any unsupported species
     mask_supported = (mask_abco | mask_abgr | mask_abma | mask_cade | mask_pien |
-                      mask_laoc | mask_psme | mask_pial | mask_pila | mask_pipo)
+                      mask_laoc | mask_psme | mask_pial | mask_pila | mask_pipo_pp |
+                      mask_pipo_pk)
     mask_unsupported = ~mask_supported
     if np.any(mask_unsupported):
         unsupported = np.unique(spp[mask_unsupported])
