@@ -154,12 +154,72 @@ def test_characterization_module_has_no_raw_pytest_approx_tolerance_literal():
     assert CHARACTERIZATION_REGRESSION_PRECISION_DEGC > 0.0
 
 
+def test_characterization_module_still_asserts_the_formerly_xfailed_behaviour():
+    """Anti-regression guard for F-53's resolution (F-69, 2026-09-16): the
+    real test that replaced the strict xfail
+    (``test_duff_route_produces_positive_surface_forcing_at_realistic_moisture``)
+    must still exist in the characterization module, must not itself be
+    decorated with ``@pytest.mark.xfail`` (which would silently re-hide a
+    regression of the fixed defect), and its body must still assert
+    something about the produced temperature/flux rather than being
+    reduced to a no-op - guards specifically against the exact "silent
+    deletion" failure mode :func:`test_characterization_module_xfail_markers_are_all_strict`'s
+    docstring describes, now that there is no longer an xfail marker for
+    that other test to police."""
+    tree = _parse_characterization_module()
+    target_name = "test_duff_route_produces_positive_surface_forcing_at_realistic_moisture"
+    target = next(
+        (
+            node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == target_name
+        ),
+        None,
+    )
+    assert target is not None, f"{target_name} is missing from the characterization module"
+
+    for decorator in target.decorator_list:
+        func = decorator.func if isinstance(decorator, ast.Call) else decorator
+        is_xfail_marker = (
+            isinstance(func, ast.Attribute)
+            and func.attr == "xfail"
+            and isinstance(func.value, ast.Attribute)
+            and func.value.attr == "mark"
+            and isinstance(func.value.value, ast.Name)
+            and func.value.value.id == "pytest"
+        )
+        assert not is_xfail_marker, (
+            f"{target_name} must not be re-decorated with @pytest.mark.xfail "
+            "-- that would silently re-hide a regression of the F-53 fix"
+        )
+
+    assert_statements = [
+        node for node in ast.walk(target) if isinstance(node, ast.Assert)
+    ]
+    assert len(assert_statements) >= 1, (
+        f"{target_name} has no assert statements -- it was reduced to a no-op"
+    )
+
+
 def test_characterization_module_xfail_markers_are_all_strict():
     """Every ``@pytest.mark.xfail(...)`` decorator in the characterization
     module must set ``strict=True`` - a non-strict xfail silently keeps
     passing (with no signal) once the underlying defect is fixed, defeating
-    the purpose of pinning DESIRED behaviour that should fail until F-53 is
-    resolved."""
+    the purpose of pinning DESIRED behaviour that should fail until a
+    defect is resolved.
+
+    F-53's own desired-behaviour pin was originally exactly such a strict
+    xfail (``test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture``);
+    it was converted to a real, genuinely passing test
+    (``test_duff_route_produces_positive_surface_forcing_at_realistic_moisture``)
+    by the Campbell duff-forcing correction pass (F-69, 2026-09-16) once the
+    underlying defect was actually fixed - this is the CORRECT outcome of
+    an xfail's lifecycle, not a silent-deletion regression, so this module
+    no longer requires at least one xfail marker to exist (see
+    :func:`test_characterization_module_still_asserts_the_formerly_xfailed_behaviour`
+    for the replacement anti-regression guard). The strict-marker rule
+    above still applies to any xfail this module might gain in the
+    future."""
     tree = _parse_characterization_module()
     offending = []
     for node in ast.walk(tree):
@@ -192,20 +252,10 @@ def test_characterization_module_xfail_markers_are_all_strict():
                     f"{node.name} (line {node.lineno}): xfail marker is not strict=True"
                 )
     assert offending == [], offending
-    # A future edit that deletes the xfail entirely (rather than fixing the
-    # underlying defect) would make this assertion trivially/vacuously true
-    # with an empty `offending` list -- guard against that by requiring at
-    # least one real xfail marker to have been found and checked.
-    xfail_marker_count = sum(
-        1
-        for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        for decorator in node.decorator_list
-        if isinstance(decorator, ast.Call)
-        and isinstance(decorator.func, ast.Attribute)
-        and decorator.func.attr == "xfail"
-    )
-    assert xfail_marker_count >= 1, (
-        "expected at least one @pytest.mark.xfail marker in the "
-        "characterization module (F-53's desired-behaviour pin) - none found"
-    )
+    # This is deliberately NOT guarded by a "must find at least one xfail
+    # marker" assertion (unlike an earlier version of this test): F-53's own
+    # xfail was correctly converted to a real passing test once the defect
+    # was fixed (see the docstring above), so zero xfail markers in this
+    # module is the CURRENT correct state, not evidence of a silent
+    # deletion. If this module gains a new xfail in the future, the
+    # strict=True check above still applies to it.

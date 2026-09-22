@@ -4,6 +4,67 @@
 test_phase5_soil_campbell_characterization.py - Executed C++-vs-Python
 comparisons for ``soil_heat_campbell`` (``src/pyfofem/components/soil_heating.py``).
 
+**SUPERSEDED 2026-09-18 (F-70 narrow numerical-compatibility pass, third
+round).** Every "F-52's conclusion is UNCHANGED" / "class (c)
+characterization, never parity" / "structurally different models"
+statement below (this note's own paragraph, the "Assertion class"
+paragraph, and every per-scenario dict's own historical note) is now
+HISTORICAL. F-70 found and fixed a real, isolated, directly-evidenced
+transcription error: Python's ``_SOIL_FAMILY_DEFAULTS`` divided
+``bulk_density``/``particle_density`` by 1000 ("g/m^3 -> kg/m^3, for
+this module's own SI convention"), which is harmless everywhere ``bd``/
+``pd`` are used as the ratio ``xs = bd/pd``, but silently corrupted the
+ONE place they are used as an ABSOLUTE value: ``_soiltemp_step``'s own
+``cp[i] = v[i]*(0.87*bd + 4.18e6*wn[i])/dt`` heat-capacity term -- see
+``gate0/04-findings.md`` F-70 for the live-C++-diagnostic evidence
+(measured pinned ``cp[1]`` for the dry non-duff scenario's first Newton
+sub-iteration: 639.550, vs the pre-fix-derived 105.035). With that fixed,
+Python's coupled solver (the F-70 first-round port of C++'s real
+``soiltemp_step``, NOT the old heat-only ``_campbell_rhs``/``solve_ivp``
+model F-52 originally compared) reproduces the pinned C++ execution to
+well under 0.001 degC max |diff|, pooled over all 14 layers and every
+recorded timestep, for every one of the 11 committed BR-SOI-DUFF/
+BR-SOI-NODUFF scenarios (all 5 soil families) -- see
+``_MEASURED_LANE_DIVERGENCE``/``_MEASURED_DUFF_DIVERGENCE``/
+``_MEASURED_FIELD_DIVERGENCE``'s own re-measured values. Every
+comparison in this module is therefore now genuine class (c) PARITY
+evidence, not characterization of an accepted structural difference --
+``soil_campbell_p5.duff``/``nonduff`` in ``tolerance_policy.json`` were
+updated from ``"unverified"`` to ``"verified"`` accordingly (see that
+file's own dated note). The values pinned below were re-measured
+against the golden's own PRECISE ``_field.csv`` data, not the
+``_summary``'s integer-truncated ``lay0X_max_temp_c`` columns (C++'s own
+``d_SO.ir_Temp[i]`` is declared ``int`` -- comparing floats against that
+column produces a spurious +-1 degC "residual" that is pure rounding
+noise, not model disagreement, once the real divergence shrinks below
+it).
+
+HISTORICAL (2026-09-16 Campbell duff-forcing correction pass, F-53 / new
+finding F-69). Everything below this note that describes F-53 as an
+unresolved, currently-failing defect ("current, confirmed-defective
+behaviour", "strict xfail", "flat start_temp output") is now HISTORICAL:
+``_duff_flux_and_duration()`` was replaced by ``_duff_burn_profile()``
+(ported directly from C++'s ``DuffBurn()``/``SD_HeatAdj()``,
+``bur_brn.cpp:1950-1986``/``fof_sd.cpp:98-129,294-313``), which converts
+``duff_moisture`` from the documented whole-percent convention to C++'s
+ratio convention exactly once, uses ``duff_load`` as a real required
+input, and evaluates the duff-to-soil heat-transmission fraction at a
+TIME-VARYING remaining duff depth instead of a static pre-fire value
+(finding F-69: the duff route's own missing load-dependence and static-
+depth defects, distinct from F-53's unit-conversion defect, found and
+fixed in the same pass). The duff route no longer produces a flat
+``start_temp`` line for any of the 6 committed BR-SOI-DUFF scenarios. The
+former strict-xfail pin
+(``test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture``)
+is now a real passing test
+(``test_duff_route_produces_positive_surface_forcing_at_realistic_moisture``),
+and ``_MEASURED_DUFF_DIVERGENCE`` was re-measured against the real,
+now-nonzero Python output (see that dict's own note for the new values).
+**F-52's conclusion is UNCHANGED**: this pass corrects only the duff
+SURFACE FORCING, not the underlying Campbell heat-conduction solver, so
+the two implementations remain structurally different models and this
+module's comparisons remain class (c) characterization, never parity.
+
 **Assertion class: (c) cross-implementation CHARACTERIZATION, explicitly NOT
 parity.** F-52 (``gate0/04-findings.md``) established that Python's
 ``soil_heat_campbell()`` and C++'s ``soiltemp_step`` (driven by
@@ -202,15 +263,15 @@ _HS_SERIES = [max(0.0, 10.0 - 0.5 * i) for i in range(_N_STEPS)]
 #: (F-52) are listed - ``extrap_water``/``cop_power`` are deliberately
 #: omitted, since aligning them would align nothing Python reads.
 _CPP_PRIMARY_INPUTS: Dict[str, Dict[str, float]] = {
-    "Fine-Silt": dict(bulk_density=1300.0, particle_density=2350.0,
+    "Fine-Silt": dict(bulk_density=1.3e6, particle_density=2.35e6,
                        k_mineral=2.31, vries_shape=0.071),
-    "Loamy-Skeletal": dict(bulk_density=800.0, particle_density=2130.0,
+    "Loamy-Skeletal": dict(bulk_density=0.8e6, particle_density=2.13e6,
                             k_mineral=1.03, vries_shape=0.13),
-    "Fine": dict(bulk_density=1150.0, particle_density=2350.0,
+    "Fine": dict(bulk_density=1.15e6, particle_density=2.35e6,
                  k_mineral=2.21, vries_shape=0.084),
-    "Coarse-Silt": dict(bulk_density=1230.0, particle_density=2350.0,
+    "Coarse-Silt": dict(bulk_density=1.23e6, particle_density=2.35e6,
                          k_mineral=2.53, vries_shape=0.103),
-    "Coarse-Loamy": dict(bulk_density=1300.0, particle_density=2350.0,
+    "Coarse-Loamy": dict(bulk_density=1.3e6, particle_density=2.35e6,
                           k_mineral=2.57, vries_shape=0.106),
 }
 
@@ -226,39 +287,63 @@ _NODUFF_FAMILY_CASES = (
     ("SOI-NOD-05", "Coarse-Loamy", "coarse-loamy", 12.0),
 )
 
-#: Measured F-52 lane-A/B evidence (max|diff|, mean|diff|, degC), pinned as
-#: a regression - see ``gate0/04-findings.md`` F-52 for the full table and
-#: derivation. Re-measure and update these (do not loosen a tolerance)
-#: if either implementation's physics changes.
+#: RE-MEASURED 2026-09-18 (F-70 narrow numerical-compatibility pass, third
+#: round). F-52's "materially different implementations" conclusion is
+#: SUPERSEDED (see the module docstring's RESOLVED note and
+#: ``gate0/04-findings.md`` F-52/F-70): a real, isolated
+#: ``bulk_density``/``particle_density`` unit-conversion transcription
+#: error was found and fixed (``_soiltemp_step``'s ``cp[i]`` heat-capacity
+#: term used ``bd`` as an absolute value, not a ratio, so the prior
+#: dict's /1000 "SI conversion" silently corrupted every node's heat
+#: capacity). These values are now genuine PARITY evidence, not
+#: characterization of a structural difference: measured against the
+#: golden's own precise ``_field.csv`` per-timestep/per-layer data (the
+#: same interpolation methodology
+#: ``test_coarse_silt_full_field_overlap_divergence_matches_measured_evidence``
+#: already used), not the ``_summary``'s integer-truncated
+#: ``lay0X_max_temp_c`` columns (C++'s own ``d_SO.ir_Temp[i]`` is
+#: declared ``int`` -- comparing against it caused a spurious ~0.5-1.3
+#: degC "residual" that was pure integer-rounding noise, not a remaining
+#: model difference; confirmed directly by recomputing against the
+#: precise field data instead). Lane A (Python defaults) and lane B
+#: (explicit override to the same, now-identical pinned C++ literals)
+#: are bit-for-bit identical for every family, confirmed by direct
+#: measurement -- overriding with an already-matching value is a no-op.
+#: Re-measure and update these (do not loosen the precision constant) if
+#: either implementation's physics changes.
 _MEASURED_LANE_DIVERGENCE = {
-    "SOI-NOD-01": dict(lane_a=(49.064, 9.493), lane_b=(31.301, 7.397)),
-    "SOI-NOD-02": dict(lane_a=(27.595, 5.756), lane_b=(54.605, 8.878)),
-    "SOI-NOD-03": dict(lane_a=(47.722, 8.483), lane_b=(33.602, 7.205)),
-    "SOI-NOD-04": dict(lane_a=(16.119, 5.769), lane_b=(16.119, 5.769)),
-    "SOI-NOD-05": dict(lane_a=(31.891, 6.749), lane_b=(26.029, 6.516)),
+    "SOI-NOD-01": dict(lane_a=(0.000160, 0.000007), lane_b=(0.000160, 0.000007)),
+    "SOI-NOD-02": dict(lane_a=(0.000019, 0.000003), lane_b=(0.000019, 0.000003)),
+    "SOI-NOD-03": dict(lane_a=(0.000024, 0.000002), lane_b=(0.000024, 0.000002)),
+    "SOI-NOD-04": dict(lane_a=(0.000375, 0.000028), lane_b=(0.000375, 0.000028)),
+    "SOI-NOD-05": dict(lane_a=(0.000011, 0.000001), lane_b=(0.000011, 0.000001)),
 }
 
-#: Measured F-52 full-field evidence for SOI-NOD-04 (Coarse-Silt), a
-#: handful of representative layers - see F-52 for the complete 14-layer
-#: table and the interpolation method. Comparison timing uses the golden's
-#: real, harness-emitted ``time_s`` column (``time_index * SHA_GetInc()``,
-#: Phase 5 correction pass item-2) - no constant C++ timestep is assumed.
+#: RE-MEASURED 2026-09-18 (F-70 third round, same fix as above). Full-field
+#: evidence for SOI-NOD-04 (Coarse-Silt), a handful of representative
+#: layers -- see F-70 for the complete write-up. Comparison timing uses
+#: the golden's real, harness-emitted ``time_s`` column exactly as
+#: before (Phase 5 correction pass item-2) -- only the compared VALUES
+#: changed, not the methodology.
 _MEASURED_FIELD_DIVERGENCE = {
-    0: dict(max=22.354, mean=4.029),
-    4: dict(max=7.679, mean=4.415),
-    8: dict(max=3.983, mean=3.009),
-    13: dict(max=2.475, mean=1.124),
+    0: dict(max=0.000234, mean=0.000050),
+    4: dict(max=0.000194, mean=0.000038),
+    8: dict(max=0.000043, mean=0.000007),
+    13: dict(max=0.000000, mean=0.000000),
 }
 
 #: (case_id, C++ soil_type, Python soil_family, duff_dep_pre_in,
 #: soil_moist_pct, duff_load_tac, duff_consumed_pct, duff_moist_pct) for all
 #: 6 BR-SOI-DUFF scenarios, transcribed verbatim from
 #: ``_phase5_contract._DUFF_SCENARIOS``. ``duff_dep_pos_in`` (post-fire
-#: depth) has no Python counterpart -- ``soil_heat_campbell``'s duff route
-#: takes a single ``duff_depth`` (used only to derive the surface-heat
-#: proportion ``h``, ``_duff_flux_and_duration``), mapped here from the
-#: PRE-fire depth (``duff_dep_pre_in``), the only one of the two C++ columns
-#: with a like-for-like Python parameter.
+#: depth) has no direct Python INPUT counterpart -- ``soil_heat_campbell``'s
+#: duff route takes a single ``duff_depth`` (the PRE-fire depth), mapped
+#: here from ``duff_dep_pre_in``, the only one of the two C++ columns with
+#: a like-for-like Python parameter. As of the Campbell duff-forcing
+#: correction pass, Python now DERIVES its own post-fire depth internally
+#: (``_duff_burn_profile``'s ``post_depth_cm``, from ``pct_consumed``) and
+#: evaluates the surface-heat transmission fraction at the time-varying
+#: remaining depth between the two, rather than at a single static value.
 _DUFF_SCENARIO_CASES = (
     ("SOI-DUF-01", "Fine-Silt", "fine-silty", 2.0, 10.0, 5.0, 50.0, 60.0),
     ("SOI-DUF-02", "Loamy-Skeletal", "loamy-skeletal", 3.0, 20.0, 8.0, 40.0, 70.0),
@@ -268,27 +353,26 @@ _DUFF_SCENARIO_CASES = (
     ("SOI-DUF-06", "Coarse-Silt", "coarse-silty", 2.0, 5.0, 5.0, 97.5, 45.0),
 )
 
-#: CURRENT, CONFIRMED-DEFECTIVE Python behaviour (F-53), NOT a scientific
-#: characterization of two working implementations the way the non-duff
-#: lane divergence above is. Measured max|diff|/mean|diff| (degC, over all
-#: 14 layers) between the golden's real C++ duff heating and Python's
-#: current flat-``start_temp`` output, which F-53 confirms is a
-#: factor-of-100 unit-conversion defect (Frandsen 1991 + pinned
-#: ``fof_sd.cpp:100`` both confirm the equation requires ``duff_moisture``
-#: as a ratio, e.g. ``0.45``, not the documented whole percent ``45.0``
-#: Python actually receives and applies unconverted). These pinned values
-#: MUST be re-measured (not merely re-tolerated) once F-53's production fix
-#: lands -- a fix changes Python's underlying duff-route output from a flat
-#: line to real computed values, so today's diffs become meaningless. See
-#: also ``test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture``,
-#: the strict-xfail pin of the DESIRED (currently failing) behaviour.
+#: RE-MEASURED 2026-09-18 (F-70 narrow numerical-compatibility pass, third
+#: round). F-52's structural-model-difference conclusion is SUPERSEDED
+#: (see the module docstring's RESOLVED note and ``gate0/04-findings.md``
+#: F-52/F-70): the SAME isolated ``bulk_density``/``particle_density``
+#: unit-conversion fix described above for the non-duff route applies
+#: identically to the duff route (both call the same
+#: ``_soiltemp_step``). Measured against the golden's own precise
+#: ``_field.csv`` data (not ``_summary``'s integer-truncated columns --
+#: see ``_MEASURED_LANE_DIVERGENCE``'s own note for why that matters).
+#: Lane A and lane B are bit-for-bit identical for every family (an
+#: override to an already-matching value is a no-op). These values MUST
+#: be re-measured again (not merely re-tolerated) if either
+#: implementation's physics changes further.
 _MEASURED_DUFF_DIVERGENCE = {
-    "SOI-DUF-01": dict(max=5.0, mean=0.571),
-    "SOI-DUF-02": dict(max=3.0, mean=0.571),
-    "SOI-DUF-03": dict(max=14.0, mean=1.714),
-    "SOI-DUF-04": dict(max=13.0, mean=1.214),
-    "SOI-DUF-05": dict(max=1.0, mean=0.5),
-    "SOI-DUF-06": dict(max=150.0, mean=19.143),
+    "SOI-DUF-01": dict(lane_a=(0.000006, 0.000001), lane_b=(0.000006, 0.000001)),
+    "SOI-DUF-02": dict(lane_a=(0.000009, 0.000001), lane_b=(0.000009, 0.000001)),
+    "SOI-DUF-03": dict(lane_a=(0.000010, 0.000001), lane_b=(0.000010, 0.000001)),
+    "SOI-DUF-04": dict(lane_a=(0.000009, 0.000002), lane_b=(0.000009, 0.000002)),
+    "SOI-DUF-05": dict(lane_a=(0.000009, 0.000001), lane_b=(0.000009, 0.000001)),
+    "SOI-DUF-06": dict(lane_a=(0.000129, 0.000019), lane_b=(0.000129, 0.000019)),
 }
 
 
@@ -316,26 +400,28 @@ def _golden_summary_row(case_id: str) -> Dict[str, str]:
                 if r["case_id"] == case_id)
 
 
-def _python_duff_max_temps(family: str, soil_moist_pct: float,
-                            duff_dep_pre_in: float, duff_load_tac: float,
-                            duff_consumed_pct: float, duff_moist_pct: float,
-                            overrides: Dict[str, float] = None) -> List[float]:
+def _python_duff_df(family: str, soil_moist_pct: float,
+                     duff_dep_pre_in: float, duff_load_tac: float,
+                     duff_consumed_pct: float, duff_moist_pct: float,
+                     overrides: Dict[str, float] = None):
     """
     Run ``soil_heat_campbell('duff', ...)`` with the reconstructed BR-SOI-DUFF
-    scenario inputs and return the per-column maximum over the whole run.
+    scenario inputs and return the raw output DataFrame.
 
     :param family: One of ``_SOIL_FAMILY_DEFAULTS``'s keys.
     :param soil_moist_pct: Soil moisture, percent (golden's ``soil_moist_pct``).
     :param duff_dep_pre_in: Pre-fire duff depth (in), mapped to Python's
         ``duff_depth``.
     :param duff_load_tac: Duff load (T/ac), mapped to Python's ``duff_load``
-        (accepted but not consumed by ``_duff_flux_and_duration``).
+        (a required, genuinely consumed input as of the Campbell
+        duff-forcing correction pass -- see ``_duff_burn_profile``).
     :param duff_consumed_pct: Duff consumed (percent), mapped to Python's
         ``pct_consumed``.
     :param duff_moist_pct: Duff moisture (percent), mapped to Python's
         ``duff_moisture``.
     :param overrides: Optional soil-property overrides (lane B alignment).
-    :returns: 14 max-temperature values (degC), Surface then 13 depths.
+    :returns: The ``soil_heat_campbell`` output DataFrame (index: minutes,
+        14 depth columns).
     """
     duff_params = dict(duff_load=duff_load_tac, duff_depth=duff_dep_pre_in,
                         duff_moisture=duff_moist_pct, pct_consumed=duff_consumed_pct)
@@ -343,41 +429,112 @@ def _python_duff_max_temps(family: str, soil_moist_pct: float,
                         start_temp=_START_TEMP)
     if overrides:
         soil_params.update(overrides)
-    df = soil_heat_campbell("duff", duff_params, soil_params, _DEPTHS)
+    return soil_heat_campbell("duff", duff_params, soil_params, _DEPTHS)
+
+
+def _python_duff_max_temps(family: str, soil_moist_pct: float,
+                            duff_dep_pre_in: float, duff_load_tac: float,
+                            duff_consumed_pct: float, duff_moist_pct: float,
+                            overrides: Dict[str, float] = None) -> List[float]:
+    """
+    Same scenario as :func:`_python_duff_df`, reduced to the per-column
+    maximum over the whole run.
+
+    :returns: 14 max-temperature values (degC), Surface then 13 depths.
+    """
+    df = _python_duff_df(family, soil_moist_pct, duff_dep_pre_in, duff_load_tac,
+                          duff_consumed_pct, duff_moist_pct, overrides)
     return df.max().to_numpy().tolist()
 
 
-def _python_max_temps(family: str, soil_moist_pct: float,
-                       overrides: Dict[str, float] = None) -> List[float]:
+def _python_nonduff_df(family: str, soil_moist_pct: float,
+                        overrides: Dict[str, float] = None):
     """
     Run ``soil_heat_campbell('non_duff', ...)`` with the reconstructed
-    scenario inputs and return the per-column maximum over the whole run.
+    scenario inputs and return the raw output DataFrame.
 
     :param family: One of ``_SOIL_FAMILY_DEFAULTS``'s keys.
     :param soil_moist_pct: Soil moisture, percent (golden's ``soil_moist_pct``).
     :param overrides: Optional soil-property overrides (lane B alignment).
-    :returns: 14 max-temperature values (degC), Surface then 13 depths.
+    :returns: The ``soil_heat_campbell`` output DataFrame (index: minutes,
+        14 depth columns).
     """
     soil_params = dict(soil_family=family, start_water=soil_moist_pct / 100.0,
                         start_temp=_START_TEMP)
     if overrides:
         soil_params.update(overrides)
-    df = soil_heat_campbell(
+    return soil_heat_campbell(
         "non_duff", {}, soil_params, _DEPTHS,
         burnup_intensity=_WL_SERIES, burnup_intensity_hs=_HS_SERIES,
         burnup_times=_TIMES_S,
     )
-    return df.max().to_numpy().tolist()
+
+
+def _python_max_temps(family: str, soil_moist_pct: float,
+                       overrides: Dict[str, float] = None) -> List[float]:
+    """
+    Same scenario as :func:`_python_nonduff_df`, reduced to the per-column
+    maximum over the whole run.
+
+    :returns: 14 max-temperature values (degC), Surface then 13 depths.
+    """
+    return _python_nonduff_df(family, soil_moist_pct, overrides).max().to_numpy().tolist()
+
+
+def _field_max_mean_diff(case_id: str, df) -> tuple:
+    """
+    Compare *df* (a ``soil_heat_campbell`` output DataFrame) against the
+    golden's own precise ``_field.csv`` per-timestep/per-layer data for
+    *case_id*, via linear interpolation of Python's own time grid onto
+    the golden's real, harness-emitted ``time_s`` column (Phase 5
+    correction pass item-2 -- no constant C++ timestep is assumed),
+    restricted to the time window Python's own fixed-duration policy
+    actually covers. This is the SAME precise-data methodology
+    :func:`test_coarse_silt_full_field_overlap_divergence_matches_measured_evidence`
+    uses, generalized to any scenario/family -- deliberately NOT the
+    ``_summary``'s ``lay0X_max_temp_c`` columns, which are declared
+    ``int`` in the pinned C++ ``d_SO`` struct and therefore carry an
+    inherent +-1 degC rounding floor unrelated to model agreement.
+
+    :param case_id: Golden scenario identifier (e.g. ``"SOI-NOD-04"``).
+    :param df: Python's output DataFrame for the same scenario.
+    :returns: ``(max_abs_diff, mean_abs_diff)`` (degC), pooled over all
+        14 layers within the overlapping time window.
+    """
+    field_rows = [r for r in golden_rows("soil_campbell", "_field")
+                  if r["case_id"] == case_id]
+    cpp_t = np.array([float(r["time_s"]) for r in field_rows])
+    cpp_lay = np.array([int(r["layer_index"]) for r in field_rows])
+    cpp_temp = np.array([float(r["temp_c"]) for r in field_rows])
+
+    py_t = df.index.to_numpy() * 60.0
+    overlap_end = py_t.max()
+
+    max_diffs = []
+    mean_diffs = []
+    for layer in range(14):
+        mask = cpp_lay == layer
+        t_l, temp_l = cpp_t[mask], cpp_temp[mask]
+        keep = t_l <= overlap_end
+        t_l, temp_l = t_l[keep], temp_l[keep]
+        if t_l.size == 0:
+            continue
+        py_interp = np.interp(t_l, py_t, df.iloc[:, layer].to_numpy())
+        diff = np.abs(py_interp - temp_l)
+        max_diffs.append(float(diff.max()))
+        mean_diffs.append(float(diff.mean()))
+    return max(max_diffs), float(np.mean(mean_diffs))
 
 
 def test_coarse_silt_full_field_overlap_divergence_matches_measured_evidence():
-    """Class (c). Full time x depth comparison for SOI-NOD-04 (Coarse-Silt),
-    over the window Python's fixed-duration policy actually covers, pins
-    F-52's measured per-layer max/mean |diff| (degC) via linear
-    interpolation of Python's 30 s grid onto the golden's own real
-    ``time_s`` column (Phase 5 correction pass item-2 - executable
-    evidence, not an assumed step). This is a regression pin of a
-    documented divergence, not a parity assertion."""
+    """Class (c), now genuine PARITY evidence (F-70 third round -- see
+    ``_MEASURED_FIELD_DIVERGENCE``'s own note). Full time x depth
+    comparison for SOI-NOD-04 (Coarse-Silt), over the window Python's
+    own fixed-duration policy actually covers, pins the measured
+    per-layer max/mean |diff| (degC) via linear interpolation of
+    Python's own time grid onto the golden's real ``time_s`` column
+    (Phase 5 correction pass item-2 - executable evidence, not an
+    assumed step)."""
     case_id = "SOI-NOD-04"
     field_rows = [r for r in golden_rows("soil_campbell", "_field")
                   if r["case_id"] == case_id]
@@ -414,101 +571,103 @@ def test_coarse_silt_full_field_overlap_divergence_matches_measured_evidence():
 )
 def test_duff_route_max_temp_divergence_matches_measured_evidence(
         case_id, soil_type, family, dep_pre, soil_moist_pct, load, consumed, moist):
-    """Class (c). For each of the 6 BR-SOI-DUFF scenarios, compares Python's
-    per-layer maximum temperature (lane A: Python defaults; lane B: Python
-    with bulk_density/particle_density/k_mineral/vries_shape aligned to the
-    pinned C++ table) against the golden's own ``lay0X_max_temp_c`` columns,
-    and pins the measured max/mean |diff| (see this module's docstring and
-    ``_MEASURED_DUFF_DIVERGENCE``). Lane A and lane B are identical for
-    every scenario here - not a Coarse-Silt-only coincidence the way it is
-    for the non-duff comparison - because Python's current duff-flux
-    equation already computes exactly zero surface heat flux at every one
-    of these scenarios' moisture values (see
-    ``test_duff_route_produces_zero_surface_flux_at_the_committed_scenario_moistures``
-    and F-53), so the family-property override changes nothing Python's
-    output actually depends on for this route."""
-    golden_max = np.array(_golden_max_temps(case_id))
+    """Class (c), now genuine PARITY evidence (F-70 third round -- see
+    ``_MEASURED_DUFF_DIVERGENCE``'s own note). For each of the 6
+    BR-SOI-DUFF scenarios, compares Python's per-timestep/per-layer
+    temperature (lane A: Python defaults; lane B: Python with
+    bulk_density/particle_density/k_mineral/vries_shape explicitly
+    overridden to the same, now-identical pinned C++ literals) against
+    the golden's own precise ``_field.csv`` data (:func:`_field_max_mean_diff`
+    -- NOT the ``_summary``'s integer-truncated ``lay0X_max_temp_c``
+    columns), and pins the measured max/mean |diff|. Lane A and lane B
+    are bit-for-bit identical for every family now (confirmed directly:
+    overriding with an already-matching value is a no-op)."""
     expected = _MEASURED_DUFF_DIVERGENCE[case_id]
 
-    py_a = np.array(_python_duff_max_temps(family, soil_moist_pct, dep_pre,
-                                            load, consumed, moist))
-    diff_a = np.abs(py_a - golden_max)
-    assert np.isfinite(diff_a).all()
-    assert float(diff_a.max()) == pytest.approx(expected["max"], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
-    assert float(diff_a.mean()) == pytest.approx(expected["mean"], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    df_a = _python_duff_df(family, soil_moist_pct, dep_pre, load, consumed, moist)
+    max_a, mean_a = _field_max_mean_diff(case_id, df_a)
+    assert np.isfinite([max_a, mean_a]).all()
+    assert max_a == pytest.approx(expected["lane_a"][0], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    assert mean_a == pytest.approx(expected["lane_a"][1], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
 
-    py_b = np.array(_python_duff_max_temps(family, soil_moist_pct, dep_pre,
-                                            load, consumed, moist,
-                                            overrides=_CPP_PRIMARY_INPUTS[soil_type]))
-    diff_b = np.abs(py_b - golden_max)
-    assert np.isfinite(diff_b).all()
-    assert float(diff_b.max()) == pytest.approx(expected["max"], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
-    assert float(diff_b.mean()) == pytest.approx(expected["mean"], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    df_b = _python_duff_df(family, soil_moist_pct, dep_pre, load, consumed, moist,
+                            overrides=_CPP_PRIMARY_INPUTS[soil_type])
+    max_b, mean_b = _field_max_mean_diff(case_id, df_b)
+    assert np.isfinite([max_b, mean_b]).all()
+    assert max_b == pytest.approx(expected["lane_b"][0], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    assert mean_b == pytest.approx(expected["lane_b"][1], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
 
 
-def test_duff_route_produces_zero_surface_flux_at_the_committed_scenario_moistures():
-    """Class (c), oracle-independent structural observation, not a parity
-    claim, and NOT a claim about "ignition" (``soil_heat_campbell()`` has no
-    ignition/no-ignition decision of its own - only C++'s ``brn_ignited``
-    input models that). Python receives every committed BR-SOI-DUFF
-    scenario's ``duff_moist_pct`` value (45-70%) UNCHANGED, exactly as
-    documented. Its current equation
-    (``_duff_flux_and_duration``: ``i_d = max(7.5e-4 - 2.7e-4*duff_moisture,
-    0.0)``) reaches exactly 0 once ``duff_moisture`` exceeds
-    ``7.5e-4/2.7e-4 = 2.7778...`` -- **~2.78%, not ~27.8%** (F-53 corrects a
-    base-10 arithmetic error made when this test was first written) -- so
-    EVERY value in 45-70% already computes zero. ``soil_heat_campbell('duff',
-    ...)`` therefore produces a flat ``start_temp`` output for every one of
-    these 6 scenarios, confirmed by direct execution, because its computed
-    surface flux is zero, not because of any modelled ignition concept.
-    This pins real, current Python behaviour - a CONFIRMED defect (F-53:
-    Frandsen 1991 and the pinned C++'s own ``fof_sd.cpp:100`` conversion
-    both independently confirm the equation requires a ratio, not the
-    documented whole percent Python actually receives and applies
-    unconverted) - not merely a claim about which implementation's
-    threshold is "correct" or scientifically intended. See
-    ``test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture``
-    for the strict-xfail pin of the desired behaviour this defect
-    contradicts."""
+def test_duff_route_produces_nonzero_surface_flux_at_the_committed_scenario_moistures():
+    """RESOLVED 2026-09-16 (F-53 / F-69, Campbell duff-forcing correction
+    pass). Class (c), oracle-independent structural observation, not a
+    parity claim, and NOT a claim about "ignition"
+    (``soil_heat_campbell()`` has no ignition/no-ignition decision of its
+    own - only C++'s ``brn_ignited`` input models that). Python receives
+    every committed BR-SOI-DUFF scenario's ``duff_moist_pct`` value
+    (45-70%) UNCHANGED, exactly as documented, and ``_duff_burn_profile()``
+    now converts it to C++'s ratio convention before evaluating C++'s own
+    intensity formula, so every one of these 6 scenarios now computes
+    genuinely positive, time-varying surface flux and a non-flat output -
+    confirmed directly by execution (every scenario's max exceeds
+    ``start_temp`` by at least ~2.7 degC; SOI-DUF-03 exceeds it by ~45.5
+    degC).
+
+    HISTORICAL: this test was previously named
+    ``test_duff_route_produces_zero_surface_flux_at_the_committed_scenario_moistures``
+    and asserted the OPPOSITE - a flat ``start_temp`` output for all 6
+    scenarios - as CURRENT, CONFIRMED-DEFECTIVE behaviour (F-53:
+    ``_duff_flux_and_duration()``'s ``i_d = max(7.5e-4 -
+    2.7e-4*duff_moisture, 0.0)`` reached exactly 0 once ``duff_moisture``
+    exceeded ``7.5e-4/2.7e-4 = 2.7778...`` -- ~2.78% on the documented
+    percent scale, so every value in the committed 45-70% range clamped to
+    zero). That defect is now fixed; see
+    ``test_duff_route_produces_positive_surface_forcing_at_realistic_moisture``
+    (formerly a strict ``xfail``) for the single-scenario desired-behaviour
+    pin this test's own fix made pass."""
     for case_id, _soil_type, family, dep_pre, soil_moist_pct, load, consumed, moist in _DUFF_SCENARIO_CASES:
         py_max = np.array(_python_duff_max_temps(family, soil_moist_pct, dep_pre,
                                                    load, consumed, moist))
-        assert py_max == pytest.approx(_START_TEMP), case_id
+        assert np.isfinite(py_max).all(), case_id
+        # At least one layer's max must genuinely DEVIATE from
+        # start_temp (either direction) -- proving nonzero forcing
+        # actually reaches the profile. Requiring every layer to
+        # individually EXCEED start_temp is no longer valid post-F-70-fix:
+        # some scenarios (weaker forcing / wetter soil, e.g. SOI-DUF-02)
+        # now correctly show the surface layer's reported (extrapolated)
+        # temperature dip transiently BELOW start_temp before recovering
+        # -- confirmed to match the live pinned C++ diagnostic exactly
+        # for this same scenario (see gate0/04-findings.md F-70's
+        # "stable-duff" trace), not a residual Python defect.
+        assert np.abs(py_max - _START_TEMP).max() > 0.05, case_id
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-53 (gate0/04-findings.md): _duff_flux_and_duration() never "
-        "converts the documented whole-percent duff_moisture input to the "
-        "ratio Frandsen (1991)/pinned C++ (fof_sd.cpp:100, "
-        "f_DufMoi/100.0) require, so i_d clamps to zero above ~2.78% and "
-        "the duff route computes zero surface flux for every realistic "
-        "input. No production fix has been made; this pin fails until "
-        "one lands."
-    ),
-)
-def test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture():
-    """DESIRED-behaviour pin (F-53), explicitly NOT class (c) current-
-    behaviour characterization -- the only test in this module asserting
-    what SHOULD happen rather than what currently does. A realistic,
+def test_duff_route_produces_positive_surface_forcing_at_realistic_moisture():
+    """RESOLVED 2026-09-16 (F-53 / F-69, Campbell duff-forcing correction
+    pass): this was a strict ``xfail`` pinning the DESIRED behaviour;
+    ``_duff_burn_profile()`` (the ``_duff_flux_and_duration()``
+    replacement) now converts ``duff_moisture`` from the documented
+    whole-percent convention to C++'s internal ratio convention exactly
+    once, at the forcing boundary (matching ``fof_sd.cpp:100``:
+    ``f_DuffMoist = a_SD->f_DufMoi / 100.0;``, and ``DuffBurn``'s own
+    header comment, ``bur_brn.cpp:1950``: ``dfm......Duff Moisture -
+    decial percent, 0 -> 1.96``, a ratio, not a percent). A realistic,
     ordinary ``duff_moisture=45.0`` (a whole percent, exactly as
-    ``soil_heat_campbell``'s own docstring documents the parameter) should
-    make the duff route deliver positive surface heat flux and raise the
-    soil column above ``start_temp`` -- both Frandsen (1991), "Burning Rate
-    of Smoldering Peat" (the actual primary source the FOFEM 6-7 Guide's
-    p.51 formula cites, moisture ratio range 0.0-0.8), and the pinned C++
-    (``fof_sd.cpp:100``: ``f_DuffMoist = a_SD->f_DufMoi / 100.0;``,
-    independently confirmed by ``DuffBurn``'s own header comment,
-    ``bur_brn.cpp:1950``: ``dfm......Duff Moisture - decial percent, 0 ->
-    1.96``) agree the underlying equation is defined on a ratio, not a
-    whole percent. This assertion genuinely fails against real, current
-    Python output (a flat ``start_temp`` field, confirmed directly by
-    execution) -- do not weaken it to make it pass; re-run under
-    ``--runxfail`` to confirm it still fails for real. No production code
-    is changed by this pass -- the fix (dividing ``duff_moisture`` by 100
-    before this equation, or an equivalent API-level decision) is a
-    release-readiness change requiring separate user authorization."""
+    ``soil_heat_campbell``'s own docstring documents the parameter) now
+    genuinely delivers positive surface heat flux and raises the soil
+    column above ``start_temp`` -- confirmed by direct execution, not
+    merely by the assertion below passing. Verified under ``--runxfail``
+    equivalent (this is no longer marked xfail at all) that this is a
+    real pass, not a vacuous one.
+
+    HISTORICAL: this test was previously
+    ``test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture``,
+    a strict ``xfail`` (F-53) asserting exactly this same desired
+    behaviour, confirmed genuinely failing against the pre-fix flat-
+    ``start_temp`` output. The assertion and inputs are unchanged; only
+    the ``xfail`` marker and name (dropping "should_produce" for
+    "produces") were removed/updated to reflect that this is now real,
+    current behaviour, not a desired-but-unmet pin."""
     df = soil_heat_campbell(
         "duff",
         dict(duff_load=5.0, duff_depth=2.0, duff_moisture=45.0, pct_consumed=50.0),
@@ -532,30 +691,31 @@ def test_golden_oracle_never_drops_below_start_temp():
 @pytest.mark.parametrize("case_id,soil_type,family,soil_moist_pct", _NODUFF_FAMILY_CASES)
 def test_lane_a_and_lane_b_max_temp_divergence_matches_measured_evidence(
         case_id, soil_type, family, soil_moist_pct):
-    """Class (c). For each of the 5 primary non-duff families, compares
-    Python's per-layer maximum temperature (lane A: Python defaults; lane
-    B: Python with bulk_density/particle_density/k_mineral/vries_shape
-    aligned to the pinned C++ table) against the golden's own
-    ``lay0X_max_temp_c`` columns, and pins the measured max/mean |diff| from
-    F-52. Lane A == lane B for Coarse-Silt (its inputs are already
-    aligned); lane B does NOT uniformly reduce divergence for the other
-    families (Loamy-Skeletal's roughly doubles) - both facts are asserted
-    below exactly as measured, not smoothed over."""
-    golden_max = np.array(_golden_max_temps(case_id))
+    """Class (c), now genuine PARITY evidence (F-70 third round -- see
+    ``_MEASURED_LANE_DIVERGENCE``'s own note). For each of the 5 primary
+    non-duff families, compares Python's per-timestep/per-layer
+    temperature (lane A: Python defaults; lane B: Python with
+    bulk_density/particle_density/k_mineral/vries_shape explicitly
+    overridden to the same, now-identical pinned C++ literals) against
+    the golden's own precise ``_field.csv`` data
+    (:func:`_field_max_mean_diff` -- NOT the ``_summary``'s
+    integer-truncated ``lay0X_max_temp_c`` columns), and pins the
+    measured max/mean |diff|. Lane A and lane B are bit-for-bit
+    identical for every family now (confirmed directly: overriding with
+    an already-matching value is a no-op)."""
     expected = _MEASURED_LANE_DIVERGENCE[case_id]
 
-    py_a = np.array(_python_max_temps(family, soil_moist_pct))
-    diff_a = np.abs(py_a - golden_max)
-    assert np.isfinite(diff_a).all()
-    assert float(diff_a.max()) == pytest.approx(expected["lane_a"][0], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
-    assert float(diff_a.mean()) == pytest.approx(expected["lane_a"][1], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    df_a = _python_nonduff_df(family, soil_moist_pct)
+    max_a, mean_a = _field_max_mean_diff(case_id, df_a)
+    assert np.isfinite([max_a, mean_a]).all()
+    assert max_a == pytest.approx(expected["lane_a"][0], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    assert mean_a == pytest.approx(expected["lane_a"][1], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
 
-    py_b = np.array(_python_max_temps(family, soil_moist_pct,
-                                       overrides=_CPP_PRIMARY_INPUTS[soil_type]))
-    diff_b = np.abs(py_b - golden_max)
-    assert np.isfinite(diff_b).all()
-    assert float(diff_b.max()) == pytest.approx(expected["lane_b"][0], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
-    assert float(diff_b.mean()) == pytest.approx(expected["lane_b"][1], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    df_b = _python_nonduff_df(family, soil_moist_pct, overrides=_CPP_PRIMARY_INPUTS[soil_type])
+    max_b, mean_b = _field_max_mean_diff(case_id, df_b)
+    assert np.isfinite([max_b, mean_b]).all()
+    assert max_b == pytest.approx(expected["lane_b"][0], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
+    assert mean_b == pytest.approx(expected["lane_b"][1], abs=CHARACTERIZATION_REGRESSION_PRECISION_DEGC)
 
 
 def test_no_ignition_scenario_has_no_python_counterpart():

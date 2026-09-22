@@ -1,4 +1,4 @@
-#fofem-harness,soil_campbell,1
+#fofem-harness,soil_campbell,2
 case_id,expect_error,brn_ignited,soil_type,moist_cond,duff_dep_pre_in,duff_dep_pos_in,soil_moist_pct,wl_efficiency,hs_efficiency,n_steps,fi_series_path,fi_hs_series_path,duff_load_tac,duff_consumed_pct,duff_moist_pct
 SOI-NOD-01,0,YES,Fine-Silt,Dry,0,0,10,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0
 SOI-NOD-02,0,YES,Loamy-Skeletal,Wet,0,0,20,-1,-1,20,fi_wl.csv,fi_hs.csv,0,-1,0

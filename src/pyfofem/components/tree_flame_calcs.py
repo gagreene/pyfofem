@@ -9,10 +9,12 @@ mortality and consumption/emissions sub-models.
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
+import csv
 import os
+from typing import Dict, List, Optional, Tuple, Union
+
 import numpy as np
 from pandas import read_csv, DataFrame
-from typing import Dict, List, Optional, Tuple, Union
 
 from ._component_helpers import _is_scalar, _maybe_scalar
 
@@ -77,13 +79,64 @@ SPP_CODES = read_csv(os.path.join(os.path.dirname(__file__), '..', 'supporting_d
 # Functions
 # ---------------------------------------------------------------------------
 
+
+def _load_bark_thickness_per_inch() -> dict[str, float]:
+    """Load the pinned C++ bark-thickness slopes for all FOFEM species.
+
+    :returns: Mapping of uppercase FOFEM species code to bark thickness in
+        inches per inch DBH. The packaged extraction preserves C++
+        ``SMT_GetIdx`` first-occurrence handling for duplicate species rows.
+    """
+    data_path = os.path.join(
+        os.path.dirname(__file__), '..', 'supporting_data',
+        'fofem_bark_thickness.csv',
+    )
+    with open(data_path, encoding='utf-8-sig', newline='') as data_file:
+        return {
+            row['fofem_cd']: float(row['bark_thickness_per_inch'])
+            for row in csv.DictReader(data_file)
+        }
+
+
+def _load_canopy_equations() -> dict[str, int]:
+    """Load the default crown-width equation for each FOFEM species code.
+
+    :returns: Mapping of uppercase FOFEM species codes to canopy-equation
+        numbers. Duplicate codes retain their first species-table assignment.
+    """
+    data_path = os.path.join(
+        os.path.dirname(__file__), '..', 'supporting_data', 'FOFEM6.7',
+        'FOF_SPP.CSV',
+    )
+    equations: dict[str, int] = {}
+    with open(data_path, encoding='utf-8-sig', newline='') as data_file:
+        for row in csv.reader(data_file):
+            if len(row) < 7 or row[0].strip().startswith('#'):
+                continue
+            try:
+                equations.setdefault(row[1].strip().upper(), int(row[6]))
+            except ValueError:
+                continue
+    return equations
+
+
+# This compact, wheel-packaged extraction covers every unique code in the
+# pinned FOF_SPP.CSV species table. Its slopes reproduce SMT_CalcBarkThick
+# (fof_mrt.cpp:1380-1436) and are dimensionless, so they apply unchanged to
+# Python's cm-in/cm-out API.
+_BARK_THICKNESS_PER_INCH = _load_bark_thickness_per_inch()
+_CANOPY_EQUATIONS = _load_canopy_equations()
+
+
 def calc_bark_thickness(spp: np.ndarray, dbh: np.ndarray) -> np.ndarray:
     """
     Vectorized bark thickness calculation (cm).
 
     :param spp: np.ndarray of species codes (str or int)
     :param dbh: np.ndarray of diameters (cm)
-    :return: np.ndarray of bark thickness values (cm)
+    :returns: np.ndarray of bark thickness values (cm).
+    :raises ValueError: If the inputs have different shapes or a species code
+        has no pinned C++ bark-thickness coefficient.
     """
     spp = np.asarray(spp)
     dbh = np.asarray(dbh)
@@ -93,12 +146,17 @@ def calc_bark_thickness(spp: np.ndarray, dbh: np.ndarray) -> np.ndarray:
 
     if np.issubdtype(spp.dtype, np.integer):
         num_to_fofem = SPP_CODES.drop_duplicates(subset='num_cd').set_index('num_cd')['fofem_cd']
-        spp_str = np.array([num_to_fofem.get(int(code), 'UNK') for code in spp], dtype=str)
+        spp_str = np.array(
+            [num_to_fofem.get(int(code), 'UNK') for code in spp.ravel()],
+            dtype=str,
+        ).reshape(spp.shape)
     else:
-        spp_str = spp.astype(str)
+        spp_str = np.char.upper(spp.astype(str))
 
-    bark_lookup = SPP_CODES.drop_duplicates(subset='fofem_cd').set_index('fofem_cd')['FOFEM_BrkThck_Vsp']
-    bark_thick_per_dbh = bark_lookup.reindex(spp_str).to_numpy()
+    bark_thick_per_dbh = np.array(
+        [_BARK_THICKNESS_PER_INCH.get(code, np.nan) for code in spp_str.ravel()],
+        dtype=float,
+    ).reshape(spp.shape)
 
     if np.any(np.isnan(bark_thick_per_dbh)):
         missing = np.unique(spp_str[np.isnan(bark_thick_per_dbh)])
@@ -168,14 +226,18 @@ def calc_canopy_cover(
         dbh_in = dbh_arr.copy()
         ht_ft  = ht_arr.copy()
 
-    # Build equation-number array via species lookup
+    # Build equation-number array via species lookup.
     eq_arr = np.full(n, _CANOPY_EQ_DEFAULT, dtype=int)
     if tree_code_dict is not None:
         for i, code in enumerate(spp_arr):
             eq_no = tree_code_dict.get(code, _CANOPY_EQ_DEFAULT)
             if eq_no in _CANOPY_COEFFS:
                 eq_arr[i] = eq_no
-    # else: default eq 39 for all trees
+    else:
+        for i, code in enumerate(spp_arr):
+            eq_arr[i] = _CANOPY_EQUATIONS.get(
+                str(code).strip().upper(), _CANOPY_EQ_DEFAULT,
+            )
 
     ht_thresh_ft = 4.5   # 1.37 m in feet
 
@@ -186,8 +248,8 @@ def calc_canopy_cover(
     for i in range(n):
         d = dbh_in[i]
         h = ht_ft[i]
-        # Exclude trees with no valid DBH
-        if np.isnan(d) or d <= 0.0:
+        # Exclude trees with no valid dimensions.
+        if np.isnan(d) or d <= 0.0 or np.isnan(h) or h <= 0.0:
             continue
         A, B, R = _CANOPY_COEFFS.get(int(eq_arr[i]), _CANOPY_COEFFS[_CANOPY_EQ_DEFAULT])
         if h > ht_thresh_ft:
@@ -245,12 +307,19 @@ def calc_flame_length(
         fl_model: str = 'Byram',
 ) -> Union[float, np.ndarray]:
     """
-    Flame length model (Byram, Butler, Thomas).
+    Estimate flame length with the selected empirical relationship.
+
+    The ``'Butler'`` relationship is calibrated from a documented jack-pine
+    crown-fire case reported by Butler et al. (2004, based on Stocks 1987).
+    It is not a general surface-fire relationship. Its coefficient and
+    exponent are retained as published (Alexander and Cruz 2021, Table 1
+    and corrigendum).
 
     :param fire_intensity: Surface fire intensity (kW/m), scalar or np.ndarray, optional
     :param char_ht: Char height (m), scalar or np.ndarray, optional
     :param fl_model: Flame length model to use ('Byram', 'Butler', or other), default 'Byram'
     :return: Flame length (m), scalar or np.ndarray
+    :raises ValueError: If neither *fire_intensity* nor *char_ht* is supplied.
     """
     if (fire_intensity is None) and (char_ht is None):
         raise ValueError('Must enter a surface fire intensity or char height value to estimate '
@@ -308,9 +377,10 @@ def calc_scorch_ht(
         return 4.4713 * np.power(sfi, 2 / 3) / (60 - amb_t)
     else:
         # Equation 10
+        # Van Wagner (1973) Eq. [10] specifies U in m/s. The intensity
+        # constants below are converted for kW/m input; the wind term is not.
         sfi = np.asarray(sfi)
         amb_t = np.asarray(amb_t)
         instand_ws = np.asarray(instand_ws)
         return ((0.74183 * np.power(sfi, 7 / 6)) /
-                (np.power((0.025574 * sfi) + (0.021433 * np.power(instand_ws, 3)), 0.5) * (60 - amb_t)))
-
+                (np.power((0.025574 * sfi) + np.power(instand_ws, 3), 0.5) * (60 - amb_t)))

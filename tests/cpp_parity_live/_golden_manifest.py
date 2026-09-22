@@ -70,6 +70,20 @@ REQUIRED_OVERLAY_FILES = frozenset({
     "source/CMakeLists.txt",
     "source/FOFEM_CPP_CODEBASE.md",
     "source/FOF_UNIX/test_harness.cpp",
+    # F-70 diagnostic-observer instrumentation (2026-09-17 pass): a
+    # byte-for-byte copy of the pinned fof_soi.cpp plus two diagnostic
+    # hook calls, compiled ONLY into the separate fofem_test_soidiag
+    # CMake target — see that file's own header comment for the full
+    # provenance/diff proof. Never used to generate an accepted golden.
+    "source/FOF_UNIX/fof_soi_instr.cpp",
+    # F-62 completion/acceptance-recovery pass (2026-09-21) diagnostic-
+    # observer instrumentation: a byte-for-byte copy of the pinned
+    # bur_brn.cpp plus one gated-return change unlocking a pre-existing
+    # _CompDump() flame/smolder CSV dump, compiled ONLY into the separate
+    # fofem_test_burndiag CMake target — see that file's own header
+    # comment for the full provenance/diff proof. Never used to generate
+    # an accepted golden.
+    "source/FOF_UNIX/bur_brn_instr.cpp",
     "source/compile_test.bat",
 })
 
@@ -142,15 +156,21 @@ VALID_HARNESS_MODES = frozenset({
 #: at ``fof_mrt.cpp:1854-1856`` for every CroDam row) and renamed the
 #: misnamed ``ckr_pct`` to ``ckr_rating``.
 #:
-#: ``soil_campbell`` (Phase 5) is at v1. Its schema appends three columns
-#: (``duff_load_tac``, ``duff_consumed_pct``, ``duff_moist_pct``) beyond
+#: ``soil_campbell`` (Phase 5) was at v1 (three appended columns beyond
 #: the 13 the approved ``gate0/05-harness-contract.md`` §7 contract
 #: listed — a Phase 5 item-1 audit finding, not a silent redesign:
 #: ``SD_Init()`` (``fof_sd.cpp:258-261``) reads ``d_SI.f_DufLoaPre`` /
 #: ``f_DufConPer`` / ``f_DufMoi`` on the Duff route, and ``SI_Init()``
 #: (``fof_sh.cpp:221-231``) never initialises any of the three — without
 #: them the Duff route ran on uninitialised memory. See the Phase 5
-#: report for the full evidence trail.
+#: report for the full evidence trail). It is at v2 as of the Campbell
+#: duff-forcing correction pass: three NEW summary columns
+#: (``duff_burn_intensity_kw``, ``duff_burn_duration_s``,
+#: ``duff_burn_consumed_per_sec``) expose the pinned ``DuffBurn()``
+#: (``bur_brn.cpp:1950-1986``) outputs directly, computed inside
+#: ``run_soil_campbell()`` from the same three v1 input columns
+#: (``duff_load_tac``/``duff_consumed_pct``/``duff_moist_pct``) —
+#: no input schema change, output-only.
 MODE_SCHEMA_VERSIONS = {
     "consume": "1",
     "litter_eq": "1",
@@ -158,7 +178,7 @@ MODE_SCHEMA_VERSIONS = {
     "mortality": "2",
     "bark_thick": "1",
     "canopy_cover": "1",
-    "soil_campbell": "1",
+    "soil_campbell": "2",
 }
 
 #: Every schema version any mode declares. Used only for the coarse

@@ -181,6 +181,8 @@ def run_fofem_emissions(
         burnup_kwargs: Optional[dict] = None,
         em_mode: str = 'default',
         ef_group: int = _EF_GROUP_DEFAULT,
+        ef_smoldering_group: int = _EF_SMOLDERING_GROUP_DEFAULT,
+        ef_duff_group: int = _EF_DUFF_GROUP_DEFAULT,
         ef_csv_path: Optional[str] = None,
         units: str = 'Imperial',
         moisture_regime: Optional[str] = None,
@@ -251,7 +253,12 @@ def run_fofem_emissions(
     :param em_mode: Emission factor mode: ``'legacy'`` (C++ ES_Calc parity),
         ``'default'`` (single EF group), or ``'expanded'`` (flame/coarse/duff groups).
         In ``'legacy'`` mode, smoldering NOx is 0 by design (matching C++).
-    :param ef_group: Emission factor group (1-8; default 3).
+    :param ef_group: Flaming emission-factor group (1-8; default 3). In
+        ``'default'`` mode it remains the single group applied to both phases.
+    :param ef_smoldering_group: Coarse-wood smoldering emission-factor group
+        (1-8; default 7), used by ``'expanded'`` mode.
+    :param ef_duff_group: Duff-smoldering emission-factor group (1-8; default
+        8), used by ``'expanded'`` mode.
     :param ef_csv_path: Path to ``emissions_factors.csv`` override.
     :param units: Unit system. ``'Imperial'`` (T/ac, in) or ``'SI'``
         (kg/m², cm).
@@ -909,6 +916,8 @@ def run_fofem_emissions(
         smoldering_load=smo_con_arr,
         mode=em_mode,
         ef_group=ef_group,
+        ef_smoldering_group=ef_smoldering_group,
+        ef_duff_group=ef_duff_group,
         duff_load=duff_load_for_emissions,
         ef_csv_path=ef_csv_path,
         units=units,

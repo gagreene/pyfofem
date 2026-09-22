@@ -92,9 +92,8 @@ FLAMING_SMOLDERING_TOTALS = [
     "CO2F", "CO2S", "NOXF", "NOXS", "SO2F", "SO2S",
 ]
 
-#: The 7 duff-only totals. ``ES_Calc`` (legacy) populates them
-#: (bur_brn.cpp:2139-2145, :2178-2184); ``ES_Calc_NEW`` (expanded) never
-#: writes them at all - see F-42 and the xfail below.
+#: The 7 duff-only detail fields. Each is a non-additive subset of the
+#: corresponding inclusive smoldering total in expanded output.
 DUFF_ONLY_TOTALS = [
     "PM10S_Duff", "PM25S_Duff", "CH4S_Duff", "COS_Duff", "CO2S_Duff",
     "NOXS_Duff", "SO2S_Duff",
@@ -220,29 +219,24 @@ def test_default_mode_emits_no_duff_only_keys():
 
 
 @pytest.mark.parametrize("case_id", EXPANDED_SCENARIOS)
-def test_expanded_duff_only_totals_match_cpp(case_id, request):
-    """The 7 duff-only totals, expanded path - a strict xfail (F-42)."""
-    request.node.add_marker(pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "F-42: ES_Calc_NEW never writes the duff-only accumulators. It "
-            "folds the duff emissions into the smoldering totals only "
-            "(bur_brn.cpp:2478-2484 adds gf_d* * d_Duff to dN_*S and to no "
-            "*_Duff field), so all 7 d_CO duff-only totals stay at their "
-            "ES_Init zero on the expanded path, while ES_Calc (legacy) does "
-            "populate them (bur_brn.cpp:2139-2145, :2178-2184). Python's "
-            "expanded mode reports real duff-only totals, so the two cannot "
-            "agree. Measured: C++ 0.0 against Python values up to 17110.1 "
-            "lb/ac. This is an upstream C++ asymmetry, not a Python "
-            "numerical error, and must not be absorbed by a tolerance."
-        ),
-    ))
-    result, row = _python_emissions(case_id)
+def test_expanded_duff_only_details_are_nonadditive_smoldering_subsets(case_id):
+    """Expanded duff details must remain subsets of inclusive smoldering totals.
+
+    The ``*S`` fields already include their corresponding duff contribution.
+    The ``*S_Duff`` fields expose that contribution for reporting detail and
+    must not be added to ``*S`` when calculating total emissions.
+
+    :param case_id: Expanded-emissions scenario to evaluate.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    result, _ = _python_emissions(case_id)
+    duff_values = []
     for key in DUFF_ONLY_TOTALS:
-        cpp_si, py_si = _si_normalised(
-            float(row[key]), float(np.asarray(result[key]))
-        )
-        assert py_si == pytest.approx(cpp_si, rel=RTOL_EMISSION)
+        detail = float(np.asarray(result[key]))
+        inclusive_smoldering = float(np.asarray(result[key.removesuffix("_Duff")]))
+        assert 0.0 <= detail <= inclusive_smoldering
+        duff_values.append(detail)
+    assert any(value > 0.0 for value in duff_values)
 
 
 @pytest.mark.parametrize("case_id", EXPANDED_SCENARIOS)
@@ -299,17 +293,6 @@ def test_expanded_golden_really_loaded_its_emission_factors(case_id):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-31: calc_smoke_emissions(..., mode='expanded', ef_group=9) does "
-        "not raise a group-domain ValueError naming the 1-8 contract; it "
-        "passes _validate_group and fails later inside the factor lookup "
-        "with a generic pandas conversion error. Fixing _validate_group or "
-        "the CSV parse is a production change and is out of Phase 4's "
-        "scope."
-    ),
-)
 def test_factor_group_validation_rejects_out_of_domain_groups():
     """
     Class (a) Python contract test (F-31), strict xfail.

@@ -28,6 +28,7 @@ order rather than alphabetized, for the same readability reason.
 """
 from __future__ import annotations
 
+import math
 import os
 import tempfile
 
@@ -39,9 +40,11 @@ from tests.cpp_parity_live._harness_support import (
     FOF_UNIX_DIR,
     HARNESS_EXE,
     HARNESS_EXE_OVERRIDE_ENV_VAR,
+    HARNESS_SOIDIAG_EXE,
     SPECIES_CSV,
     TIMEOUT_HARNESS_RUN_S,
     ensure_built,
+    ensure_soidiag_built,
     run_harness,
     toolchain_status,
 )
@@ -1232,6 +1235,11 @@ SOIL_CAMPBELL_HEADER = [
     "duff_load_tac", "duff_consumed_pct", "duff_moist_pct",
 ]
 SOIL_CAMPBELL_SUFFIXES = ("_summary", "_field")
+#: F-70 diagnostic pass: includes the opt-in "_soidiag" file. Passed
+#: explicitly (not the default) so ordinary soil_campbell tests above are
+#: unaffected -- the diagnostic file is absent unless requested via
+#: FOFEM_TEST_SOIL_DIAG, and its absence must not itself be an error.
+SOIL_CAMPBELL_DIAG_SUFFIXES = ("_summary", "_field", "_soidiag")
 SOIL_CAMPBELL_N_STEPS = 20
 SOIL_CAMPBELL_FI_WL_NAME = "fi_wl.csv"
 SOIL_CAMPBELL_FI_HS_NAME = "fi_hs.csv"
@@ -1325,19 +1333,26 @@ def test_soil_row2_missing_magic_line(tmp_path):
 
 
 def test_soil_row3_wrong_schema_version(tmp_path):
-    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="2")
+    """soil_campbell is schema v2 (bumped for the duff_burn_* columns added
+    by the Campbell duff-forcing correction pass -- see
+    _golden_manifest.MODE_SCHEMA_VERSIONS's soil_campbell docstring); its
+    own stale v1 must not be silently accepted."""
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="1")
     assert res.returncode != 0
 
 
 def test_soil_row3_declared_schema_version_is_accepted(tmp_path):
-    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="1")
-    assert res.returncode == 0, res.stderr
-    assert res.rows("_summary")[0]["schema_version"] == "1"
-
-
-def test_soil_row3_mortality_schema_version_is_rejected(tmp_path):
-    """soil_campbell is v1; mortality's v2 must not be silently accepted."""
     res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="2")
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_summary")[0]["schema_version"] == "2"
+
+
+def test_soil_row3_unknown_schema_version_is_rejected(tmp_path):
+    """soil_campbell (v2) and mortality (v2) now coincidentally share the
+    same schema_version STRING, so that string is no longer usable as a
+    cross-mode-confusion probe here; a genuinely unknown version (never
+    declared by any mode in MODE_SCHEMA_VERSIONS) is rejected instead."""
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path, schema_version="99")
     assert res.returncode != 0
 
 
@@ -1775,3 +1790,882 @@ def test_soil_side_file_hash_identity_rename_vs_content_change(tmp_path):
     assert res_c.returncode == 0, res_c.stderr
     hash_c = res_c.rows("_summary")[0]["input_sha256"]
     assert hash_a != hash_c
+
+
+def _soil_duff_row_with_burn_inputs(case_id, load, consumed, moist, dep_pre="2"):
+    """
+    Build a Duff-route ``soil_campbell`` input row with explicit
+    duff_load_tac/duff_consumed_pct/duff_moist_pct, for the schema-v2
+    ``duff_burn_*`` self-tests below (Campbell duff-forcing correction
+    pass). A local variant of :func:`_soil_duff_row` -- not
+    ``_phase5_contract.phase5_duff_row`` -- because ``_phase5_contract.py``
+    itself imports ``SOIL_CAMPBELL_HEADER`` from THIS module, so importing
+    it back here would be circular.
+
+    :param case_id: Scenario identifier.
+    :param load: ``duff_load_tac`` value (string).
+    :param consumed: ``duff_consumed_pct`` value (string).
+    :param moist: ``duff_moist_pct`` value (string).
+    :param dep_pre: ``duff_dep_pre_in`` value (string), default "2".
+    :return: A 16-field row list.
+    """
+    return [case_id, "0", "YES", "Fine-Silt", "Dry", dep_pre, "1", "10",
+            "-1", "-1", str(SOIL_CAMPBELL_N_STEPS),
+            SOIL_CAMPBELL_FI_WL_NAME, SOIL_CAMPBELL_FI_HS_NAME,
+            load, consumed, moist]
+
+
+def test_soil_duff_burn_columns_match_direct_duffburn_formula(tmp_path):
+    """Schema v2 (Campbell duff-forcing correction pass): the three new
+    ``duff_burn_*`` summary columns match a direct, independent hand
+    transcription of the pinned C++ ``DuffBurn()`` (``bur_brn.cpp:
+    1950-1986``), NOT the harness's own computation -- this is (b)
+    source-relation evidence for the harness addition itself, exercised
+    live. Uses the same normal moisture/load inputs as
+    ``_soil_duff_row()``."""
+    row = _soil_duff_row_with_burn_inputs("burn-normal", "5", "50", "60")
+    res = _run_soil([row], tmp_path)
+    assert res.returncode == 0, res.stderr
+    r = res.rows("_summary")[0]
+
+    wdf = 5.0 / 4.46  # TPA_To_KiSq, fof_util.cpp:543-549
+    dfm = 60.0 / 100.0
+    expected_dfi = 11.25 - 4.05 * dfm
+    ff = 50.0 / 100.0
+    expected_tdf = 1.0e4 * ff * wdf / (7.5 - 2.7 * dfm)
+    expected_amt = (ff * wdf) / expected_tdf
+
+    assert float(r["duff_burn_intensity_kw"]) == pytest.approx(expected_dfi, abs=1e-4)
+    assert float(r["duff_burn_duration_s"]) == pytest.approx(expected_tdf, abs=1e-2)
+    assert float(r["duff_burn_consumed_per_sec"]) == pytest.approx(expected_amt, abs=1e-8)
+
+
+def test_soil_duff_burn_columns_zero_at_zero_load(tmp_path):
+    """Schema v2: DuffBurn()'s ``wdf <= 0`` guard (``bur_brn.cpp:1960-
+    1961``) -- zero duff_load_tac gives all-zero duff_burn_* columns."""
+    row = _soil_duff_row_with_burn_inputs("burn-zero-load", "0", "50", "60")
+    res = _run_soil([row], tmp_path)
+    assert res.returncode == 0, res.stderr
+    r = res.rows("_summary")[0]
+    assert float(r["duff_burn_intensity_kw"]) == 0.0
+    assert float(r["duff_burn_duration_s"]) == 0.0
+    assert float(r["duff_burn_consumed_per_sec"]) == 0.0
+
+
+def test_soil_duff_burn_columns_zero_at_moisture_threshold(tmp_path):
+    """Schema v2: DuffBurn()'s ``dfm >= 1.96`` guard (``bur_brn.cpp:1960-
+    1961``) -- duff_moist_pct=196 (ratio 1.96) gives all-zero duff_burn_*
+    columns, the non-burning boundary."""
+    row = _soil_duff_row_with_burn_inputs("burn-wet", "5", "50", "196")
+    res = _run_soil([row], tmp_path)
+    assert res.returncode == 0, res.stderr
+    r = res.rows("_summary")[0]
+    assert float(r["duff_burn_intensity_kw"]) == 0.0
+    assert float(r["duff_burn_duration_s"]) == 0.0
+    assert float(r["duff_burn_consumed_per_sec"]) == 0.0
+
+
+def test_soil_duff_burn_columns_partial_consumption_case(tmp_path):
+    """Schema v2: a genuinely distinct discriminating case (near-total
+    consumption, matching Phase 5's SOI-DUF-06 inputs) -- verifies the
+    duff_burn_* columns match the direct formula for a SECOND, materially
+    different input combination, not just the one 'normal' case above."""
+    row = _soil_duff_row_with_burn_inputs("burn-partial", "5", "97.5", "45")
+    res = _run_soil([row], tmp_path)
+    assert res.returncode == 0, res.stderr
+    r = res.rows("_summary")[0]
+
+    wdf = 5.0 / 4.46
+    dfm = 45.0 / 100.0
+    expected_dfi = 11.25 - 4.05 * dfm
+    ff = 97.5 / 100.0
+    expected_tdf = 1.0e4 * ff * wdf / (7.5 - 2.7 * dfm)
+    expected_amt = (ff * wdf) / expected_tdf
+
+    assert float(r["duff_burn_intensity_kw"]) == pytest.approx(expected_dfi, abs=1e-4)
+    assert float(r["duff_burn_duration_s"]) == pytest.approx(expected_tdf, abs=1e-2)
+    assert float(r["duff_burn_consumed_per_sec"]) == pytest.approx(expected_amt, abs=1e-8)
+    # Genuinely distinct from the "normal" case above -- proves this test
+    # discriminates rather than trivially re-confirming the same numbers.
+    normal_row = _soil_duff_row_with_burn_inputs("burn-normal-2", "5", "50", "60")
+    normal_res = _run_soil([normal_row], tmp_path, name="burn_normal_2")
+    assert normal_res.returncode == 0, normal_res.stderr
+    normal_r = normal_res.rows("_summary")[0]
+    assert float(r["duff_burn_duration_s"]) != pytest.approx(
+        float(normal_r["duff_burn_duration_s"]), abs=1.0,
+    )
+
+
+def _soil_diag_env(spec):
+    """
+    Build a subprocess environment requesting the F-70 soil-solver
+    diagnostic output.
+
+    :param spec: Value for ``FOFEM_TEST_SOIL_DIAG`` (a case_id, a
+        comma-separated list of case_ids, or ``"*"`` for every case_id in
+        the run).
+    :return: A copy of ``os.environ`` with ``FOFEM_TEST_SOIL_DIAG`` set.
+    """
+    env = dict(os.environ)
+    env["FOFEM_TEST_SOIL_DIAG"] = spec
+    return env
+
+
+#: Expected diagnostic column set (harness-contract, F-70). Checked by
+#: name (not just count) so a column reordering is caught, not just a
+#: width change.
+SOIL_DIAG_COLUMNS = (
+    "case_id", "record_kind", "time_index", "time_s", "node_index",
+    "temp_tn_c", "temp_t_c", "water_content_wn", "water_content_w",
+    "matric_potential_p", "humidity_h", "vapor_pressure_psat_pa",
+    "cond_kh", "cond_kv", "cond_enh", "surface_flux_w", "heat_frac_pc",
+    "ambient_rabs_w", "fire_forcing_w", "input_sha256",
+)
+
+#: The 4 representative nodes the harness emits "final_node"/"timestep"
+#: diagnostics for (fof_soi.cpp 1-based node index): surface, 1cm, 4cm,
+#: and the fixed deep boundary. Matches kSoilDiagNodes in test_harness.cpp
+#: exactly.
+SOIL_DIAG_NODES = (1, 2, 5, 14)
+
+
+def test_soil_diag_absent_by_default(tmp_path):
+    """Class: opt-in only. Without FOFEM_TEST_SOIL_DIAG set, no
+    ``_soidiag.csv`` file is produced at all -- the normal summary/field
+    schema and every existing golden run are completely unaffected."""
+    res = _run_soil([_soil_duff_row()], tmp_path,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_soidiag") == []
+    assert not os.path.isfile(os.path.join(str(tmp_path), "case_soidiag.csv"))
+
+
+def test_soil_diag_absent_when_env_var_present_but_empty(tmp_path):
+    """An empty (but present) FOFEM_TEST_SOIL_DIAG is treated identically
+    to absent -- no diagnostic file, matching the harness's own
+    ``raw[0] == '\\0'`` check."""
+    env = _soil_diag_env("")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_soidiag") == []
+
+
+def test_soil_diag_emitted_only_for_requested_case_id(tmp_path):
+    """Emission is per-case_id, not per-run: a 2-row input with only ONE
+    case_id named in FOFEM_TEST_SOIL_DIAG produces diagnostic rows for
+    that case only."""
+    row_a = _soil_duff_row(case_id="wanted")
+    row_b = _soil_duff_row(case_id="unwanted")
+    env = _soil_diag_env("wanted")
+    res = _run_soil([row_a, row_b], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    assert rows, "expected diagnostic rows for the requested case_id"
+    case_ids = {r["case_id"] for r in rows}
+    assert case_ids == {"wanted"}
+
+
+def test_soil_diag_wildcard_covers_every_case_id(tmp_path):
+    """``FOFEM_TEST_SOIL_DIAG=*`` requests diagnostics for every case_id
+    in the run, not just one."""
+    row_a = _soil_duff_row(case_id="c_a")
+    row_b = _soil_duff_row(case_id="c_b")
+    env = _soil_diag_env("*")
+    res = _run_soil([row_a, row_b], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    case_ids = {r["case_id"] for r in res.rows("_soidiag")}
+    assert case_ids == {"c_a", "c_b"}
+
+
+def test_soil_diag_header_matches_declared_columns(tmp_path):
+    """The written header matches :data:`SOIL_DIAG_COLUMNS` exactly, by
+    name and order -- a silent column reorder would otherwise pass a
+    row-count-only check."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    assert rows
+    assert tuple(rows[0].keys()) == SOIL_DIAG_COLUMNS
+
+
+def test_soil_diag_row_counts_deterministic(tmp_path):
+    """Two independent runs of the SAME scenario produce the SAME
+    diagnostic row count -- the harness's own reconciliation check
+    (soidiag_rows_written == soidiag_rows_expected) already enforces this
+    internally (a mismatch is a FATAL, nonzero-exit error), but this
+    proves the observable row count itself is stable across runs, not
+    merely that the internal check never fires."""
+    env = _soil_diag_env("*")
+    res1 = _run_soil([_soil_duff_row()], tmp_path, name="run1", env=env,
+                      output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    res2 = _run_soil([_soil_duff_row()], tmp_path, name="run2", env=env,
+                      output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res1.returncode == 0, res1.stderr
+    assert res2.returncode == 0, res2.stderr
+    rows1 = res1.rows("_soidiag")
+    rows2 = res2.rows("_soidiag")
+    assert len(rows1) == len(rows2) > 0
+
+
+def test_soil_diag_keys_are_unique(tmp_path):
+    """Every (case_id, record_kind, time_index, node_index) key is
+    unique -- "timestep" rows keyed by (case_id, 'timestep', time_index,
+    node_index), "final_node" rows keyed by (case_id, 'final_node', 'NA',
+    node_index); no duplicate/overwritten rows."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    keys = [(r["case_id"], r["record_kind"], r["time_index"], r["node_index"])
+            for r in rows]
+    assert len(keys) == len(set(keys)), "duplicate diagnostic row key(s) found"
+
+
+def test_soil_diag_row_multiplicity_matches_nodes_times_timesteps(tmp_path):
+    """Exact multiplicity check: "timestep" rows number
+    ``n_time_indices * len(SOIL_DIAG_NODES)``, and "final_node" rows
+    number exactly ``len(SOIL_DIAG_NODES)`` -- proving the declared node
+    set is really what got emitted, not just a nonzero row count."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    summary_row = res.rows("_summary")[0]
+    n_time_indices = int(summary_row["n_time_indices"])
+    rows = res.rows("_soidiag")
+    timestep_rows = [r for r in rows if r["record_kind"] == "timestep"]
+    final_rows = [r for r in rows if r["record_kind"] == "final_node"]
+    assert len(timestep_rows) == n_time_indices * len(SOIL_DIAG_NODES)
+    assert len(final_rows) == len(SOIL_DIAG_NODES)
+    assert {int(r["node_index"]) for r in final_rows} == set(SOIL_DIAG_NODES)
+
+
+def test_soil_diag_finite_on_success(tmp_path):
+    """Every non-NA numeric field on a successful row is finite -- no
+    "nan"/"inf" text, matching the harness's own general finiteness
+    contract."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    numeric_cols = [c for c in SOIL_DIAG_COLUMNS
+                    if c not in ("case_id", "record_kind", "input_sha256")]
+    for row in res.rows("_soidiag"):
+        for col in numeric_cols:
+            val = row[col]
+            if val == "NA":
+                continue
+            assert math.isfinite(float(val)), (col, val, row["record_kind"])
+
+
+def test_soil_diag_timestep_time_s_uses_real_recorded_interval(tmp_path):
+    """time_s on "timestep" rows equals time_index * the REAL recorded
+    interval (SHA_GetInc(), read from the harness's own summary/field
+    output for this exact run), not an assumed constant -- proven by
+    cross-checking against the SAME field.csv time_s values for this
+    run."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    field_rows = res.rows("_field")
+    field_time_s = {int(r["time_index"]): int(r["time_s"]) for r in field_rows}
+    diag_rows = [r for r in res.rows("_soidiag") if r["record_kind"] == "timestep"]
+    assert diag_rows
+    for row in diag_rows:
+        ti = int(row["time_index"])
+        assert int(row["time_s"]) == field_time_s[ti]
+
+
+def test_soil_diag_final_node_fields_are_na_only_for_out_of_scope_columns(tmp_path):
+    """"final_node" rows carry real values for the per-node physics
+    columns and NA for the per-timestep-only columns (surface_flux_w/
+    heat_frac_pc/ambient_rabs_w/fire_forcing_w) -- proving the schema's
+    own NA/real split is applied correctly, not merely that SOME columns
+    are non-NA somewhere."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    final_rows = [r for r in res.rows("_soidiag") if r["record_kind"] == "final_node"]
+    assert final_rows
+    real_cols = ("temp_tn_c", "temp_t_c", "water_content_wn", "water_content_w",
+                 "matric_potential_p", "humidity_h", "vapor_pressure_psat_pa",
+                 "cond_kh", "cond_kv", "cond_enh")
+    na_cols = ("surface_flux_w", "heat_frac_pc", "ambient_rabs_w", "fire_forcing_w")
+    for row in final_rows:
+        for col in real_cols:
+            assert row[col] != "NA", (col, row)
+        for col in na_cols:
+            assert row[col] == "NA", (col, row)
+
+
+def test_soil_diag_timestep_fields_are_na_only_for_out_of_scope_columns(tmp_path):
+    """"timestep" rows carry a real temp_tn_c and real surface-flux/
+    heat-fraction/ambient/fire-forcing values, and NA for every
+    "final_node"-only physics column (temp_t_c, water content, matric
+    potential, humidity, vapor pressure, conductivities)."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    ts_rows = [r for r in res.rows("_soidiag") if r["record_kind"] == "timestep"]
+    assert ts_rows
+    final_only_cols = ("temp_t_c", "water_content_wn", "water_content_w",
+                        "matric_potential_p", "humidity_h",
+                        "vapor_pressure_psat_pa", "cond_kh", "cond_kv", "cond_enh")
+    for row in ts_rows:
+        assert row["temp_tn_c"] != "NA"
+        assert row["surface_flux_w"] != "NA"
+        assert row["heat_frac_pc"] != "NA"
+        assert row["ambient_rabs_w"] != "NA"
+        assert row["fire_forcing_w"] != "NA"
+        for col in final_only_cols:
+            assert row[col] == "NA", (col, row)
+
+
+def test_soil_diag_surface_flux_equals_ambient_plus_fire_forcing(tmp_path):
+    """A trivial but real consistency check on the harness's own
+    arithmetic: surface_flux_w == ambient_rabs_w + fire_forcing_w exactly
+    (both computed inside the harness, never invented)."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    ts_rows = [r for r in res.rows("_soidiag") if r["record_kind"] == "timestep"]
+    assert ts_rows
+    for row in ts_rows:
+        surface = float(row["surface_flux_w"])
+        ambient = float(row["ambient_rabs_w"])
+        fire = float(row["fire_forcing_w"])
+        assert surface == pytest.approx(ambient + fire, abs=1e-3)
+
+
+def test_soil_diag_works_for_a_stable_duff_case(tmp_path):
+    """Diagnostics run successfully for a previously near-matching duff
+    case (SOI-DUF-02-like: Loamy-Skeletal, wetter soil, moderate
+    consumption) -- one of the two required scenario categories."""
+    row = _soil_duff_row_with_burn_inputs(
+        "stable-duff", load="8", consumed="40", moist="70",
+    )
+    row[3] = "Loamy-Skeletal"
+    row[7] = "20"
+    env = _soil_diag_env("*")
+    res = _run_soil([row], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    assert rows
+    assert any(r["record_kind"] == "final_node" for r in rows)
+
+
+def test_soil_diag_works_for_a_divergent_dry_duff_case(tmp_path):
+    """Diagnostics run successfully for SOI-DUF-04 (Coarse-Silt, 5%
+    soil moisture) -- the materially-divergent case named explicitly by
+    the task."""
+    row = _soil_duff_row_with_burn_inputs(
+        "divergent-duff", load="5", consumed="50", moist="45",
+    )
+    row[3] = "Coarse-Silt"
+    row[7] = "5"
+    env = _soil_diag_env("*")
+    res = _run_soil([row], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    assert rows
+    assert any(r["record_kind"] == "final_node" for r in rows)
+
+
+def test_soil_diag_works_for_a_dry_nonduff_case(tmp_path):
+    """Diagnostics run successfully for a dry non-duff case
+    (SOI-NOD-04-like: Coarse-Silt, 5% soil moisture, zero-duff route) --
+    the third required scenario category."""
+    row = _soil_zduff_row(case_id="dry-nonduff", soil_type="Coarse-Silt",
+                          soil_moist_pct="5")
+    env = _soil_diag_env("*")
+    res = _run_soil([row], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    assert rows
+    assert any(r["record_kind"] == "final_node" for r in rows)
+    assert all(r["record_kind"] != "timestep" or r["heat_frac_pc"] != "NA"
+               for r in rows)
+
+
+def test_soil_diag_unrequested_case_id_among_requested_ones_emits_nothing(tmp_path):
+    """Fail-closed-adjacent: a case_id that never appears in
+    FOFEM_TEST_SOIL_DIAG's list, alongside ones that do, gets zero
+    diagnostic rows -- proves the per-row gate genuinely filters rather
+    than defaulting to "on" once any case_id matches."""
+    row_a = _soil_duff_row(case_id="present")
+    row_b = _soil_duff_row(case_id="also_present")
+    env = _soil_diag_env("present,also_present")
+    res = _run_soil([row_a, row_b], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    row_c = _soil_duff_row(case_id="never_requested")
+    env2 = _soil_diag_env("present,also_present")
+    res2 = _run_soil([row_a, row_c], tmp_path, name="case2", env=env2,
+                      output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res2.returncode == 0, res2.stderr
+    case_ids2 = {r["case_id"] for r in res2.rows("_soidiag")}
+    assert case_ids2 == {"present"}
+    assert "never_requested" not in case_ids2
+
+
+def test_soil_diag_row_width_matches_header_on_every_row(tmp_path):
+    """Regression guard for the exact bug this pass found and fixed: the
+    "timestep" row builder originally omitted one NA placeholder
+    (cond_enh), writing 19 fields against the declared 20-column header
+    -- silently dropped by the harness's own CsvWriter (a width-mismatched
+    ``row()`` call sets ``failed`` and returns without writing, so ALL
+    "timestep" rows vanished from the output while the run still
+    exited 0) until the final close/flush check caught the latched
+    ``failed`` flag and turned it into a real, nonzero-exit FATAL error
+    (reproduced directly during this pass, before the fix). Pinned here
+    as a permanent regression: every row, of both record kinds, must have
+    exactly ``len(SOIL_DIAG_COLUMNS)`` fields, and the run must succeed."""
+    env = _soil_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soidiag")
+    assert rows
+    for row in rows:
+        assert len(row) == len(SOIL_DIAG_COLUMNS)
+    assert any(r["record_kind"] == "timestep" for r in rows)
+    assert any(r["record_kind"] == "final_node" for r in rows)
+
+
+def test_soil_diag_case_id_matching_is_exact_not_fuzzy(tmp_path):
+    """Fail-closed-adjacent: a malformed request (extra whitespace inside
+    a comma-separated case_id token) does NOT fuzzy-match the real
+    case_id -- the parser does exact substring equality per token, with
+    no trimming. Proves the "opt-in" gate cannot be accidentally
+    satisfied by an almost-right request."""
+    row = _soil_duff_row(case_id="exact_case")
+    env = _soil_diag_env(" exact_case ")  # whitespace-padded token
+    res = _run_soil([row], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_soidiag") == []
+
+    # Sanity: the SAME case_id, unpadded, does match.
+    env2 = _soil_diag_env("exact_case")
+    res2 = _run_soil([row], tmp_path, name="case2", env=env2,
+                      output_suffixes=SOIL_CAMPBELL_DIAG_SUFFIXES)
+    assert res2.returncode == 0, res2.stderr
+    assert res2.rows("_soidiag") != []
+
+
+def test_soil_duff_burn_columns_present_on_zduff_route_too(tmp_path):
+    """Schema v2: the duff_burn_* columns are computed unconditionally from
+    the three v1 input columns, independent of whether the row selects the
+    Duff or Zero-Duff route (SD_Mngr_New vs SE_Mngr_Array) -- confirmed
+    directly rather than assumed, since SOIL_CAMPBELL_ROW_OK's own trailing
+    three columns are the SI_Init defaults (0 / -1 / 0)."""
+    res = _run_soil([SOIL_CAMPBELL_ROW_OK], tmp_path)
+    assert res.returncode == 0, res.stderr
+    r = res.rows("_summary")[0]
+    assert r["model"] == "Zero-Duff"
+    # duff_load_tac=0 on this row -> zero forcing, but the columns exist
+    # and are well-formed floats, not NA/missing.
+    assert float(r["duff_burn_intensity_kw"]) == 0.0
+    assert float(r["duff_burn_duration_s"]) == 0.0
+    assert float(r["duff_burn_consumed_per_sec"]) == 0.0
+
+
+# ===========================================================================
+# F-70 second diagnostic pass: FOFEM_TEST_SOIL_STATE_DIAG
+# (_soistate.csv full per-timestep coupled state, _soisubiter.csv
+# per-Newton-sub-iteration surface-node trace). Requires the SEPARATE
+# fofem_test_soidiag binary (built from the overlay's fof_soi_instr.cpp)
+# -- session-scoped so it builds at most once per test-session, and
+# skips (not fails) when the toolchain is unavailable, exactly like the
+# module's own `_built` fixture for the normal binary.
+# ===========================================================================
+
+SOIL_STATE_DIAG_COLUMNS = (
+    "case_id", "step_index", "node_index", "temp_tn_c", "temp_t_true_c",
+    "water_content_wn", "water_content_w_true", "matric_potential_p",
+    "humidity_h", "vapor_pressure_psat_pa", "cond_kh", "cond_kv",
+    "cond_enh", "resid_water_r_sev", "resid_heat_r_seh", "n_subiter",
+    "surface_flux_w_rabs_in", "input_sha256",
+)
+
+SOIL_SUBITER_COLUMNS = (
+    "case_id", "step_index", "n_subiter", "temp_tn1_c",
+    "matric_potential_p1", "resid_water_r_sev", "resid_heat_r_seh",
+    "input_sha256",
+)
+
+#: The full surface-node-update crosswalk record (F-70 third round).
+#: MUST match test_harness.cpp's own SOIL_SURFUP_DIAG_COLUMNS exactly
+#: (48 fields, same order as SoiSurfaceUpdateDiag's field declarations).
+SOIL_SURFUP_DIAG_COLUMNS = (
+    "case_id", "step_index", "n_subiter",
+    "old_tn1", "new_tn1", "old_p1", "new_p1", "old_wn1", "new_wn1",
+    "old_h1", "new_h1", "psat0", "h0", "psat1", "psat2", "h2",
+    "s1", "hvap1", "kh1", "enh1", "kv1", "kh2", "kv2",
+    "ke0", "ke1", "kev0", "kev1", "conv1", "vcon1", "cp1",
+    "d_jv", "d_jvdt", "d_jvdp",
+    "dC_before_boundary", "dC_after_boundary", "dv",
+    "dCdp", "dvdp", "dCdt_before_boundary", "dCdt_after_boundary", "dvdt",
+    "r_rabs_in", "stefan_term", "tk_old",
+    "dtn_temperature_raw", "dtn_temperature_clamped", "dtn_matric_raw",
+    "p1_before_range_clamp", "p1_clamp_branch",
+    "r_sev_running", "r_seh_running", "input_sha256",
+)
+
+#: e_mplus1 + 1 (fof_soi.cpp), the exact node_index cardinality every
+#: SoiDiagRecordTimestep() call writes -- matches
+#: test_harness.cpp's kSoilStateDiagNodeCount.
+SOIL_STATE_DIAG_NODE_COUNT = 15
+
+
+@pytest.fixture(scope="session")
+def soidiag_exe():
+    """Build (once per session) and return the path to the F-70
+    diagnostic-observer binary. Skips cleanly if the toolchain is
+    unavailable -- mirrors the module's own `_built` fixture."""
+    ok, reason = toolchain_status()
+    if not ok:
+        pytest.skip(f"MSVC/CMake/Ninja toolchain unavailable: {reason}")
+    ok, reason = ensure_soidiag_built()
+    if not ok:
+        pytest.fail(f"fofem_test_soidiag build failed:\n{reason}")
+    assert os.path.isfile(HARNESS_SOIDIAG_EXE)
+    return HARNESS_SOIDIAG_EXE
+
+
+def _soil_state_diag_env(spec):
+    """Build a subprocess environment requesting FOFEM_TEST_SOIL_STATE_DIAG.
+
+    :param spec: Value for the env var (a case_id, comma-list, or ``"*"``).
+    :return: A copy of ``os.environ`` with the var set.
+    """
+    env = dict(os.environ)
+    env["FOFEM_TEST_SOIL_STATE_DIAG"] = spec
+    return env
+
+
+def _run_soil_soidiag_binary(rows, tmp_path, soidiag_exe, monkeypatch,
+                              name="case", state_diag_spec="*",
+                              write_side_files=True, **kwargs):
+    """Run *rows* through the diagnostic-observer binary with
+    FOFEM_TEST_SOIL_STATE_DIAG set, requesting both new diagnostic
+    files.
+
+    :func:`_harness_support.resolve_harness_exe` reads
+    ``os.environ`` of the CALLING (pytest) process to pick the binary --
+    NOT the ``env=`` dict handed to the subprocess -- so the override
+    must be set via *monkeypatch* on the real process environment, in
+    addition to being present in the subprocess ``env=`` dict for
+    ``FOFEM_TEST_SOIL_STATE_DIAG`` itself to reach the child.
+    """
+    if write_side_files:
+        _write_soil_side_files(tmp_path)
+    monkeypatch.setenv(HARNESS_EXE_OVERRIDE_ENV_VAR, soidiag_exe)
+    env = _soil_state_diag_env(state_diag_spec)
+    env[HARNESS_EXE_OVERRIDE_ENV_VAR] = soidiag_exe
+    kwargs.setdefault(
+        "output_suffixes",
+        SOIL_CAMPBELL_SUFFIXES + ("_soistate", "_soisubiter", "_soisurfup"))
+    return run_harness(
+        "soil_campbell", SOIL_CAMPBELL_HEADER, rows,
+        os.path.join(str(tmp_path), name), env=env, **kwargs,
+    )
+
+
+def test_soil_state_diag_absent_by_default(tmp_path, soidiag_exe, monkeypatch):
+    """Opt-in only: even on the diagnostic BINARY, without
+    FOFEM_TEST_SOIL_STATE_DIAG set, no ``_soistate.csv``/``_soisubiter.csv``
+    rows are produced."""
+    monkeypatch.setenv(HARNESS_EXE_OVERRIDE_ENV_VAR, soidiag_exe)
+    env = dict(os.environ)
+    _write_soil_side_files(tmp_path)
+    res = run_harness(
+        "soil_campbell", SOIL_CAMPBELL_HEADER, [_soil_zduff_row()],
+        os.path.join(str(tmp_path), "case"), env=env,
+        output_suffixes=SOIL_CAMPBELL_SUFFIXES + ("_soistate", "_soisubiter", "_soisurfup"),
+    )
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_soistate") == []
+    assert res.rows("_soisubiter") == []
+    assert res.rows("_soisurfup") == []
+
+
+def test_soil_state_diag_requires_the_diagnostic_binary(tmp_path):
+    """Documented fail-quiet (not fail-closed) behavior: running the
+    NORMAL fofem_test binary (no override) with FOFEM_TEST_SOIL_STATE_DIAG
+    set opens the file, writes only the header, and closes cleanly --
+    SoiDiagRecordTimestep()/SoiDiagRecordSubIteration() are simply never
+    called by the real, unmodified fof_soi.cpp. Proves the normal target
+    is unaffected by the new env var, and that a caller who forgets to
+    set the override gets an empty (not missing, not erroring) file
+    rather than a silent success that looks identical to real data."""
+    env = _soil_state_diag_env("*")
+    res = _run_soil([_soil_duff_row()], tmp_path, env=env,
+                     output_suffixes=SOIL_CAMPBELL_SUFFIXES + ("_soistate", "_soisubiter", "_soisurfup"))
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_soistate") == []
+    assert res.rows("_soisubiter") == []
+    assert res.rows("_soisurfup") == []
+
+
+def test_soil_state_diag_normal_binary_output_unchanged(tmp_path, soidiag_exe, monkeypatch):
+    """The required "prove normal output is byte-identical" check: the
+    SAME scenario, run through the normal binary and the diagnostic
+    binary, with FOFEM_TEST_SOIL_STATE_DIAG UNSET in both cases, produces
+    byte-identical _summary/_field rows -- the instrumented
+    fof_soi_instr.cpp is a provably no-op copy of the pinned fof_soi.cpp
+    when its two hooks are not exercised."""
+    row = _soil_duff_row_with_burn_inputs(
+        "cmp", load="5", consumed="50", moist="45", dep_pre="2")
+    row[3] = "Coarse-Silt"
+    _write_soil_side_files(tmp_path)
+
+    # resolve_harness_exe() reads os.environ of the CALLING process, not
+    # the env= dict handed to the subprocess -- run the NORMAL case
+    # BEFORE monkeypatch.setenv below sets the override, or this
+    # comparison would silently run the same binary twice and pass
+    # trivially regardless of whether the diagnostic binary works.
+    env_normal = dict(os.environ)
+    res_normal = run_harness(
+        "soil_campbell", SOIL_CAMPBELL_HEADER, [row],
+        os.path.join(str(tmp_path), "normal"), env=env_normal,
+        output_suffixes=SOIL_CAMPBELL_SUFFIXES,
+    )
+    monkeypatch.setenv(HARNESS_EXE_OVERRIDE_ENV_VAR, soidiag_exe)
+    env_diag = dict(os.environ)
+    env_diag[HARNESS_EXE_OVERRIDE_ENV_VAR] = soidiag_exe
+    res_diag = run_harness(
+        "soil_campbell", SOIL_CAMPBELL_HEADER, [row],
+        os.path.join(str(tmp_path), "diag"), env=env_diag,
+        output_suffixes=SOIL_CAMPBELL_SUFFIXES,
+    )
+    assert res_normal.returncode == 0, res_normal.stderr
+    assert res_diag.returncode == 0, res_diag.stderr
+    assert res_normal.rows("_summary") == res_diag.rows("_summary")
+    assert res_normal.rows("_field") == res_diag.rows("_field")
+
+
+def test_soil_state_diag_header_matches_declared_columns(tmp_path, soidiag_exe, monkeypatch):
+    """All three new files' written headers match the declared column
+    tuples exactly, by name and order."""
+    row = _soil_duff_row_with_burn_inputs(
+        "hdr", load="8", consumed="40", moist="70", dep_pre="3")
+    row[3] = "Loamy-Skeletal"
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch)
+    assert res.returncode == 0, res.stderr
+    state_rows = res.rows("_soistate")
+    subiter_rows = res.rows("_soisubiter")
+    surfup_rows = res.rows("_soisurfup")
+    assert state_rows and subiter_rows and surfup_rows
+    assert tuple(state_rows[0].keys()) == SOIL_STATE_DIAG_COLUMNS
+    assert tuple(subiter_rows[0].keys()) == SOIL_SUBITER_COLUMNS
+    assert tuple(surfup_rows[0].keys()) == SOIL_SURFUP_DIAG_COLUMNS
+
+
+def test_soil_state_diag_emitted_only_for_requested_case_id(tmp_path, soidiag_exe, monkeypatch):
+    """Per-case_id gating, matching FOFEM_TEST_SOIL_DIAG's own contract:
+    a 2-row input with only one case_id requested produces rows for that
+    case only, in ALL THREE new files."""
+    row_a = _soil_duff_row_with_burn_inputs(
+        "wanted", load="5", consumed="50", moist="45", dep_pre="2")
+    row_a[3] = "Coarse-Silt"
+    row_b = _soil_duff_row_with_burn_inputs(
+        "unwanted", load="8", consumed="40", moist="70", dep_pre="3")
+    row_b[3] = "Loamy-Skeletal"
+    res = _run_soil_soidiag_binary([row_a, row_b], tmp_path, soidiag_exe,
+                                    monkeypatch, state_diag_spec="wanted")
+    assert res.returncode == 0, res.stderr
+    assert {r["case_id"] for r in res.rows("_soistate")} == {"wanted"}
+    assert {r["case_id"] for r in res.rows("_soisubiter")} == {"wanted"}
+    assert {r["case_id"] for r in res.rows("_soisurfup")} == {"wanted"}
+
+
+def test_soil_state_diag_case_id_matching_is_exact_not_fuzzy(tmp_path, soidiag_exe, monkeypatch):
+    """Fail-closed-adjacent, matching FOFEM_TEST_SOIL_DIAG's own
+    contract: a whitespace-padded token does not fuzzy-match the real
+    case_id."""
+    row = _soil_duff_row_with_burn_inputs(
+        "exact_case", load="5", consumed="50", moist="45", dep_pre="2")
+    row[3] = "Coarse-Silt"
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe,
+                                    monkeypatch, state_diag_spec=" exact_case ")
+    assert res.returncode == 0, res.stderr
+    assert res.rows("_soistate") == []
+    assert res.rows("_soisubiter") == []
+    assert res.rows("_soisurfup") == []
+
+
+def test_soil_state_diag_row_counts_deterministic(tmp_path, soidiag_exe, monkeypatch):
+    """Two independent runs of the same scenario produce the same row
+    count in both new files -- observable stability, not just an
+    internal reconciliation check that never fires."""
+    row = _soil_duff_row_with_burn_inputs(
+        "det", load="5", consumed="50", moist="45", dep_pre="2")
+    row[3] = "Coarse-Silt"
+    res1 = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch, name="run1")
+    res2 = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch, name="run2")
+    assert res1.returncode == 0, res1.stderr
+    assert res2.returncode == 0, res2.stderr
+    assert len(res1.rows("_soistate")) == len(res2.rows("_soistate")) > 0
+    assert len(res1.rows("_soisubiter")) == len(res2.rows("_soisubiter")) > 0
+
+
+def test_soil_state_diag_keys_are_unique(tmp_path, soidiag_exe, monkeypatch):
+    """Every (case_id, step_index, node_index) key in _soistate.csv, and
+    every (case_id, step_index, n_subiter) key in _soisubiter.csv, is
+    unique -- no duplicate/overwritten rows."""
+    row = _soil_duff_row_with_burn_inputs(
+        "uniq", load="5", consumed="50", moist="45", dep_pre="2")
+    row[3] = "Coarse-Silt"
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch)
+    assert res.returncode == 0, res.stderr
+    state_keys = [(r["case_id"], r["step_index"], r["node_index"])
+                  for r in res.rows("_soistate")]
+    assert len(state_keys) == len(set(state_keys))
+    subiter_keys = [(r["case_id"], r["step_index"], r["n_subiter"])
+                     for r in res.rows("_soisubiter")]
+    assert len(subiter_keys) == len(set(subiter_keys))
+
+
+def test_soil_state_diag_row_multiplicity_is_multiple_of_node_count(tmp_path, soidiag_exe, monkeypatch):
+    """Every step_index in _soistate.csv contributes exactly
+    SOIL_STATE_DIAG_NODE_COUNT rows -- the harness's own per-row fail-closed
+    reconciliation (rows_written % node_count == 0) already enforces this
+    internally; this proves the OBSERVABLE row count is really a multiple
+    of the node count, not merely that the internal check never fires."""
+    row = _soil_duff_row_with_burn_inputs(
+        "mult", load="5", consumed="50", moist="45", dep_pre="2")
+    row[3] = "Coarse-Silt"
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch)
+    assert res.returncode == 0, res.stderr
+    rows = res.rows("_soistate")
+    assert rows
+    assert len(rows) % SOIL_STATE_DIAG_NODE_COUNT == 0
+    step_indices = sorted({int(r["step_index"]) for r in rows})
+    for step in step_indices:
+        this_step = [r for r in rows if int(r["step_index"]) == step]
+        assert len(this_step) == SOIL_STATE_DIAG_NODE_COUNT
+        assert {int(r["node_index"]) for r in this_step} == set(range(SOIL_STATE_DIAG_NODE_COUNT))
+
+
+def test_soil_state_diag_finite_on_successful_rows(tmp_path, soidiag_exe, monkeypatch):
+    """Every numeric field on every row of all three new files is finite
+    for a successful (oc == OK) scenario -- a NaN/inf here would
+    otherwise silently pass through csv.DictReader as an unparsed
+    string."""
+    row = _soil_duff_row_with_burn_inputs(
+        "finite", load="8", consumed="40", moist="70", dep_pre="3")
+    row[3] = "Loamy-Skeletal"
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch)
+    assert res.returncode == 0, res.stderr
+    numeric_state_cols = [c for c in SOIL_STATE_DIAG_COLUMNS
+                           if c not in ("case_id", "input_sha256")]
+    for r in res.rows("_soistate"):
+        for c in numeric_state_cols:
+            assert math.isfinite(float(r[c])), (c, r[c])
+    numeric_subiter_cols = [c for c in SOIL_SUBITER_COLUMNS
+                             if c not in ("case_id", "input_sha256")]
+    for r in res.rows("_soisubiter"):
+        for c in numeric_subiter_cols:
+            assert math.isfinite(float(r[c])), (c, r[c])
+    numeric_surfup_cols = [c for c in SOIL_SURFUP_DIAG_COLUMNS
+                            if c not in ("case_id", "input_sha256")]
+    for r in res.rows("_soisurfup"):
+        for c in numeric_surfup_cols:
+            assert math.isfinite(float(r[c])), (c, r[c])
+
+
+def test_soil_surfup_row_count_matches_subiter_row_count(tmp_path, soidiag_exe, monkeypatch):
+    """SoiDiagRecordSubIteration() and SoiDiagRecordSurfaceUpdate() are
+    called exactly once each, from the SAME i==1 pass of the SAME
+    sub-iteration loop -- their row counts must be identical (the
+    harness's own internal reconciliation already fail-closes on this;
+    this proves the OBSERVABLE counts agree, not merely that the
+    internal check never fires)."""
+    row = _soil_zduff_row(case_id="surfup-count", soil_type="Coarse-Silt",
+                           soil_moist_pct="5")
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch)
+    assert res.returncode == 0, res.stderr
+    subiter_rows = res.rows("_soisubiter")
+    surfup_rows = res.rows("_soisurfup")
+    assert subiter_rows and surfup_rows
+    assert len(subiter_rows) == len(surfup_rows)
+    subiter_keys = {(r["step_index"], r["n_subiter"]) for r in subiter_rows}
+    surfup_keys = {(r["step_index"], r["n_subiter"]) for r in surfup_rows}
+    assert subiter_keys == surfup_keys
+
+
+def test_soil_surfup_matches_subiter_temperature_and_matric_potential(
+        tmp_path, soidiag_exe, monkeypatch):
+    """Both hooks report the SAME surface-node temperature/matric
+    potential for the same (step_index, n_subiter) -- an independent
+    cross-check that neither hook's own field wiring is wrong (e.g. an
+    accidental off-by-one in which array element is read)."""
+    row = _soil_zduff_row(case_id="surfup-cross", soil_type="Coarse-Silt",
+                           soil_moist_pct="5")
+    res = _run_soil_soidiag_binary([row], tmp_path, soidiag_exe, monkeypatch)
+    assert res.returncode == 0, res.stderr
+    subiter_by_key = {(r["step_index"], r["n_subiter"]): r
+                       for r in res.rows("_soisubiter")}
+    surfup_by_key = {(r["step_index"], r["n_subiter"]): r
+                      for r in res.rows("_soisurfup")}
+    assert subiter_by_key.keys() == surfup_by_key.keys()
+    checked = 0
+    for key, sub_row in subiter_by_key.items():
+        surf_row = surfup_by_key[key]
+        assert float(sub_row["temp_tn1_c"]) == pytest.approx(float(surf_row["new_tn1"]), abs=1e-4), key
+        assert float(sub_row["matric_potential_p1"]) == pytest.approx(float(surf_row["new_p1"]), abs=1e-2), key
+        checked += 1
+    assert checked > 0
+
+
+def test_soil_state_diag_covers_the_three_required_scenarios(tmp_path, soidiag_exe, monkeypatch):
+    """F-70's three required scenario categories (a previously
+    near-matching duff case, a materially-divergent dry duff case, and a
+    materially-divergent dry non-duff case) all produce real, nonempty,
+    finite diagnostic rows in all three new files -- the actual facility
+    :mod:`test_soil_solver_diagnostic_comparison` depends on to locate
+    the first Python/C++ divergence for each."""
+    stable_duff = _soil_duff_row_with_burn_inputs(
+        "stable-duff", load="8", consumed="40", moist="70", dep_pre="3")
+    stable_duff[3] = "Loamy-Skeletal"
+    stable_duff[6] = "1.5"
+    stable_duff[7] = "20"
+
+    divergent_duff = _soil_duff_row_with_burn_inputs(
+        "divergent-duff", load="5", consumed="50", moist="45", dep_pre="2")
+    divergent_duff[3] = "Coarse-Silt"
+    divergent_duff[6] = "1"
+    divergent_duff[7] = "5"
+
+    dry_nonduff = _soil_zduff_row(
+        case_id="dry-nonduff", soil_type="Coarse-Silt", soil_moist_pct="5")
+
+    res = _run_soil_soidiag_binary(
+        [stable_duff, divergent_duff, dry_nonduff], tmp_path, soidiag_exe,
+        monkeypatch)
+    assert res.returncode == 0, res.stderr
+
+    state_rows = res.rows("_soistate")
+    subiter_rows = res.rows("_soisubiter")
+    surfup_rows = res.rows("_soisurfup")
+    for case_id in ("stable-duff", "divergent-duff", "dry-nonduff"):
+        this_state = [r for r in state_rows if r["case_id"] == case_id]
+        this_subiter = [r for r in subiter_rows if r["case_id"] == case_id]
+        this_surfup = [r for r in surfup_rows if r["case_id"] == case_id]
+        assert this_state, f"no _soistate rows for {case_id}"
+        assert this_subiter, f"no _soisubiter rows for {case_id}"
+        assert this_surfup, f"no _soisurfup rows for {case_id}"

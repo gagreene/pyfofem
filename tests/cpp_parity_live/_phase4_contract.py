@@ -815,8 +815,7 @@ BARK_THICK_SCENARIOS: Tuple[Tuple[str, str, str, str, str], ...] = (
      "BR-BRK-ALL (unknown species -> C++ -1)"),
     # --- CROSS-REFERENCE ROWS -------------------------------------------
     # mort_crnsch's `bark_thickness` argument must come from a REAL,
-    # manifested C++ oracle value, never an invented number (F-19 makes
-    # Python's own calc_bark_thickness unusable). Each row below supplies
+    # manifested C++ oracle value, never an invented number. Each row below supplies
     # SMT_CalcBarkThick for exactly one (species, DBH) pair used by a
     # `mortality` CroSco scenario, so the mortality comparison is sourced
     # end-to-end from this same manifested dataset.
@@ -846,8 +845,8 @@ BARK_THICK_SCENARIOS: Tuple[Tuple[str, str, str, str, str], ...] = (
 #: ``mortality`` CroSco case_id -> the ``bark_thick`` case_id supplying that
 #: scenario's bark thickness. Every mortality-vs-Python comparison that needs
 #: a bark thickness reads it from THIS manifested oracle row, never from a
-#: hardcoded constant and never from Python's own (F-19-broken)
-#: ``calc_bark_thickness``.
+#: hardcoded constant. Python's packaged lookup is independently verified
+#: against every pinned-C++ first-occurrence species-table row.
 CROSCO_BARK_SOURCE: Dict[str, str] = {
     "cs01-abam-dbh12": "brkxr-abam-d12",
     "cs01-abam-dbh1": "brkxr-abam-d1",

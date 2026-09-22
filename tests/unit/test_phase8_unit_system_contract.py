@@ -255,33 +255,41 @@ def test_consm_duff_percent_consumed_is_dimensionless_and_depths_convert_via_cm_
     assert si['rdd'] / _CM_PER_IN == pytest.approx(imperial['rdd'])
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-66: consm_duff() checks 'units == \"SI\"' (exact case); "
-        "units='si' (lowercase) silently skips the d_pre cm->in conversion, "
-        'producing a depth-derived output (ddc) that matches neither the '
-        'correct-case SI value nor its Imperial equivalent. Measured '
-        'directly: correct-case SI ddc=4.607814, lowercase si ddc=3.84228 '
-        'for the fixture below.'
-    ),
-)
 def test_consm_duff_should_be_case_insensitive_for_the_si_units_value():
     """Asserts the DESIRED behaviour (item 6, option A): ``units='si'``
-    (lowercase) should produce the SAME depth-derived output (``ddc``) as
-    ``units='SI'`` for the InteriorWest/Ponderosa-pine/edm route (unaffected
-    by F-23). Genuinely executes and genuinely fails under ``--runxfail``
-    (real numeric mismatch, not vacuous, and not looped across multiple
-    scenarios - a single call pair)."""
+    (lowercase) should produce the SAME percent/depth output as
+    ``units='SI'``.
+
+    CORRECTED 2026-09-21 (F-23 fix pass, side effect noted and repaired,
+    not an F-23 fix itself): the original fixture used InteriorWest +
+    Ponderosa pine + ``edm`` (Eq 2), whose ``pdc`` does not depend on
+    ``d_pre`` at all. Once F-23's fix made ``ddc``/``rdd`` a PURE linear
+    function of ``d_pre`` (``ddc = d_pre * (pdc/100)``, matching C++
+    ``DUF_Mngr``'s own unconditional depth override exactly -- see
+    ``consm_duff``'s docstring), this specific fixture's two F-66 bugs
+    (the missing cm->in conversion on input, the missing in->cm
+    conversion on output) became an exact algebraic cancellation
+    (``d_pre * k * 2.54`` either way), making ``ddc`` coincidentally
+    identical between the correct-case and lowercase paths even though
+    the real ``units == "SI"`` case-sensitivity defect is UNCHANGED and
+    still present in the code. Switched to NorthEast + RedJacPin + ``edm``
+    (Eq 15), whose ``pdc`` itself depends on ``d_pre`` (the residual-depth
+    term), so the missing conversion is directly observable in ``pdc``
+    (not just a depth field that can coincidentally cancel) -- confirmed
+    discriminating: ``pdc`` differs (22.37 vs 20.93) between the two paths
+    with this fixture. Genuinely executes and genuinely fails under
+    ``--runxfail`` (real numeric mismatch, not vacuous, and not looped
+    across multiple scenarios - a single call pair)."""
     d_pre_si = 3.0 * _CM_PER_IN
     correct_case = consm_duff(
-        pre_dl=2.0 * _TPAC_TO_KGPM2, duff_moist=40.0, reg='InteriorWest', cvr_grp='Ponderosa pine',
+        pre_dl=2.0 * _TPAC_TO_KGPM2, duff_moist=40.0, reg='NorthEast', cvr_grp='RedJacPin',
         duff_moist_cat='edm', d_pre=d_pre_si, units='SI',
     )
     lowercase = consm_duff(
-        pre_dl=2.0 * _TPAC_TO_KGPM2, duff_moist=40.0, reg='InteriorWest', cvr_grp='Ponderosa pine',
+        pre_dl=2.0 * _TPAC_TO_KGPM2, duff_moist=40.0, reg='NorthEast', cvr_grp='RedJacPin',
         duff_moist_cat='edm', d_pre=d_pre_si, units='si',
     )
+    assert lowercase['pdc'] == pytest.approx(correct_case['pdc'])
     assert lowercase['ddc'] == pytest.approx(correct_case['ddc'])
 
 
@@ -297,16 +305,6 @@ def test_consm_herb_intercept_route_si_imperial_equivalence():
     assert si * _KGPM2_TO_TPAC == pytest.approx(imperial)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-66: consm_herb() checks 'units == \"SI\"' (exact case); "
-        "units='si' (lowercase) silently skips the pre_ll/pre_hl kg/m²->T/ac "
-        'conversion, producing a wrong result on the SouthEast Eq 222 '
-        'intercept route. Measured directly: correct-case SI (converted back) '
-        '=0.194131, lowercase si (converted back) =0.148357 for the fixture below.'
-    ),
-)
 def test_consm_herb_should_be_case_insensitive_for_the_si_units_value():
     """Asserts the DESIRED behaviour (item 6, option A): ``units='si'``
     (lowercase) should produce the SAME result (after the standard
@@ -330,17 +328,6 @@ def test_consm_litter_array_valued_si_imperial_equivalence():
     np.testing.assert_allclose(si * _KGPM2_TO_TPAC, imperial, rtol=1e-9)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        'F-66: run_fofem_emissions()/consm_litter() case-sensitivity mismatch - '
-        "consm_litter() checks 'units == \"SI\"' (exact case), while "
-        "run_fofem_emissions()'s own is_imperial check is case-insensitive. "
-        "units='si' (lowercase) silently skips both conversions, producing a "
-        'wrong result that matches neither the correct-case SI value nor its '
-        'Imperial equivalent.'
-    ),
-)
 def test_consm_litter_should_be_case_insensitive_for_the_si_units_value():
     """Asserts the DESIRED behaviour: ``units='si'`` (lowercase) should
     produce the SAME result as ``units='SI'`` for a scale-sensitive
@@ -366,17 +353,6 @@ def test_consm_shrub_flatwoods_log_route_si_imperial_equivalence():
     assert si == pytest.approx(imperial)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-66: consm_shrub() checks 'units == \"SI\"' (exact case); "
-        "units='si' (lowercase) silently skips the pre_sl kg/m²->T/ac "
-        'conversion before the log()-based Flatwoods Eq 236 transform, '
-        'producing a result whose SIGN flips relative to the correct-case '
-        'value. Measured directly: correct-case SI =0.872834, lowercase si '
-        '=-0.480308 for the fixture below.'
-    ),
-)
 def test_consm_shrub_should_be_case_insensitive_for_the_si_units_value():
     """Asserts the DESIRED behaviour (item 6, option A): ``units='si'``
     (lowercase) should produce the SAME result as ``units='SI'`` for the
@@ -449,16 +425,6 @@ def test_run_fofem_emissions_nonlinear_route_si_imperial_equivalence():
     assert imperial['LitCon'] == pytest.approx(si['LitCon'] * _KGPM2_TO_TPAC)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-66: run_fofem_emissions(units='si') (lowercase) on a nonlinear "
-        "(Pine Flatwoods Eq 997) litter route produces a wrong result that "
-        "matches neither the correct-case SI value nor its Imperial "
-        'equivalent - the case-sensitivity defect reaches callers through '
-        'the top-level facade, not only through a direct consm_litter() call.'
-    ),
-)
 def test_run_fofem_emissions_should_be_case_insensitive_for_the_si_units_value_on_a_nonlinear_route():
     """Facade-level companion to the direct-function F-66 xfail above:
     asserts the DESIRED behaviour (``units='si'`` matching

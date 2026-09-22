@@ -8,7 +8,7 @@ coverage stayed in ``tests/unit/test_consumption_golden.py``):
 
 - Fix A: ``consm_duff`` Eq 3/7 (nfdth) must use ``dw1000_moist``, not
   ``duff_moist``.
-- Fix B: ``consm_herb`` GrassGroup Eq 221 (10%) applies only in Spring.
+- Fix B: ``consm_herb`` GrassGroup Eq 221 (90%) applies only in Spring.
 - Fix C: ``consm_duff`` pile burning (Eq 17) must return ``pdc=10%``, not
   90%.
 - Fix D: ``consm_duff`` low-moisture floor — ``duff_moist <= 10`` forces
@@ -44,28 +44,51 @@ class TestFixA_Eq3UsesCorrectMoisture:
         assert result_wrong['pdc'] == pytest.approx(0.0, abs=0.01)
 
     def test_eq7_uses_dw1000_moist(self):
-        """Eq 7 depth (nfdth) must use dw1000_moist."""
+        """nfdth depth (``ddc``) must use dw1000_moist, via its effect on
+        ``pdc`` (Eq 3).
+
+        CORRECTED 2026-09-21 (F-23 fix pass): ``ddc`` is no longer computed
+        via the abandoned Eq 7 depth-reduction regression -- C++ ``DUF_Mngr``
+        itself never uses per-region depth equations for its returned
+        output (``fof_duf.cpp`` Note-5, unconditional override at
+        ``:395``: ``f_Red = f_DufDep * (f_Per / 100.0)`` for every region).
+        ``ddc`` is now ALWAYS percent-derived from the final ``pdc``, so
+        dw1000_moist's effect on depth is now indirect, through Eq 3's own
+        ``pdc``, not a separate Eq 7 formula.
+        """
         result = consm_duff(
             pre_dl=10.0, duff_moist=80.0,
             reg='InteriorWest', duff_moist_cat='nfdth',
             dw1000_moist=20.0, d_pre=3.0, units='Imperial',
         )
-        # Eq 7: 1.773 - 0.1051*20 + 0.399*3 = 1.773 - 2.102 + 1.197 = 0.868
-        expected = 1.773 - 0.1051 * 20.0 + 0.399 * 3.0
-        assert abs(result['ddc'] - expected) < 0.001
+        # pdc (Eq 3, unaffected by this pass): 114.7 - 4.2*20 = 30.7
+        # ddc = d_pre * (pdc/100) = 3.0 * 0.307 = 0.921 (fof_duf.cpp:395)
+        expected_pdc = 114.7 - 4.2 * 20.0
+        expected_ddc = 3.0 * (expected_pdc / 100.0)
+        assert abs(result['pdc'] - expected_pdc) < 0.001
+        assert abs(result['ddc'] - expected_ddc) < 0.001
 
 
 class TestFixB_GrassHerbSeason:
-    """Fix B: GrassGroup Eq 221 (10%) applies only in Spring."""
+    """Fix B: GrassGroup Eq 221 (90%) applies only in Spring.
 
-    def test_grass_spring_is_10pct(self):
-        """GrassGroup herb consumption in Spring is 10% (Eq 221).
+    CORRECTED 2026-09-18 (F-70 comprehensive-suite reconciliation pass,
+    see gate0/04-findings.md F-35): this class's original premise --
+    that Eq 221 consumes 10% of the herb load in Spring -- was itself
+    backwards. The pinned C++ ``Herb_Eq221`` (``fof_hsf.cpp:349``)
+    computes ``f_Herb * 0.9``: 90% consumed, not 10%. Production
+    ``consm_herb`` already matches this (``pre_hl * 0.9``); only this
+    test's expected values were stale.
+    """
+
+    def test_grass_spring_is_90pct(self):
+        """GrassGroup herb consumption in Spring is 90% (Eq 221).
 
         :return: None. Raises via ``assert`` on mismatch.
         """
         hlc = consm_herb('InteriorWest', 'GrassGroup', 2.0, 2.0,
                          season='Spring', units='Imperial')
-        assert abs(hlc - 0.2) < 0.001  # 2.0 * 0.1 = 0.2
+        assert abs(hlc - 1.8) < 0.001  # 2.0 * 0.9 = 1.8
 
     def test_grass_summer_is_100pct(self):
         """GrassGroup herb consumption in Summer is 100%.

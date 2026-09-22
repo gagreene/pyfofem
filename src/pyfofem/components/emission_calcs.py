@@ -261,9 +261,10 @@ def calc_smoke_emissions(
             :param name: Parameter name to use in the error message.
             :return: None
             """
-            if grp < 1 or grp > len(ef_df):
+            group_count = int(ef_df['Group #'].notna().sum())
+            if grp < 1 or grp > group_count:
                 raise ValueError(
-                    f"{name} must be between 1 and {len(ef_df)}; got {grp}."
+                    f"{name} must be between 1 and {group_count}; got {grp}."
                 )
 
         _validate_group(ef_group, 'ef_group')
@@ -344,4 +345,3 @@ def calc_smoke_emissions(
             'SO2S_Duff':  e_duf['SO2'],
         }
         return result
-

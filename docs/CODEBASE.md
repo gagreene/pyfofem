@@ -27,6 +27,7 @@ pyfofem/
 |   `-- supporting_data/
 |       |-- species_codes_lut.csv      #    Species <-> FOFEM-code mapping (runtime table, in the wheel)
 |       |-- emissions_factors.csv      #    Emission-factor groups (runtime table, in the wheel)
+|       |-- fofem_bark_thickness.csv   #    Complete C++ bark-thickness extraction (runtime table, in the wheel)
 |       |-- fofem_crnsch_eq1_bark.csv  #    C++ Equation-1 small-tree bark slopes (runtime table, in the wheel)
 |       `-- FOFEM6.7/                  #    Bundled FOFEM data files (NOT in the wheel)
 |
@@ -99,7 +100,7 @@ pyfofem/
 - `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` validate soil `Lay*` parity vs C++ `soil.tmp`.
 - `tests/run_unified_tests.py --suite core|full` is the current publish-oriented test runner (see `README.md`).
 - `examples/emissions_batch.py` (not under `tests/`) is the current emissions batch/example driver.
-- `reference/fofem_cpp_overlay/source/FOF_UNIX/test_harness.cpp` (applied onto `reference/fofem_cpp/FOF_UNIX/test_harness.cpp`, never committed inside the submodule) is the **Phase 2** C++ oracle harness (`fofem_test`), superseding the old single-mode ("consume" only) harness this section previously described. It implements six modes — `consume`, `litter_eq`, `shrub_herb_eq`, `mortality`, `bark_thick`, `canopy_cover` — per `development/plans/gate0/05-harness-contract.md`; **the input/output schema version is declared PER MODE** (`test_harness.cpp`'s `MODES[]` table, mirrored by `MODE_SCHEMA_VERSIONS` in `tests/cpp_parity_live/_golden_manifest.py` and enforced by `validate_manifest()`): `mortality` is at **v2** since the 2026-09-01 Phase 4 correction pass (added `density_tpa`, renamed `ckr_pct` to `ckr_rating`, widened the mode's error rule — see F-45), every other mode is at v1, and each mode rejects every version but its own; `soil_campbell` is Phase 5's (16-column schema, corrected from an original 13-column draft -- item-1 audit closed the `f_DufLoaPre`/`f_DufConPer`/`f_DufMoi` initialization gap; a real, manifested 13-scenario golden dataset exists under `tests/test_data/test_golden_output/phase5/` as of Part 3, 2026-09-03. A 2026-09-03 scientific-triage pass (F-52) executed real Python-vs-C++ comparisons and found the two solvers structurally different -- 16-49 degC divergence even with every Python-consumed soil-property input aligned to the pinned C++ table -- so this dataset's comparisons are documented cross-implementation characterization, not a parity claim; see F-51/F-52). `mortality`/`bark_thick`/`canopy_cover` require an explicit `--species-csv <path>` (real production loader `MRT_LoadSpe()`, not `MRT_InitST()` — see that file's own header comment and the Gate 0 correction recorded in `03-cpp-crosswalk.md`/`05-harness-contract.md`).
+- `reference/fofem_cpp_overlay/source/FOF_UNIX/test_harness.cpp` (applied onto `reference/fofem_cpp/FOF_UNIX/test_harness.cpp`, never committed inside the submodule) is the **Phase 2** C++ oracle harness (`fofem_test`), superseding the old single-mode ("consume" only) harness this section previously described. It implements six modes — `consume`, `litter_eq`, `shrub_herb_eq`, `mortality`, `bark_thick`, `canopy_cover` — per `development/plans/gate0/05-harness-contract.md`; **the input/output schema version is declared PER MODE** (`test_harness.cpp`'s `MODES[]` table, mirrored by `MODE_SCHEMA_VERSIONS` in `tests/cpp_parity_live/_golden_manifest.py` and enforced by `validate_manifest()`): `mortality` is at **v2** since the 2026-09-01 Phase 4 correction pass (added `density_tpa`, renamed `ckr_pct` to `ckr_rating`, widened the mode's error rule — see F-45), every other mode is at v1, and each mode rejects every version but its own; `soil_campbell` is Phase 5's (16-column INPUT schema, corrected from an original 13-column draft -- item-1 audit closed the `f_DufLoaPre`/`f_DufConPer`/`f_DufMoi` initialization gap; bumped v1->v2 by the Campbell duff-forcing correction pass (2026-09-16, see Gotcha #29), which appended three OUTPUT-only summary columns exposing the pinned `DuffBurn()`'s outputs directly -- no input schema change; a real, manifested 13-scenario golden dataset exists under `tests/test_data/test_golden_output/phase5/` as of Part 3, 2026-09-03. HISTORICAL (2026-09-03 scientific-triage pass, F-52): a real Python-vs-C++ comparison at the time found the two solvers structurally different -- 16-49 degC divergence even with every Python-consumed soil-property input aligned to the pinned C++ table -- so this dataset's comparisons were then documented cross-implementation characterization, not a parity claim. SUPERSEDED 2026-09-18 (F-70 third round, then the Campbell-backend consolidation pass): a real, isolated `bulk_density`/`particle_density` unit-conversion transcription error was found and fixed, and all 11 committed Phase 5 scenarios (5 families x both routes) now match this same live C++ harness to well under 0.01 degC over their whole recorded trajectories -- `tolerance_policy.json`'s `soil_campbell_p5.duff`/`nonduff` routes are `"status": "verified"`, not `"unverified"`/`"contract_only"`; see F-51/F-52/F-70). `mortality`/`bark_thick`/`canopy_cover` require an explicit `--species-csv <path>` (real production loader `MRT_LoadSpe()`, not `MRT_InitST()` — see that file's own header comment and the Gate 0 correction recorded in `03-cpp-crosswalk.md`/`05-harness-contract.md`).
 - `tests/cpp_parity_live/_harness_support.py` locates the MSVC/CMake/Ninja toolchain (via `vswhere.exe`), builds `fofem_test.exe`, and drives it from Python.
 - `tests/cpp_parity_live/_golden_manifest.py` builds/validates the provenance manifest every Phase 2 golden dataset carries (upstream SHA, overlay digests, compiler/toolchain identity, input/output/side-file hashes, generation timestamp, pyfofem commit, and exact scenario-applicable tolerance-policy references/divergences). Validation fails closed on omitted/cross-mode policy keys and re-derives the expected divergence list from the canonical route contract. Validated by `tests/unit/test_golden_manifest_validator.py` (no live build needed).
 - `tests/cpp_parity_live/test_cpp_harness_contract.py` implements the full 19-row + 11a-11g self-test matrix from `gate0/05-harness-contract.md` §10 against the live compiled binary (192 tests as of Phase 2 final approval; requires the MSVC toolchain, skips cleanly if absent).
@@ -149,6 +150,11 @@ Different APIs — not parity oracles (Gate 0 `03-cpp-crosswalk.md` rows
 C++ expressions (`fof_mrt.cpp:396-397` and `:315-327`) whose
 intermediates `f_Fl`/`f_CK`/`f_CSL` are `MRT_Calc` **locals** absent
 from `d_MO` (finding F-30), so they get source-relation tests only.
+
+The Butler intensity relationship is publication-validated (Alexander and
+Cruz 2021, Table 1 and corrigendum), but its calibration traces to one
+documented jack-pine crown-fire case. It is therefore exposed as a useful
+empirical option, not as a general surface-fire relationship.
 
 **Runtime-resource-loading pattern (verified, not assumed).** Neither
 loader uses `importlib.resources`. All three build a path from the defining
@@ -310,6 +316,60 @@ The documented `/analyze` command above never included `/RTC1` — it is a bare 
 **Fix applied** (preferred option per the correction instructions, over merely re-documenting a stack-margin argument): `ci`/`co` are now heap-allocated via `std::unique_ptr<d_CI>`/`std::unique_ptr<d_CO>` with `d_CI&`/`d_CO&` references bound to them, so every existing `ci.`/`co.` access in the function body is unchanged. This is a harness-local, test-tooling-only change — no pinned `FOF_UNIX/*.cpp` source was touched, and `CI_Init`/`CO_Init`/the scientific call sequence are identical. Re-running `/analyze` after the fix confirms **0 findings** (verified directly above, not assumed); the full `test_cpp_harness_contract.py` matrix (192 tests, both the normal build and the ASan diagnostic build) was re-run afterward and passes identically to before the fix, confirming no functional/behavioral change.
 
 `/RTC1` (Runtime Checks — uninitialized-variable and stack-frame-corruption detection) is CMake's own `CMAKE_CXX_FLAGS_DEBUG` default and is therefore already active on every golden/release build and every one of the hundreds of harness invocations across the self-test suite and golden generation this session — zero RTC aborts observed.
+
+#### F-70 `fofem_test_soidiag` diagnostic-observer build (2026-09-17) — tracked, reproducible record
+
+A THIRD build, distinct from both the golden/release build and the ASan
+diagnostic build above: `fofem_test_soidiag`, which swaps in the
+overlay's `fof_soi_instr.cpp` (a byte-for-byte copy of the pinned
+`fof_soi.cpp` plus two diagnostic hook calls — see that file's own
+header comment for the full provenance/diff proof) in place of the real
+`fof_soi.cpp`, with every other source unchanged. Never used to generate
+an accepted golden — an instrumented OBSERVER of the real execution
+path, not a distinct oracle. Same toolchain/host as above; uses the same
+sourced `vcvars64.bat` environment:
+
+```powershell
+# Build the normal fofem_test target FIRST (proves it still builds
+# clean whenever the diagnostic target is requested — see
+# _harness_support.ensure_soidiag_built()) then the diagnostic target:
+cmake -S reference/fofem_cpp -B reference/fofem_cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build reference/fofem_cpp/build --target fofem_test
+cmake --build reference/fofem_cpp/build --target fofem_test_soidiag
+```
+
+Selecting the diagnostic-observer binary uses the SAME
+`FOFEM_TEST_HARNESS_EXE` override mechanism as the ASan build above —
+set it on the CALLING process's own `os.environ` (`resolve_harness_exe()`
+reads that directly, not any subprocess `env=` dict), e.g. via pytest's
+`monkeypatch.setenv` in a test, or:
+
+```powershell
+$env:FOFEM_TEST_HARNESS_EXE = "$(Get-Location)\reference\fofem_cpp\build\fofem_test_soidiag.exe"
+$env:FOFEM_TEST_SOIL_STATE_DIAG = "*"
+python -m pytest tests/cpp_parity_live/test_cpp_harness_contract.py -k soil_state_diag -q
+```
+
+**Results (2026-09-17):** both targets build clean via
+`_harness_support.ensure_soidiag_built()` (which calls `ensure_built()`
+first) — zero compiler errors on either target; `fof_soi_instr.cpp`
+compiles with the SAME pre-existing warning set as the real
+`fof_soi.cpp` it copies (no NEW warnings from the two added hook calls).
+The full pre-existing 77-test soil-related subset of
+`test_cpp_harness_contract.py` re-passes against the rebuilt NORMAL
+binary (proves the CMakeLists.txt/`fof_soi_instr.cpp` additions caused
+zero regression); the new 11-test `test_soil_state_diag_*` subset passes
+against the diagnostic binary, including
+`test_soil_state_diag_normal_binary_output_unchanged`'s direct
+byte-identical `_summary`/`_field` proof between the two binaries on the
+SAME scenario. `REQUIRED_OVERLAY_FILES` (`_golden_manifest.py`) was
+extended to include the new `source/FOF_UNIX/fof_soi_instr.cpp` entry —
+without this, any subsequent golden regeneration would fail closed
+(`overlay_file_digests has unexpected extra files`), since
+`compute_overlay_digests()` walks the whole overlay directory
+dynamically. All 5 phases were regenerated for real after this edit (see
+F-70 in `gate0/04-findings.md` for the full before/after CSV hash
+comparison).
 
 #### Phase 4 test and dataset architecture (2026-08-31) — executed C++ oracle comparison for Tier-2 functions
 
@@ -677,8 +737,14 @@ public symbol.
 | **Emissions** | `components/emission_calcs.py` | `legacy` / `default` / `expanded` emissions modes and EF CSV loading |
 | **Mortality** | `components/mortality_calcs.py` | `mort_crnsch`, `mort_bolchar`, `mort_crcabe` |
 | **Tree/Flame Utilities** | `components/tree_flame_calcs.py` | Scorch/flame/char/canopy helper calculations |
-| **Soil Heating** | `components/soil_heating.py` | Campbell (1D equilibrium) and Massman HMV (non-equilibrium) models using `scipy.integrate.solve_ivp` |
+| **Soil Heating** | `components/soil_heating.py` | Campbell (1D equilibrium) is supported. Massman HMV is in development and deliberately unavailable pending a full, published-model validation. |
 | **Data** | `supporting_data/` | Species lookup CSV, emission factor CSV, bundled FOFEM 6.7 files |
+
+**Massman HMV availability (current, 2026-09-16).** The prior simplified
+``soil_heat_massman()`` approximation is intentionally unavailable and is not
+re-exported from either public API. It always raises ``NotImplementedError``.
+Campbell is the only supported PyFOFEM soil-heating model until a full,
+published-model Massman implementation is developed and validated.
 
 ### C++ Reference (`reference/fofem_cpp/`)
 
@@ -1272,6 +1338,323 @@ subclasses for the two runtime outcomes) is a public-API change and needs
 explicit sign-off, and it would also let gotcha #17's substring table be
 replaced by a structural lookup.
 
+### 26. `consm_shrub()`'s SE non-Pocosin Eq 16/234 branch — Fixed 2026-09-15 (F-67)
+
+**RESOLVED.** C++'s `Equation_16`/`Equ_234_Per`
+(`reference/fofem_cpp/FOF_UNIX/fof_hsf.cpp:229-274`) compute
+`f_WPRE = f_Lit + f_Duff + f_DW10 + f_DW1` — litter + duff + 10-hr + 1-hr
+dead woody fuel. `consm_shrub()` previously used only `pre_ll + pre_dl`
+(litter + duff), with no public parameter to supply the other two terms at
+all. Fixed: `consm_shrub()` gained optional `pre_dw1`/`pre_dw10` parameters
+(defaulting to 0, so omitting them exactly reproduces prior behavior); the
+Eq 16/234 branch now uses all four terms. `emission_pipeline.py`'s separate
+post-hoc inline re-implementation of the same 4-term formula — previously
+needed because the direct helper had no way to receive `dw10`/`dw1` — is
+removed; `compute_pre_burnup_consumption()` now forwards `dw10_a`/`dw1_a`
+straight into its own `consm_shrub()` call. A durable regression compares
+the facade's shrub loads against the helper across nonzero `dw10`/`dw1`
+loads and the zero-shrub guard. Confirmed against a live C++ oracle with
+nonzero `dw10`/`dw1` via the `consume`-mode
+`se-gen-entire-m050` golden scenario (`ShrCon`/`ShrPre` = 91.0408%,
+matching the corrected 4-term Python result; the pre-fix 2-term formula
+gave 86.489%). See finding F-67 (`gate0/04-findings.md`) and
+`tests/unit/test_con01_con02_shrub_eq234.py`.
+
+### 27. `consm_shrub()`'s SE non-Pocosin Eq 234 branch returned NaN for a zero fuel load — Fixed 2026-09-15 (F-68)
+
+**RESOLVED.** C++ returns 0 (never NaN) whenever `f_W == 0`
+(`fof_hsf.cpp:234-235`), `f_WPRE == 0` (`fof_hsf.cpp:238,271`), or
+`f_ShrReg` (`= f_Shrub`) `== 0`
+(`fof_hsf.cpp:243`, guarded a second time in `Calc_Shrub`,
+`fof_hsf.cpp:182-186`). `consm_shrub()` previously mapped the `woody_pre
+== 0` case onto the same NaN sentinel used to guard the fraction formula's
+own division, with no subsequent override back to 0 — so a zero
+litter+duff configuration with a nonzero shrub load silently returned NaN
+instead of a valid 0%. Fixed with explicit `fire_weight == 0`,
+`woody_pre == 0`, and `pre_sl == 0` overrides to exactly `0.0`; a negative
+(physically invalid) sum still propagates as NaN unchanged — only exact
+`== 0` cases are special-cased, so an unrelated invalid input is never
+silently zeroed. The
+zero-shrub-load case did not independently exhibit this defect (the
+function's final division step already left that cell at 0 via its
+`where=pre_sl>0` mask), confirmed by testing against the pre-fix code
+directly. See finding F-68 (`gate0/04-findings.md`) and
+`tests/unit/test_con01_con02_shrub_eq234.py`.
+
+### 28. Python had no Coastal Plain forest-floor route — Fixed 2026-09-16 (F-39, Coastal Plain sub-finding)
+
+**RESOLVED IN PART.** Coastal Plain (`cvr_grp` `'CP'`/`'CoastPlain'`,
+case-insensitive) is a SouthEast COVER GROUP, not a region — C++'s
+special route lives entirely inside `DUF_SouthEast()`
+(`fof_duf.cpp:409-426`). `consm_litter()`, `consm_duff()`, and
+`consm_mineral_soil()` previously had no Coastal Plain concept at all and
+silently fell through to unrelated equations (ordinary SouthEast Eq
+998/16 and Eq 10). Fixed: all three now detect Coastal Plain and route
+through a new shared `_coastal_plain_forest_floor()` helper
+(`consumption_calcs.py`), matching C++'s `Equ_CP_Per`/`Equ_CP_Red`/
+`Equ_CP_MSE` (`fof_duf.cpp:1115-1249`, equation IDs 30/31/32) and
+`_CalcCP_Lit`/`_ChkLitMoist` (`fof_hsf.cpp:83-127,614-626`) exactly —
+litter is consumed first, duff receives only the excess beyond the full
+pre-fire litter load; litter moisture is required and enforced to the
+inclusive `[1.0, 100.0]` range; the pre-existing global `duff_moist <= 10`
+(100% duff/depth) and `duff_load <= 0` (100% MSE) overrides both still
+apply on top unchanged. A non-SouthEast region with a Coastal Plain cover
+group now raises `ValueError` — PyFOFEM's own supported contract,
+stricter than raw C++ (which would silently apply whatever OTHER regional
+equation `reg` happens to select). Litter consumption for a Coastal Plain
+cell comes solely from this route; Python's `run_fofem_emissions()`
+pipeline has no independent Burnup litter accounting to double-count
+against in the first place (unlike C++). Verified against the
+already-committed `se-cp-entire-m050` Phase 4 golden scenario (no new
+golden generation needed): `LitCon`/`DufPer`/`DufDepCon`/`MSE` all now
+match C++ exactly (previously diverged by 9.75-56.22 percentage points /
+20% of the litter load). **Two sibling gaps in the SAME finding (F-39)
+remain open and unchanged**: White Pine-Hemlock (NorthEast, delegates to
+`DUF_InteriorWest`) and Chaparral mineral soil (`Equ_19_MSE` = 100%) —
+neither cover group is Coastal Plain and neither was touched by this fix.
+See finding F-39 (`gate0/04-findings.md`) and
+`tests/unit/test_f39_coastal_plain.py`.
+
+### 29. `soil_heat_campbell(model="duff")`'s surface forcing used a static pre-fire duff depth and a load-independent burn rate — Fixed 2026-09-16 (F-69, the Campbell duff-forcing correction)
+
+**RESOLVED.** Two previously-informal issues (task-prompt labels
+"SOI-01"/"SOI-02", never tracked finding IDs before this fix) plus F-53's
+percent-to-ratio defect, all in `soil_heating.py`'s pre-correction
+`_duff_flux_and_duration()`/`_make_duff_flux_fn()`:
+
+- **SOI-01 (static depth).** The duff-to-mineral-soil heat-transmission
+  fraction was computed ONCE from the pre-fire `duff_depth` and held
+  constant for the whole simulated burn, instead of being re-evaluated at
+  the time-varying remaining depth as the duff layer burns down — matching
+  the pinned C++ `SD_Mngr_New()` (`fof_sd.cpp:98-129`), which computes a
+  linearly-decreasing `remaining_depth(t)` and re-evaluates `SD_HeatAdj()`
+  each step. Since the transmitted-heat fraction DEcreases with depth, a
+  thinning duff layer transmits progressively MORE heat over time than its
+  pre-fire depth alone would predict — the pre-correction code understated
+  this for any partial-consumption case.
+- **SOI-02 (load-independent rate).** Burn duration/rate had no dependency
+  on `duff_params['duff_load']` at all, despite the public docstring
+  already documenting it as required. C++'s `DuffBurn()`
+  (`bur_brn.cpp:1950-1986`) makes both direct, load-proportional functions
+  of `wdf` (duff dry load, kg/m²).
+- **F-53 (percent-to-ratio, previously CONFIRMED, now RESOLVED).** The
+  documented whole-percent `duff_moisture` input was never converted to
+  the ratio scale the burn-rate equation requires, zeroing surface flux
+  for every realistic input.
+
+**Fix.** `_duff_flux_and_duration()`/`_make_duff_flux_fn()` were removed
+and replaced with three new private helpers, direct ports of the pinned
+C++ contract:
+
+- `_duff_burn_rate(wdf_kgm2, dfm_ratio, pct_consumed)` — ports `DuffBurn()`
+  (`bur_brn.cpp:1950-1986`) exactly: `intensity_kw = 11.25 - 4.05*dfm`;
+  `duration_s = 1e4*ff*wdf/(7.5-2.7*dfm)`; `consumed_rate = ff*wdf/duration_s`
+  (`ff = pct_consumed/100`). Zero for `wdf_kgm2 <= 0` (a valid, non-error
+  input — negative load included) or `dfm_ratio >= 1.96`, matching C++'s
+  own guard exactly.
+- `_duff_heat_fraction(remaining_depth_cm)` — ports `SD_HeatAdj()`
+  (`fof_sd.cpp:294-313`) exactly (the same clipped double-exponential
+  regression); monotonically decreasing in depth.
+- `_duff_burn_profile(duff_params)` — orchestrates the above into a
+  `remaining_depth_fn(t)`/`heat_fraction_fn(t)`/`flux_fn(t)` closure trio
+  consumed unchanged by Campbell's existing ODE solver. `duff_load` is now
+  a genuine required input (`ValueError` if missing/non-finite; a finite
+  value `<= 0` is valid, not an error). `duff_moisture` is converted from
+  percent to ratio exactly once, at this boundary (`dfm_ratio =
+  duff_moisture_pct / 100.0`). An out-of-range `pct_consumed` raises
+  `ValueError` — C++'s own out-of-range fallback
+  (`ff = 0.837 - 0.426*dfm`, `bur_brn.cpp:1974-1975`) exists only for a
+  standalone-Burnup-without-FOFEM path with no Campbell-contract
+  equivalent, and is deliberately NOT ported.
+
+**Two real unit traps caught by verifying C++'s actual arithmetic, not its
+comments** (per this pass's own explicit discipline): (1) `DuffBurn()`'s
+header comment wrongly calls `wdf` "kilograms per cubic meter" — the real
+caller (`TPA_To_KiSq()`, `fof_util.cpp:543-549`, `f_TPA / 4.46`) proves it
+is genuinely kg/m² (an areal load), matching every sibling pyfofem
+consumption function's T/ac -> kg/m² convention; (2) `SD_HeatAdj()`'s
+inch->cm conversion (`fof_sd.cpp:298-299`) is NOT the idealized `2.54` —
+`InchtoMeter()` (`fof_sh.cpp:209-215`) divides by `39.37`, giving
+`100.0/39.37 = 2.5400558...`, ported bit-for-bit as `_CPP_INCH_TO_CM`.
+
+**Harness extension (class B evidence).** The already-linked
+`soil_campbell` harness mode (`test_harness.cpp`) was extended with three
+new output-only summary columns (`duff_burn_intensity_kw`,
+`duff_burn_duration_s`, `duff_burn_consumed_per_sec`) via a minimal
+`extern "C"` forward declaration of the real pinned `DuffBurn()` — NOT
+`#include "bur_brn.h"` directly, which unconditionally `#define`s
+`bool`/`true`/`false` with no `__cplusplus` guard (verified via a real
+`C2440` compile error before switching approaches). Schema bumped v1->v2
+(see `MODE_SCHEMA_VERSIONS`'s `soil_campbell` docstring in
+`_golden_manifest.py`); five new self-tests
+(`test_soil_duff_burn_*` in `test_cpp_harness_contract.py`) compare
+Python's ported formulas against the real compiled C++ output at four
+discriminating cases (normal, zero-load, moisture-threshold, and a
+distinct partial-consumption case), matching to float precision. The C++
+full soil-temperature result is deliberately NOT used as an equality
+oracle anywhere in this evidence.
+
+**Scope, explicitly preserved.** This is a forcing-INPUT correction, not a
+Campbell/C++ PDE parity claim — F-52's structural model-difference
+conclusion is unchanged (`duff`/`nonduff` `soil_campbell_p5` routes remain
+`"unverified"`); `soil_heat_massman()` is untouched and remains unavailable
+(`NotImplementedError`); the pinned `reference/fofem_cpp/` submodule was
+not modified (only the overlay, pyfofem's own maintained harness source).
+
+**One real, fully-attributable full-suite-validation consequence**: the
+legacy, pre-Gate-0 `test_soil_heating_cpp_parity.py::test_soil_lay_values_vs_cpp`
+(compares against a static `reference/fofem_cpp/soil.tmp` snapshot, outside
+the Phase 2-8 harness architecture) started failing once this fix landed —
+its `duff_moist=10.0%` scenario was previously passing only because F-53's
+bug zeroed forcing (coincidentally close to the reference); with real
+forcing now flowing through, it exposes the SAME F-52 structural
+divergence at 84.7 degC. Marked `xfail(strict=True)` citing F-52/F-69/F-53,
+its own tolerances left unchanged.
+
+See F-69/F-53 (`gate0/04-findings.md`),
+`tests/unit/test_duff_forcing_correction.py`, and the `test_soil_duff_burn_*`
+cases in `test_cpp_harness_contract.py`.
+
+### 30. `soil_heat_campbell()` was ported to a coupled heat/moisture/vapor Newton solver, replacing the heat-only model — NUMERICALLY VERIFIED against pinned C++ (F-70, third round, 2026-09-18)
+
+**RESOLVED — genuine numerical parity achieved and measured.** The
+diagnostic passes below (2026-09-17) located but did not fix the
+divergence; a third, narrowly-scoped pass (2026-09-18) found and fixed
+the exact root cause: `_SOIL_FAMILY_DEFAULTS`'s `bulk_density`/
+`particle_density` were divided by 1000 ("g/m^3 -> kg/m^3, for this
+module's own SI convention") — harmless everywhere `bd`/`pd` are used
+as the ratio `xs = bd/pd`, but silently corrupting `_soiltemp_step`'s
+own `cp[i] = v[i]*(0.87*bd + 4.18e6*wn[i])/dt` heat-capacity term, the
+ONE place `bd` is used as an absolute (non-ratio) value. Removing that
+division (storing the pinned tables' raw literals, e.g. `1.23e6` not
+`1230.0` for Coarse-Silt) resolved the divergence for every one of the
+11 committed Phase 5 golden scenarios (all 5 soil families, both
+duff/non-duff routes) to well under 0.001 degC max|diff|, measured
+against the golden's own precise per-timestep `_field.csv` data. See
+`gate0/04-findings.md` F-70's third-round entry for the complete
+field-by-field crosswalk evidence, before/after values, and validation
+counts. `tolerance_policy.json`'s `soil_campbell_p5.duff`/`nonduff`
+routes moved from `"unverified"` to `"verified"` (atol=0.01 degC,
+rtol=0.0). The diagnostic facility gained a THIRD overlay-only hook,
+`SoiDiagRecordSurfaceUpdate`/`_soisurfup.csv` (48 named fields covering
+every quantity the surface-node Newton update reads or writes), which
+is what actually isolated `cp1` as the first differing quantity — the
+prior two hooks' fields (final-timestep-only state; 5-field
+per-sub-iteration tn/p/residuals) could observe THAT a divergence
+existed but not isolate WHICH of the many intermediate terms caused it.
+
+By explicit user decision, F-52's "materially different
+implementations, characterization is the permanent target" conclusion is
+no longer acceptable — `soil_heat_campbell()` must eventually reproduce
+the pinned C++ `SH_Mngr` soil-temperature outputs for equivalent inputs.
+`_campbell_rhs`/`_de_vries_k`-driven `solve_ivp` (described by this file's
+own status table below, now HISTORICAL for this function specifically)
+was entirely replaced with a direct, function-for-function port of C++'s
+real coupled solver: `fof_soi.cpp`'s `soiltemp_step`/`tcond`/
+`watercontent`/`humidity`/`vaporpressure`/`slope`/`Kvap`/`Hv`, driven by
+the same fixed-timestep outer clock loop `fof_sd.cpp`'s `SD_Mngr_New`
+(duff)/`fof_se.cpp`'s `SE_Mngr_Array` (non-duff) use. A previously-missing
+soil-family constant field (`recirc_water`, C++ `xwo` — distinct from
+`extrap_water`/`xo`, which the old dict had conflated it with) was added,
+and all 5 soil families' constants now match the pinned `sr_SD`/`sr_SE`
+tables bit-for-bit (fully resolves F-51). A real ambient Stefan-Boltzmann
+radiative floor (`5.67e-8*(start_temp+273)^4`, constant for the whole run,
+added to whatever duff/fire forcing is present) was added to both routes
+— previously entirely missing. Full crosswalk, evidence, and current
+measured divergence: F-70 (`gate0/04-findings.md`).
+
+**Diagnostic pass 1 (2026-09-17):** a new opt-in, overlay-only diagnostic
+facility exposes real intermediate C++ solver state (`<prefix>_soidiag.csv`,
+gated by `FOFEM_TEST_SOIL_DIAG`) — see `test_cpp_harness_contract.py`'s
+`test_soil_diag_*` tests and the new `test_soil_solver_diagnostic_comparison.py`
+module. Using it, forcing-value mismatch was RULED OUT as the divergence
+source (Python's own forcing exactly reproduces the live C++ per-tick
+surface flux); the divergence is confirmed to originate inside the Newton
+solve itself, and is present from the very first converged timestep for
+all three tested scenario categories. No isolated, directly-evidenced
+transcription error in the core equations has been found yet.
+
+**Diagnostic pass 2 / Campbell-1995 crosswalk (2026-09-17, same day,
+STILL IN PROGRESS — this is a provenance/diagnostic-observability pass,
+NOT a parity claim):** the paper Campbell et al. (1995) was read directly
+(image-only PDF, rendered pages) and cross-walked equation-by-equation
+against the pinned C++ source — every checked constant/formula
+(watercontent's `ln(10^6)`≈13.82, humidity's `Mw`/`R`, vaporpressure's 5
+Clausius-Clapeyron-style coefficients, the tortuosity `e_tor=0.66`, the
+`Po`/`Patm` pressure ratio, the `6.2e-9*e_hc` mass-transfer coefficient,
+the Stefan-correction 0.3 floor, the bottom-up cumulative vapor-flux
+loop) matches the paper's own stated values/derivations exactly — the
+pinned C++ solver is a faithful (if occasionally paper-simplified, e.g.
+the documented "derivatives with respect to node i only" 2-variable
+per-node linearization) implementation of the paper, not an independent
+reinterpretation. One paper-vs-C++ discrepancy was found and is NOT a
+Python bug candidate (Python must match C++, the numerical parity
+target, not the paper where they differ): the paper specifies
+emissivity=0.9 for the surface's outgoing Stefan-Boltzmann term; the
+pinned C++ term (`5.67e-8*T^4`) carries no emissivity factor.
+
+A second, deeper diagnostic facility was added
+(`FOFEM_TEST_SOIL_STATE_DIAG`, `<prefix>_soistate.csv`/`_soisubiter.csv`)
+requiring a SEPARATE, overlay-only diagnostic-observer CMake target,
+`fofem_test_soidiag`, built from a byte-for-byte copy of the pinned
+`fof_soi.cpp` (`fof_soi_instr.cpp`, verified via `sha256sum`/`diff`) plus
+exactly two hook calls (one per converged timestep, one per Newton
+sub-iteration) — see that file's own header comment for the full
+provenance proof, and `_harness_support.ensure_soidiag_built()` for the
+build. The normal `fofem_test` target is proven byte-identical before
+and after (`test_soil_state_diag_normal_binary_output_unchanged`, plus
+the full pre-existing 77-test soil harness-contract suite re-run against
+the rebuilt normal binary). Using this facility, per-Newton-sub-iteration
+tracing on the SOI-NOD-04-like dry non-duff scenario found the
+divergence is present from sub-iteration 1 of timestep 0 itself (not
+accumulated) — ruling out float32-vs-float64 precision width as the
+mechanism (a faithful full-expression float32 replica of the Newton
+sub-iteration matches the float64 Python port to 5 significant figures)
+and tracing it instead to a near-singular linearized-Newton denominator
+(~1e-4 magnitude, vs a ~1e-3 numerator) at this specific
+dry-soil/high-forcing operating point — a shared sensitivity of both
+implementations' identical linearization scheme, not a coding defect in
+either. No non-finite/inconsistent/non-convergent C++ state was observed
+(C++ converges in 3 sub-iterations, Python in 5 — both finite, both
+"successful"), so this is explicitly NOT classified as "C++
+ill-conditioning." No isolated, directly-evidenced Python transcription
+error was found in this pass, so no production equation change was made.
+`soil_heat_massman()` is untouched and remains unavailable
+(`NotImplementedError`); the pinned `reference/fofem_cpp` submodule was
+not modified by any of the three passes.
+
+See F-70 (`gate0/04-findings.md`) for the full paper-to-C++ equation
+classification table, the exact first-divergence evidence for every
+required scenario, and the complete validation record;
+`tests/cpp_parity_live/test_soil_solver_diagnostic_comparison.py`; the
+`test_soil_diag_*`/`test_soil_state_diag_*` cases in
+`test_cpp_harness_contract.py`.
+
+**Diagnostic pass 3 / root-cause fix (2026-09-18): the divergence
+described above is RESOLVED, not merely characterized further.** The
+"near-singular linearization ... not a coding defect in either"
+conclusion two paragraphs up was a correct OBSERVATION (the Jacobian
+denominator genuinely is small at this operating point) but an
+INCORRECT final conclusion — it was amplifying a real, exact, isolated
+transcription error the pass-2 diagnostic facility could not see. A
+third hook, `SoiDiagRecordSurfaceUpdate`/`_soisurfup.csv` (48 named
+fields covering every quantity the surface-node Newton update reads or
+writes, vs. pass 2's final-timestep-only state and 5-field
+per-sub-iteration facilities), isolated the exact first differing
+field: `cp1` (the `cp[i]` heat-capacity term), off by a factor of
+~6.09x at the first sub-iteration (Python 105.035 vs C++ 639.550).
+Root cause: `_SOIL_FAMILY_DEFAULTS`'s `bulk_density`/`particle_density`
+were divided by 1000 for a "module SI convention" — harmless for the
+ratio `xs = bd/pd` (the only OTHER use), but `cp[i]` uses `bd` as an
+absolute value. Fixed by storing the pinned tables' raw, unconverted
+literals for all 5 families. Result: all 11 committed Phase 5 golden
+scenarios now agree with the live pinned C++ execution to well under
+0.001 degC max|diff|, measured against the golden's own precise
+`_field.csv` data. `tolerance_policy.json`'s `soil_campbell_p5.duff`/
+`nonduff` routes moved from `"unverified"` to `"verified"`. See F-70's
+third-round entry in `gate0/04-findings.md` for the complete
+field-by-field crosswalk table and validation counts.
+
 ---
 
 ## Mapping: Python CONSUMPTION_VARS  C++ d_CO Fields
@@ -1299,6 +1682,12 @@ replaced by a structural lookup.
 
 ## Implementation Status
 
+**Current correction (2026-09-16).** Massman HMV is **in development and
+non-functional**. It is deliberately unavailable from the public APIs and its
+direct component function raises ``NotImplementedError``. The detailed
+Massman row below records the previous standalone approximation and Phase 6
+investigation; it is historical, not a statement of current availability.
+
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Bark thickness |  Done | `calc_bark_thickness` |
@@ -1322,7 +1711,7 @@ replaced by a structural lookup.
 | Crown scorch mortality |  Done | `mort_crnsch` |
 | Crown volume + cambium mortality |  Done | `mort_crcabe` |
 | Bole char mortality |  Done | `mort_bolchar` |
-| Soil heating  Campbell |  Done (Python); Phase 5 characterization complete; C++ parity is not claimed | `soil_heat_campbell` — the only model wired into `run_fofem_emissions()`. Full-model C++ parity was rejected as an inappropriate classification (F-52): the Python and C++ implementations represent materially different physics (C++'s `soiltemp_step` integrates coupled temperature/water-pressure/humidity/vapor state plus an ambient radiative floor Python's `_campbell_rhs` never represents at all), so "parity testing" was never the right frame — Phase 5's actual, now-complete scope is executed cross-implementation **characterization** (documented divergence, physical-invariant checks, structural/finiteness assertions), not a parity claim. Phase 5 Part 3 (2026-09-03): the `soil_campbell` C++ harness mode and a real, manifested, `--verify-only`-deterministic 13-scenario golden dataset exist (`tests/test_data/test_golden_output/phase5/`); Python-side contract/source-relation and cross-implementation-characterization tests exist (`tests/unit/test_phase5_soil_campbell_contract.py`, `tests/unit/test_phase5_soil_campbell_characterization.py`). F-51 found Python's `_SOIL_FAMILY_DEFAULTS` soil-property constants do not match the pinned C++ table for 4 of 5 soil families. **F-52 (2026-09-03) established the deeper reason executable model equivalence is unproven for ANY family, including Coarse-Silt**: C++'s `soiltemp_step` integrates coupled temperature/water-pressure/humidity/vapor state plus an ambient radiative floor and recirculation parameters that Python's `soil_heat_campbell()` never represents — measured 16.1 degC max / 5.8 degC mean divergence on Coarse-Silt even with every Python-consumed input aligned to the pinned C++ table. The `duff`/`nonduff` `soil_campbell_p5` tolerance-policy routes remain honestly `"unverified"`; `noig` is `"contract_only"`; this dataset's full-model C++-vs-Python comparisons are documented cross-implementation characterization, not parity, per F-52's recommended scope. A 2026-09-03 correction pass added a real per-row `time_s` column to `soil_campbell`'s `_field.csv` output (`time_index * SHA_GetInc()`, read directly from the harness), closing a prior gap where the Python-side full-field characterization test derived C++ time from an assumed constant step; a centrally-defined `CHARACTERIZATION_REGRESSION_PRECISION_DEGC` constant (`_phase5_contract.py`) replaced raw regression-precision literals in the characterization module (a separate tuned `CHARACTERIZATION_SANITY_ENVELOPE_DEGC` bound was added then DELETED the same day after independent review found it was numerically equal to `SOI-DUF-06`'s own measured divergence, not independently derived), and duff/no-ignition characterization coverage was added alongside the existing non-duff coverage. **F-53 (CONFIRMED 2026-09-04)**: `_duff_flux_and_duration()` never converts the documented whole-percent `duff_moisture` input to the ratio scale its equation requires — Frandsen (1991), the actual primary source the FOFEM Guide's formula cites, defines its moisture ratio `R_M` as a mass ratio (0.0-0.8), and the pinned C++ independently performs the identical conversion in the identical call path (`fof_sd.cpp:100`, `f_DuffMoist = a_SD->f_DufMoi / 100.0;`, feeding `DuffBurn`, `bur_brn.cpp:1950`, whose own header comment states the parameter is a ratio in [0, 1.96], not a percent). This is a CONFIRMED Python defect, distinct from F-51/F-52's model-structural divergence: it is tracked as its own `soil_campbell_p5.duff_moisture_unit` contract-defect route (`"known_divergent_strict_xfail"`, null `atol`/`rtol`, never scored as parity) and pinned by a strict `xfail`, `test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture`, asserting the desired (currently failing) behavior. No production code was changed — the fix remains a release-readiness decision requiring separate user authorization, not unfinished Phase 5 test-suite implementation (Phase 5 itself is complete, returned for independent review). |
+| Soil heating  Campbell |  Done (Python); Phase 5 characterization complete; C++ parity is not claimed | `soil_heat_campbell` — the only model wired into `run_fofem_emissions()`. Full-model C++ parity was rejected as an inappropriate classification (F-52): the Python and C++ implementations represent materially different physics (C++'s `soiltemp_step` integrates coupled temperature/water-pressure/humidity/vapor state plus an ambient radiative floor Python's `_campbell_rhs` never represents at all), so "parity testing" was never the right frame — Phase 5's actual, now-complete scope is executed cross-implementation **characterization** (documented divergence, physical-invariant checks, structural/finiteness assertions), not a parity claim. Phase 5 Part 3 (2026-09-03): the `soil_campbell` C++ harness mode and a real, manifested, `--verify-only`-deterministic 13-scenario golden dataset exist (`tests/test_data/test_golden_output/phase5/`); Python-side contract/source-relation and cross-implementation-characterization tests exist (`tests/unit/test_phase5_soil_campbell_contract.py`, `tests/unit/test_phase5_soil_campbell_characterization.py`). F-51 found Python's `_SOIL_FAMILY_DEFAULTS` soil-property constants do not match the pinned C++ table for 4 of 5 soil families. **F-52 (2026-09-03) established the deeper reason executable model equivalence is unproven for ANY family, including Coarse-Silt**: C++'s `soiltemp_step` integrates coupled temperature/water-pressure/humidity/vapor state plus an ambient radiative floor and recirculation parameters that Python's `soil_heat_campbell()` never represents — measured 16.1 degC max / 5.8 degC mean divergence on Coarse-Silt even with every Python-consumed input aligned to the pinned C++ table. The `duff`/`nonduff` `soil_campbell_p5` tolerance-policy routes remain honestly `"unverified"`; `noig` is `"contract_only"`; this dataset's full-model C++-vs-Python comparisons are documented cross-implementation characterization, not parity, per F-52's recommended scope. A 2026-09-03 correction pass added a real per-row `time_s` column to `soil_campbell`'s `_field.csv` output (`time_index * SHA_GetInc()`, read directly from the harness), closing a prior gap where the Python-side full-field characterization test derived C++ time from an assumed constant step; a centrally-defined `CHARACTERIZATION_REGRESSION_PRECISION_DEGC` constant (`_phase5_contract.py`) replaced raw regression-precision literals in the characterization module (a separate tuned `CHARACTERIZATION_SANITY_ENVELOPE_DEGC` bound was added then DELETED the same day after independent review found it was numerically equal to `SOI-DUF-06`'s own measured divergence, not independently derived), and duff/no-ignition characterization coverage was added alongside the existing non-duff coverage. **F-53 (CONFIRMED 2026-09-04)**: `_duff_flux_and_duration()` never converts the documented whole-percent `duff_moisture` input to the ratio scale its equation requires — Frandsen (1991), the actual primary source the FOFEM Guide's formula cites, defines its moisture ratio `R_M` as a mass ratio (0.0-0.8), and the pinned C++ independently performs the identical conversion in the identical call path (`fof_sd.cpp:100`, `f_DuffMoist = a_SD->f_DufMoi / 100.0;`, feeding `DuffBurn`, `bur_brn.cpp:1950`, whose own header comment states the parameter is a ratio in [0, 1.96], not a percent). This is a CONFIRMED Python defect, distinct from F-51/F-52's model-structural divergence: it is tracked as its own `soil_campbell_p5.duff_moisture_unit` contract-defect route (`"known_divergent_strict_xfail"`, null `atol`/`rtol`, never scored as parity) and pinned by a strict `xfail`, `test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture`, asserting the desired (currently failing) behavior. No production code was changed — the fix remains a release-readiness decision requiring separate user authorization, not unfinished Phase 5 test-suite implementation (Phase 5 itself is complete, returned for independent review). **F-53 RESOLVED, and F-69 added, by the Campbell duff-forcing correction pass (2026-09-16)** — see Gotcha #29 below for the full description. In short: `_duff_flux_and_duration()`/`_make_duff_flux_fn()` were removed and replaced with `_duff_burn_rate()`/`_duff_heat_fraction()`/`_duff_burn_profile()`, direct ports of the pinned C++ `DuffBurn()` (`bur_brn.cpp:1950-1986`)/`SD_HeatAdj()` (`fof_sd.cpp:294-313`), fixing F-53's percent-to-ratio conversion and two further previously-informal forcing-shape defects (static pre-fire depth; load-independent burn rate) in the same pass. The strict xfail above is now a real passing test (`test_duff_route_produces_positive_surface_forcing_at_realistic_moisture`); the harness's `soil_campbell` mode gained a schema-v2 self-test extension (three new output-only columns exposing `DuffBurn()`'s outputs directly, compared to Python's port to float precision — class B evidence, `test_soil_duff_burn_*` in `test_cpp_harness_contract.py`). F-52's structural Campbell-vs-C++ model-difference conclusion is UNCHANGED — this pass corrects the forcing SHAPE, not the underlying PDE, so the `duff`/`nonduff` `soil_campbell_p5` routes remain honestly `"unverified"`; only `duff_moisture_unit` moved from `"known_divergent_strict_xfail"` to `"contract_only"` (RESOLVED). `soil_heat_massman()` is explicitly untouched and remains unavailable — this correction concerns `soil_heat_campbell()` only. **CURRENT STATUS (2026-09-18, F-70 third round, supersedes the framing above as HISTORICAL): genuine numerical parity is now VERIFIED, not merely characterized.** By explicit user decision, F-52's "characterization is the permanent target" conclusion is no longer acceptable. `_campbell_rhs`/`_de_vries_k`-driven `solve_ivp` (described throughout this cell above) was entirely REMOVED and replaced with a direct port of C++'s real coupled `soiltemp_step` Newton solver — see Gotcha #30. All 5 soil families now match the pinned C++ table bit-for-bit (fully resolves F-51, not just "Coarse-Silt only"). A 2026-09-17 diagnostic pass built real C++ intermediate-state observability, ruled out forcing-value mismatch as the divergence source, and located (but had not yet fixed) a real divergence present from the very first Newton-converged timestep. A narrowly-scoped 2026-09-18 pass extended the diagnostic facility with a 48-field surface-node-update crosswalk, isolated the exact root cause (`_SOIL_FAMILY_DEFAULTS`'s `bulk_density`/`particle_density` divided by 1000, corrupting `_soiltemp_step`'s `cp[i]` heat-capacity term — the one place these values are used as an absolute rather than ratio quantity), and fixed it. All 11 committed Phase 5 golden scenarios (all 5 families, both routes) now agree with the live pinned C++ execution to well under 0.001 degC max|diff|. `soil_campbell_p5.duff`/`nonduff` moved from `"unverified"` to `"verified"` (atol=0.01 degC). See `gate0/04-findings.md` F-70's third-round entry for the complete evidence. **Campbell-backend consolidation (2026-09-18, same-day follow-up pass):** the coupled Newton solver, formerly one 243-line `_soiltemp_step` function, was reorganized (pure code motion, zero arithmetic change, proven by exact bit-for-bit pre/post-refactor output equality across all 11 scenarios) into `_campbell_newton_boundary_init` (per-sub-iteration boundary setup), `_campbell_newton_node_update` (per-node residual/Jacobian/Newton update), and `_campbell_commit_timestep` (post-convergence state advance), with `_soiltemp_step` retained as the thin coupled-timestep orchestrator; the previously scattered duff-forcing helpers (`_duff_burn_profile`/`_duff_burn_rate`/`_duff_heat_fraction`, formerly interleaved with unrelated dead Massman code) were relocated alongside the rest of the Campbell backend and the whole block alphabetized per `AGENTS.md`. Public API, numerical behavior, and diagnostic-hook behavior are all unchanged. |
 | Soil heating  Massman HMV |  Done (standalone); Python contract/source-relation coverage COMPLETE (Phase 6, corrected 2026-09-05 twice); C++ build feasibility CONFIRMED and independently reproducible, but scientific suitability NOT established (F-55/F-56/F-57/F-58) | `soil_heat_massman` — implemented but not called by `run_fofem_emissions()`; see Gotcha #18. `tests/unit/test_massman_hmv_contract.py` (20 tests) covers nominal behaviour, validation, output structure, determinism, a mass-conservation invariant, current solver-truncation-on-non-convergence behaviour (F-56, with a companion strict xfail pinning the desired behaviour), and a genuine executable proof (not a re-derivation) of the saturated-hydraulic-conductivity formula and family-default routing via `_massman_rhs`/`solve_ivp` monkeypatch spies. **F-55 (corrected 2026-09-05, twice)**: a tracked, independently reproducible diagnostic probe (`tests/cpp_parity_live/massman_fof_dll_probe.py` + `massman_fof_dll_probe_driver.cpp` — not collected by plain pytest or `--suite core`/`--suite full`, run manually) proved the pinned `FOF_DLL/` Massman HMV solver DOES build, link (80 pinned `FOF_DLL/*.cpp` files, zero duplicate-symbol warnings — the real, verified count; an earlier pass's disposable probe had miscounted this as 73), and run to completion twice with identical results for inputs within `BMSoil.h`'s own documented bounds — overturning the original "no CMake target == infeasible" claim (preserved as HISTORICAL in `04-findings.md`). A probe-hardening pass (same day) added a FOF_DLL git-cleanliness gate, SHA-256 provenance digests, a real closed stdin, exhaustive fail-closed schema validation (`tests/cpp_parity_live/test_massman_fof_dll_probe.py`, 19 tests, mocked — no FOF_DLL compile), and full-layer/full-sample measurement (not just layer 1's first/last). Measured exactly, against the git-clean pinned source: `hta_layers=21`, `hta_count=40` (840 total samples per field); heat/moisture/water-potential are ALL 840/840 non-finite and specifically NaN (`any_inf=0` for all three — not generic non-finite, confirmed NaN), while saved time is fully finite (840/840). This happens reproducibly regardless of whether the real call path's own (never-invoked) `Quincy1G()` auxiliary initializer is also called — so scientific suitability as a Python parity oracle remains NOT established, and current evidence weighs against it. **F-57 (corrected 2026-09-05, same day)**: the originally-claimed dataflow (`calxhiv1`'s `rhov`-zero fallback feeding `calgascomb`'s `mvapor`-zero fallback) is FALSE — `CrankNicolson.cpp` binds `calgascomb`'s `mvapor` parameter to `muv` (from `calmulaHMV`, computed from `tempk`/`tempki`/`TempR`/`temR`), never to `rhov` or `calxhiv1`'s output. What remains real, independent of that retracted claim: `calgascomb.cpp` divides unconditionally by a value (`mrat`) its own preceding zero-guard just set to zero — a real defect in the pinned reference's own arithmetic, not a build/link gap. **F-58 (new, 2026-09-05)**: `SolveHMV()` discards `CrankNicolson()`'s own per-timestep return value and always returns success regardless, so `HMV_Model`'s "1" return code is not reliable evidence that any internal step succeeded or that output is finite. Recovering a finite result would require patching the pinned oracle itself (out of scope) or undocumented additional state (risking copied-equation instrumentation, also out of scope), so per the plan's stop-and-report condition, no such attempt was made. No new C++ harness MODE, CMake build target, or permanent wrapper was added to `reference/fofem_cpp*` — the tracked probe builds in its own disposable temp directory only when run manually. Zero class (c) executable parity tests exist, now for a scientific rather than a build reason. |
 | Moisture adjustments (0.02, 2.5 rotten) |  Done | See `run_fofem_emissions()`  Gotcha #1 resolved |
 | Zero-load guard (`1e-7` kg/m^2 in DW1) |  Done | See `run_fofem_emissions()`  Gotcha #2 resolved |
@@ -1331,4 +1720,3 @@ replaced by a structural lookup.
 | Cover-type auto-lookup (SAF/NVCS/FCC) |  Not started | C++: `CVT_*.cpp` / `fof_fccs.csv` |
 | Weight distribution (1000-hr  size classes) |  Not started | C++: `cr_WD` in `d_CI` |
 | Duration units reconciliation (sec vs min) |  Done | `_burnup_durations()` and `run_fofem_emissions()` now return seconds  Gotcha #15 resolved |
-

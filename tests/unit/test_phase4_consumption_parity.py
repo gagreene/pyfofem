@@ -79,12 +79,10 @@ IN_TO_CM = 2.54
 
 #: The harness's ``duff_moist_method`` token to ``consm_duff``'s
 #: ``duff_moist_cat`` vocabulary. C++ spells the four methods
-#: Entire/Lower/NFDR/AdjNFDR (fof_ci.h:282-285); Python spells the first three
-#: edm/ldm/nfdth and has no AdjNFDR token at all (F-22), so AdjNFDR maps onto
-#: the closest Python token, ``nfdth`` - which is precisely why the Adj-NFDR
-#: scenario reproduces F-27a below.
+#: Entire/Lower/NFDR/AdjNFDR (fof_ci.h:282-285); Python's matching vocabulary
+#: is ``edm``/``ldm``/``nfdth``/``adjnfdr``.
 DUFF_METHOD_TO_PY_CATEGORY = {
-    "Entire": "edm", "Lower": "ldm", "NFDR": "nfdth", "AdjNFDR": "nfdth",
+    "Entire": "edm", "Lower": "ldm", "NFDR": "nfdth", "AdjNFDR": "adjnfdr",
 }
 
 #: Absolute tolerance for a percent-valued consume output, retrieved from the
@@ -115,141 +113,43 @@ ATOL_SHRUB_PERCENT = phase4_tolerance("shrub_herb_eq", "shrub")[0]
 #: ``consm_duff``'s percent output (``pdc``) vs the golden's ``DufPer``:
 #: scenarios that DIVERGE, each with the finding it reproduces. Every other
 #: consume scenario agrees to within :data:`ATOL_PERCENT` (measured max |diff|
-#: 6e-06 across the 28 agreeing scenarios).
-DUFF_PERCENT_XFAIL = {
-    "ne-gen-entire-m020": (
-        "F-23",
-        "NorthEast generic + Entire: C++ Duf_Default -> Equ_2_Per gives "
-        "75.180000, Python derives the percent from the Eq-15 residual-depth "
-        "relation and gives 55.550000 (measured |diff| 19.63 percentage "
-        "points). This is the case-6 defect.",
-    ),
-    "ne-wph-entire-m050": (
-        "F-39",
-        "NorthEast + WhiPinHem: C++ DUF_NorthEast delegates to "
-        "DUF_InteriorWest (fof_duf.cpp:444-446) giving 62.400000; Python has "
-        "no WhiPinHem cover group at all and falls into its NorthEast generic "
-        "Eq-15 branch, giving 49.550000 (measured |diff| 12.85).",
-    ),
-    "se-cp-entire-m050": (
-        "F-39",
-        "SouthEast + CoastPlain: C++ runs the Coastal Plain duff equations "
-        "(fof_duf.cpp:1115-1249) giving 28.871900; Python has no CoastPlain "
-        "cover group and falls through to its SouthEast Eq-16 branch, giving "
-        "38.623500 (measured |diff| 9.75).",
-    ),
-    "iw-nat-entire-zero-duff": (
-        "F-40",
-        "Zero duff load: C++ DUF_Calc yields DufPer 0 when there is no duff "
-        "to consume; Python returns the moisture-based 62.400000 regardless "
-        "(measured |diff| 62.4).",
-    ),
-}
+#: 6e-06 across the 31 agreeing scenarios — ``se-cp-entire-m050`` moved from
+#: this list to the agreeing set 2026-09-16 when F-39's Coastal Plain
+#: sub-finding was resolved; ``ne-wph-entire-m050`` moved 2026-09-18 when
+#: F-39's White Pine-Hemlock sub-finding was resolved (``consm_duff`` now
+#: routes NorthEast + WhiPinHem into the same InteriorWest branch as the
+#: pinned C++ ``DUF_NorthEast`` delegation, ``fof_duf.cpp:444-446``);
+#: ``ne-gen-entire-m020`` moved 2026-09-21 when F-23's NorthEast-generic
+#: percent-routing defect was resolved (``consm_duff`` now always uses
+#: Eq 2 -- C++ ``Duf_Default``'s ``Equ_2_Per`` -- for NorthEast's generic
+#: cover-group bucket, matching ``fof_duf.cpp:454-455`` exactly, instead
+#: of the wrong Eq-15 branch it previously used whenever
+#: ``duff_moist_cat == 'edm'``); see ``test_consume_duff_percent_matches_cpp``).
+DUFF_PERCENT_XFAIL = {}
 
 #: ``consm_duff``'s depth outputs (``ddc``/``rdd``) vs ``DufDepCon``/
-#: ``DufDepPos``: scenarios that DIVERGE. Only 9 of the 32 consume scenarios
-#: agree here (measured max |diff| 2.9e-07 among those).
-DUFF_DEPTH_XFAIL = {
-    case: (
-        "F-39",
-        "the percent this depth is derived from already diverges for this "
-        "cover group (see DUFF_PERCENT_XFAIL), so the depth cannot agree.",
-    )
-    for case in ("ne-wph-entire-m050", "se-cp-entire-m050")
-}
-DUFF_DEPTH_XFAIL.update({
-    case: (
-        "F-23",
-        "C++ DUF_Mngr overwrites the depth reduction unconditionally at "
-        "fof_duf.cpp:395 with f_DufDep * (f_Per/100) for every non-batch run, "
-        "discarding Eqs 5/6/7/15; Python instead returns the raw regression "
-        "depth for InteriorWest/PacificWest (and for any row whose region is "
-        "IW/PW regardless of cover group). Measured |diff| ranges from 0.006 "
-        "to 1.0791 inches across these scenarios.",
-    )
-    for case in (
-        "iw-nat-entire-m050", "iw-nat-entire-m130", "iw-nat-lower-m050",
-        "iw-nat-lower-m180", "iw-slash-lower-m050", "iw-slash-lower-m150",
-        "iw-slash-nfdr-m020", "iw-nat-nfdr-m020", "iw-pn-lower-m050",
-        "iw-pn-entire-m050", "pw-nat-entire-m050", "ne-gen-entire-m020",
-        "chaparral-entire-m050", "piles-entire-m050", "iw-nat-entire-m010",
-        "iw-crown-burn-000", "iw-crown-burn-100", "iw-crown-zero-load",
-        "emis-legacy-iw", "emis-expanded-g258", "emis-expanded-g378",
-    )
-})
+#: ``DufDepPos``: scenarios that DIVERGE. RESOLVED 2026-09-21 (F-23 fix
+#: pass): this dict formerly listed 22 scenarios whose depth diverged
+#: because ``consm_duff`` used the abandoned per-region depth-reduction
+#: regression equations (Eq 5/6/7/15) instead of C++ ``DUF_Mngr``'s own
+#: unconditional non-batch override (``fof_duf.cpp:290-300`` Note-5,
+#: ``:395``: ``f_Red = f_DufDep * (f_Per / 100.0)`` for EVERY region and
+#: fuel category, not just InteriorWest/PacificWest). ``consm_duff`` now
+#: always derives ``ddc``/``rdd`` from the final ``pdc`` this same way;
+#: all 32 consume scenarios agree here (measured max |diff| 2.9e-07). Kept
+#: as an empty dict (not deleted) so ``_maybe_xfail`` calls below need no
+#: further edits and so a future regression has an obvious place to land.
+DUFF_DEPTH_XFAIL = {}
 
 #: ``consm_mineral_soil`` vs the golden's ``MSE``: scenarios that DIVERGE.
-#: The other 20 agree to within :data:`ATOL_PERCENT` (measured max |diff|
-#: 2.8e-06).
-MSE_XFAIL = {
-    "iw-nat-lower-m180": (
-        "F-26",
-        "Eq 13 at 180 % duff moisture: C++ floors the result at 0, Python "
-        "returns -18.800000 (60.4 - 0.44*180).",
-    ),
-    "iw-nat-nfdr-m020": (
-        "F-26",
-        "Eq 12 at 20 % duff moisture: C++ floors the result at 0, Python "
-        "returns -4.900000 (94.3 - 4.96*20).",
-    ),
-    "iw-slash-adjnfdr-m028": (
-        "F-27a",
-        "Adj-NFDR: C++ Equ_11_MSE divides the duff moisture by e_Adj = 1.4 "
-        "(fof_duf.cpp:25, :903) giving 22.300000; Python has no Adj-NFDR "
-        "path, applies Eq 11 to the raw moisture and also omits the 0-floor, "
-        "giving -6.100000 (measured |diff| 28.4).",
-    ),
-    "ne-rjp-entire-m020": (
-        "F-41",
-        "NorthEast RedJacPin: C++ uses Equ_14_MSE on the percent duff "
-        "reduction (-8.98 + 0.44*27.549999 = 3.142000); Python has no "
-        "NorthEast branch and falls through to Eq 10, giving 72.734900.",
-    ),
-    "ne-bbs-entire-m050": (
-        "F-41",
-        "NorthEast BalBRWSpr: C++ Equ_14_MSE gives 12.822001; Python falls "
-        "through to Eq 10, giving 43.780100.",
-    ),
-    "ne-rjp-lower-m050": (
-        "F-41",
-        "NorthEast + Lower: no Python np.select branch matches "
-        "(~is_iw_pw & ~is_pocosin only covers 'edm' and '%dr'), so Python "
-        "silently returns NaN where C++ gives 43.780100.",
-    ),
-    "ne-bbs-lower-m050": (
-        "F-41",
-        "NorthEast + Lower: Python silently returns NaN where C++ gives "
-        "22.194000.",
-    ),
-    "se-gen-entire-m050": (
-        "F-41",
-        "SouthEast generic: C++ uses Equ_14_MSE on the percent duff "
-        "reduction (-8.98 + 0.44*38.623539 = 8.014360); Python falls through "
-        "to Eq 10, giving 43.780100.",
-    ),
-    "emis-legacy-se": (
-        "F-41",
-        "same SouthEast Equ_14_MSE route as se-gen-entire-m050; this "
-        "scenario differs only in its emissions dispatch, which does not "
-        "affect mineral-soil exposure.",
-    ),
-    "chaparral-entire-m050": (
-        "F-39",
-        "ShrubGroupChaparral: C++ Equ_19_MSE returns 100 "
-        "(fof_duf.cpp:1325-1363); Python has no chaparral mineral-soil rule "
-        "and returns the Eq-10 value 43.780100.",
-    ),
-    "se-cp-entire-m050": (
-        "F-39",
-        "CoastPlain: C++ Equ_CP_MSE returns 5.000000; Python has no Coastal "
-        "Plain route and returns the Eq-10 value 43.780100.",
-    ),
-    "iw-nat-entire-zero-duff": (
-        "F-40",
-        "Zero duff load: C++ DUF_Mngr sets f_MSEPer = 100 when f_Duff <= 0 "
-        "(fof_duf.cpp:388-389); Python returns the Eq-10 value 43.780100.",
-    ),
-}
+#: The other 22 agree to within :data:`ATOL_PERCENT` (measured max |diff|
+#: 2.8e-06) — ``se-cp-entire-m050`` moved from this list to the agreeing set
+#: 2026-09-16 when F-39's Coastal Plain sub-finding was resolved;
+#: ``chaparral-entire-m050`` moved 2026-09-18 when F-39's Chaparral-MSE
+#: sub-finding was resolved (``consm_mineral_soil`` now returns 100.0 for
+#: any Chaparral/SGC cover group, matching the pinned C++ ``Equ_19_MSE``,
+#: ``fof_duf.cpp:1336-1339``, exactly, ahead of every other branch).
+MSE_XFAIL = {}
 
 
 
@@ -364,6 +264,10 @@ def _py_duff(overrides):
         dw1000_moist=float(_consume_input(overrides, "dw1000_moist_pct")),
         pile=(fuel_cat == "Piles"),
         units="Imperial",
+        # F-39 (Coastal Plain, Eq 30): harmless for every other scenario -
+        # consm_duff only reads these two for a Coastal Plain cover group.
+        pre_ll=litter,
+        l_moist=float(_consume_input(overrides, "litter_moist_pct")),
     )
 
 
@@ -384,6 +288,10 @@ def _py_mineral_soil(overrides):
             _consume_input(overrides, "duff_moist_method")
         ],
         pile=(fuel_cat == "Piles"),
+        pdr=float(_py_duff(overrides)["pdc"]),
+        # F-39 (Coastal Plain, Eq 32): harmless for every other scenario -
+        # consm_mineral_soil only reads this for a Coastal Plain cover group.
+        duff_load=float(_consume_input(overrides, "duff_tac")),
     )
 
 
@@ -481,32 +389,16 @@ def test_consume_canopy_foliage_consumption_matches_cpp(case_id):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-39: consm_litter has no Coastal Plain route (CVR_GRP_CODES "
-        "contains no CoastPlain token). The closest representable Python "
-        "call - reg='SouthEast' (the region the scenario really carries) "
-        "with the unrecognised cover_group='CoastPlain' - falls into the "
-        "SouthEast equation-998 branch and returns 1.600000 T/ac, where "
-        "C++ HSF_Mngr dispatches _CalcCP_Lit (fof_hsf.cpp:83-85, :107-127) "
-        "and reports 2.000000 T/ac. Measured |diff| 0.400000 T/ac (20% of "
-        "the 2.0 T/ac pre-fire load), closing BR-LIT-CP's prior "
-        "EXPECT-INVESTIGATE status with real executed evidence."
-    ),
-)
 def test_consume_coastal_plain_litter_matches_cpp():
     """
     ``consm_litter`` vs the golden ``LitCon`` for the ONE consume-mode row
     whose litter C++ does NOT route through Burnup: ``se-cp-entire-m050``,
     the Coastal Plain scenario.
 
-    Closes ``BR-LIT-CP``: the C++ oracle route is reachable (``HSF_Mngr``
-    dispatches ``_CalcCP_Lit`` because ``DUF_Mngr`` set
-    ``i_LitEqu == e_CP_PerEq``, per ``consume_p4.litter_cp`` in
-    ``tolerance_policy.json``), and this asserts the DESIRED behaviour - a
-    real, non-approximated Coastal Plain route - not the current
-    SouthEast-branch fallback.
+    Closes ``BR-LIT-CP`` (F-39, Coastal Plain sub-finding RESOLVED
+    2026-09-16): ``consm_litter`` now has a real Coastal Plain route
+    (Eq 30, ``fof_duf.cpp:1171-1225``) and matches C++'s ``_CalcCP_Lit``
+    (``fof_hsf.cpp:83-85,107-127``) result exactly.
     """
     overrides = next(
         o for c, o, _b in CONSUME_SCENARIOS if c == "se-cp-entire-m050"
@@ -516,6 +408,7 @@ def test_consume_coastal_plain_litter_matches_cpp():
         float(_consume_input(overrides, "litter_tac")),
         float(_consume_input(overrides, "litter_moist_pct")),
         reg="SouthEast", cvr_grp="CoastPlain", units="Imperial",
+        pre_dl=float(_consume_input(overrides, "duff_tac")),
     )
     assert float(value) == pytest.approx(float(row["LitCon"]), abs=ATOL_LOAD)
 

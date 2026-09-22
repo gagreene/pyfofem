@@ -80,6 +80,7 @@ extern "C" {
 #include "fof_sh.h"
 #include "fof_sha.h"
 #include "fof_smt.h"
+#include "fof_util.h"
 }
 
 // fof_cct.h bundles CCT_Get()'s declaration together with a DEFINITION
@@ -1996,7 +1997,304 @@ static int run_canopy_cover(const InputFile &in, const std::string &prefix) {
 //     bearing safety net for this mode specifically, more so than for
 //     the other six. Self-test rows below use short, clearly-decaying
 //     fire-intensity series to avoid triggering this in qualification.
+//   - Schema v2 (soil-heating Campbell duff-forcing correction pass) adds
+//     three summary columns exposing the pinned DuffBurn() intensity/
+//     duration/consumed-rate outputs directly, computed from the SAME
+//     duff_load_tac/duff_consumed_pct/duff_moist_pct inputs SD_Mngr_New
+//     itself uses (fof_sd.cpp:98-107) -- TPA_To_KiSq(duff_load_tac) and
+//     duff_moist_pct/100.0, exactly. DuffBurn is declared in bur_brn.h
+//     (bur_brn.h:208) but that header cannot be #included here: it
+//     unconditionally #defines bool/true/false to int/1/0 (bur_brn.h:
+//     131-133, no #ifdef __cplusplus guard), which broke this file's own
+//     real C++ bool usage elsewhere (confirmed directly: including it
+//     produced a real C2440 "cannot convert from std::ofstream to int"
+//     at this file's `ok = (bool)f;` CsvWriter constructor). DuffBurn is
+//     therefore forward-declared below with the exact pinned signature
+//     instead, matching its real C linkage (bur_brn.h's whole content is
+//     wrapped in `extern "C" { ... }`).
 // ===========================================================================
+
+extern "C" {
+// Forward declaration only -- see the schema v2 note above for why
+// bur_brn.h itself cannot be #included here. Signature verified
+// character-for-character against bur_brn.h:208-209 /
+// bur_brn.cpp:1950-1951.
+void DuffBurn(double wdf, double dfm, double *dfi, double *tdf,
+              float f_DufConPerCent, double *ad_Duf_CPTS);
+}
+
+// ===========================================================================
+// F-70 diagnostic pass: intermediate soil-solver state observability.
+//
+// fof_soi.cpp declares its per-node solver-state arrays (rr_tn/rr_t/
+// rr_wn/rr_w/rr_p/rr_h/rr_psat/rr_kh/rr_kv/rr_enh, each float[e_mplus1+1]
+// = float[15]) at file scope with ordinary C++ external linkage -- NOT
+// `static`, NOT wrapped in `extern "C"` (verified directly: fof_soi.cpp:
+// 40-54; only the FUNCTIONS in fof_soi.h are wrapped in `extern "C"`).
+// Because both this file and fof_soi.cpp are compiled as C++ within the
+// SAME `fofem_test` target, an ordinary (non-`extern "C"`) `extern`
+// re-declaration here binds to the REAL global objects fof_soi.cpp's own
+// `soiltemp_step()` mutates on every Newton iteration -- this is genuine
+// observability of the real execution path, not a copy or a
+// reimplementation of any equation. No pinned file is modified to make
+// this work.
+//
+// What this CANNOT expose, and why (documented per the task's explicit
+// instruction not to invent substitutes):
+//   - Per-timestep snapshots of rr_p/rr_h/rr_psat/rr_kh/rr_kv/rr_enh.
+//     These arrays are overwritten in place on every Newton sub-iteration
+//     AND every outer clock tick; nothing in the pinned fof_sd.cpp/
+//     fof_se.cpp (which own the per-tick loop) ever calls back out to
+//     save a per-tick copy of them anywhere observable. Only their FINAL
+//     (last-committed-timestep) values are readable after SH_Mngr()
+//     returns. Modifying fof_sd.cpp/fof_se.cpp/fof_soi.cpp to add a
+//     per-tick hook would touch the pinned submodule, which this pass
+//     must not do.
+//   - The Newton sub-iteration count and residual (`i_its`/`iN_SoilBug`
+//     inside `soiltemp_step()`) and the per-tick `*ai_success` flag: all
+//     three are LOCAL variables inside `soiltemp_step()` with no global
+//     accessor and no return-path that surfaces them; `SD_Mngr_New`/
+//     `SE_Mngr_Array` only observe soiltemp_step's boolean return value
+//     for control flow and never save the count/residual anywhere. Not
+//     observable without modifying the pinned files.
+//   - Per-node, per-timestep TEMPERATURE is real and IS available,
+//     unlike the above: it is exactly what `_field.csv` (SHA_Get) and
+//     the new "timestep" diagnostic rows below both read (the pinned
+//     code's own per-tick `SHA_Put(i, rr_t[i])`, one real global table
+//     filled once per tick by the pinned execution path itself).
+//   - Per-timestep, aggregate (not per-node) TOTAL SURFACE FLUX and
+//     (duff route only) heat fraction ARE real and available: the
+//     pinned `SD_Mngr_New`/`SE_Mngr_Array` already call
+//     `SHA_TP_Put(i_ClockSec, pc_or_100, r_Rabsub)` once per tick
+//     (fof_sd.cpp:143, fof_se.cpp:122) into a real global table, read
+//     back here via the existing `SHA_TP_Get()` accessor -- not new
+//     C++, not reimplemented physics.
+//
+// Emission is entirely output-only and opt-in via the environment
+// variable FOFEM_TEST_SOIL_DIAG (a comma-separated case_id allowlist, or
+// "*" for every case_id in the current invocation) -- the normal v2
+// summary/field schema and every existing golden CSV are completely
+// unaffected whether or not this variable is set. No input-schema
+// change, no MODE_SCHEMA_VERSIONS bump required.
+extern float rr_tn[15];
+extern float rr_t[15];
+extern float rr_wn[15];
+extern float rr_w[15];
+extern float rr_p[15];
+extern float rr_h[15];
+extern float rr_psat[15];
+extern float rr_kh[15];
+extern float rr_kv[15];
+extern float rr_enh[15];
+
+//: Representative soil nodes for the "final_node" diagnostic rows --
+//: 1-based fof_soi.cpp node index, matching SOIL_CAMPBELL's own
+//: summary-column layer indexing (node i -> summary/field layer i-1):
+//: surface (1), 1cm (2), 4cm (5), and the fixed deep boundary (14).
+static const int kSoilDiagNodes[] = {1, 2, 5, 14};
+static const int kSoilDiagNodeCount =
+    (int)(sizeof(kSoilDiagNodes) / sizeof(kSoilDiagNodes[0]));
+
+//: Parse the given env var once per call; "*" or a case_id match enables
+//: emission for that row. Absent/empty disables it entirely (the
+//: default -- zero behavior change for every existing test/golden run).
+//: Shared by both FOFEM_TEST_SOIL_DIAG (per-tick flux/final-node-only,
+//: prior F-70 pass) and FOFEM_TEST_SOIL_STATE_DIAG (full per-timestep
+//: coupled state, this pass) -- two independent, separately-gated
+//: opt-in diagnostics, deliberately not merged into one file/schema.
+static bool diag_env_enabled_for(const char *env_var, const std::string &case_id) {
+  const char *raw = std::getenv(env_var);
+  if (raw == nullptr || raw[0] == '\0') return false;
+  std::string spec(raw);
+  if (spec == "*") return true;
+  size_t start = 0;
+  while (start <= spec.size()) {
+    size_t comma = spec.find(',', start);
+    std::string tok = spec.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+    if (tok == case_id) return true;
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  return false;
+}
+
+static bool soil_diag_enabled_for(const std::string &case_id) {
+  return diag_env_enabled_for("FOFEM_TEST_SOIL_DIAG", case_id);
+}
+
+//: F-70 second diagnostic pass: full per-timestep, per-node coupled
+//: solver state, gated independently from the (per-tick flux/
+//: final-node-only) FOFEM_TEST_SOIL_DIAG above. Requires the
+//: fofem_test_soidiag diagnostic-observer BINARY (built from
+//: fof_soi_instr.cpp) -- if this env var is set but the CURRENTLY
+//: RUNNING binary was built from the real fof_soi.cpp (the normal
+//: fofem_test target), SoiDiagRecordTimestep() is simply never called
+//: by that binary's own soiltemp_step(), so no _soistate.csv rows (and
+//: no error) result. See test_soil_state_diag_requires_the_diagnostic_binary
+//: for the executable proof of exactly this fail-quiet-not-fail-closed
+//: behavior, and why it is documented rather than hidden.
+static bool soil_state_diag_enabled_for(const std::string &case_id) {
+  return diag_env_enabled_for("FOFEM_TEST_SOIL_STATE_DIAG", case_id);
+}
+
+//: Global sink the F-70 SoiDiagRecordTimestep() hook (called from deep
+//: inside soiltemp_step(), with no access to the current CSV row's
+//: case_id/writer) writes into. Set by run_soil_campbell() immediately
+//: before each SH_Mngr() call that requests state diagnostics, and
+//: cleared immediately after -- never left dangling across rows.
+struct SoiStateDiagSink {
+  CsvWriter *writer = nullptr;
+  CsvWriter *subiter_writer = nullptr;
+  CsvWriter *surfup_writer = nullptr;
+  std::string case_id;
+  std::string row_hash;
+  int step_index = 0;
+  size_t rows_written = 0;
+  size_t subiter_rows_written = 0;
+  size_t surfup_rows_written = 0;
+};
+static SoiStateDiagSink *g_soi_state_diag_sink = nullptr;
+
+//: Defined here (shared, unmodified, by BOTH the normal fofem_test target
+//: and the fofem_test_soidiag diagnostic-observer target); declared
+//: `extern "C"` in fof_soi_instr.cpp with a matching signature. The
+//: normal target's own fof_soi.cpp never calls this symbol, so its mere
+//: presence has zero effect on normal fofem_test output -- see the "F-70
+//: diagnostic-observer instrumentation" comment in fof_soi_instr.cpp for
+//: the full byte-diff proof this is the ONLY difference from the real
+//: pinned fof_soi.cpp.
+extern "C" void SoiDiagRecordTimestep(
+    int node_count, const float *tn, const float *t_true,
+    const float *wn, const float *w_true, const float *p, const float *h,
+    const float *psat, const float *kh, const float *kv, const float *enh,
+    float r_sev, float r_seh, int n_subiter, float r_rabs_in) {
+  if (g_soi_state_diag_sink == nullptr || g_soi_state_diag_sink->writer == nullptr) {
+    return;
+  }
+  int step = g_soi_state_diag_sink->step_index++;
+  for (int node = 0; node < node_count; ++node) {
+    g_soi_state_diag_sink->writer->row({
+        g_soi_state_diag_sink->case_id, std::to_string(step), std::to_string(node),
+        fmt(tn[node]), fmt(t_true[node]),
+        fmt(wn[node], 8), fmt(w_true[node], 8),
+        fmt(p[node], 4), fmt(h[node], 8), fmt(psat[node], 4),
+        fmt(kh[node], 8), fmt(kv[node], 12), fmt(enh[node], 8),
+        fmt(r_sev, 8), fmt(r_seh, 4), std::to_string(n_subiter),
+        fmt(r_rabs_in, 6),
+        g_soi_state_diag_sink->row_hash});
+    ++g_soi_state_diag_sink->rows_written;
+  }
+}
+
+//: Second, finer-grained F-70 hook (same pass, added once the
+//: per-timestep hook alone proved insufficient to localise a large
+//: first-timestep divergence found in the non-duff route): fires once
+//: per Newton SUB-ITERATION (surface node only), gated by the SAME
+//: sink/case_id/row_hash as SoiDiagRecordTimestep -- reuses
+//: g_soi_state_diag_sink rather than a second global, since both hooks
+//: are always active/inactive together for one row. Writes to a
+//: SEPARATE CsvWriter (subiter_writer) set alongside writer on the same
+//: sink, so the per-timestep and per-sub-iteration traces stay in
+//: independent files with independent schemas.
+extern "C" void SoiDiagRecordSubIteration(
+    int n_subiter, float tn1, float p1, float r_sev, float r_seh) {
+  if (g_soi_state_diag_sink == nullptr ||
+      g_soi_state_diag_sink->subiter_writer == nullptr) {
+    return;
+  }
+  g_soi_state_diag_sink->subiter_writer->row({
+      g_soi_state_diag_sink->case_id,
+      std::to_string(g_soi_state_diag_sink->step_index),
+      std::to_string(n_subiter), fmt(tn1), fmt(p1, 4), fmt(r_sev, 8),
+      fmt(r_seh, 4), g_soi_state_diag_sink->row_hash});
+  ++g_soi_state_diag_sink->subiter_rows_written;
+}
+
+//: Third, MOST-detailed F-70 hook (same pass, third round): the full
+//: surface-node-update crosswalk record. Field layout MUST match
+//: fof_soi_instr.cpp's own SoiSurfaceUpdateDiag definition exactly --
+//: both are plain PODs of 48 floats in the same declared order, defined
+//: identically in each translation unit (no shared header exists for
+//: overlay-only diagnostic types, matching this file's own established
+//: pattern for the first two hooks). Written to a THIRD, independent
+//: CsvWriter/schema (surfup_writer), gated by the same sink.
+struct SoiSurfaceUpdateDiag {
+  float old_tn1, new_tn1;
+  float old_p1, new_p1;
+  float old_wn1, new_wn1;
+  float old_h1, new_h1;
+  float psat0, h0;
+  float psat1;
+  float psat2, h2;
+  float s1, hvap1;
+  float kh1, enh1, kv1;
+  float kh2, kv2;
+  float ke0, ke1;
+  float kev0, kev1;
+  float conv1, vcon1, cp1;
+  float d_jv, d_jvdt, d_jvdp;
+  float dC_before_boundary;
+  float dC_after_boundary;
+  float dv;
+  float dCdp, dvdp;
+  float dCdt_before_boundary;
+  float dCdt_after_boundary;
+  float dvdt;
+  float r_rabs_in;
+  float stefan_term;
+  float tk_old;
+  float dtn_temperature_raw;
+  float dtn_temperature_clamped;
+  float dtn_matric_raw;
+  float p1_before_range_clamp;
+  float p1_clamp_branch;
+  float r_sev_running, r_seh_running;
+};
+
+//: Column order matches SoiSurfaceUpdateDiag's field order exactly
+//: (checked by test_soil_surfup_diag_header_matches_declared_columns).
+static const std::vector<std::string> SOIL_SURFUP_DIAG_COLUMNS = {
+    "case_id", "step_index", "n_subiter",
+    "old_tn1", "new_tn1", "old_p1", "new_p1", "old_wn1", "new_wn1",
+    "old_h1", "new_h1", "psat0", "h0", "psat1", "psat2", "h2",
+    "s1", "hvap1", "kh1", "enh1", "kv1", "kh2", "kv2",
+    "ke0", "ke1", "kev0", "kev1", "conv1", "vcon1", "cp1",
+    "d_jv", "d_jvdt", "d_jvdp",
+    "dC_before_boundary", "dC_after_boundary", "dv",
+    "dCdp", "dvdp", "dCdt_before_boundary", "dCdt_after_boundary", "dvdt",
+    "r_rabs_in", "stefan_term", "tk_old",
+    "dtn_temperature_raw", "dtn_temperature_clamped", "dtn_matric_raw",
+    "p1_before_range_clamp", "p1_clamp_branch",
+    "r_sev_running", "r_seh_running", "input_sha256"};
+
+extern "C" void SoiDiagRecordSurfaceUpdate(int n_subiter, const SoiSurfaceUpdateDiag *d) {
+  if (g_soi_state_diag_sink == nullptr ||
+      g_soi_state_diag_sink->surfup_writer == nullptr) {
+    return;
+  }
+  g_soi_state_diag_sink->surfup_writer->row({
+      g_soi_state_diag_sink->case_id,
+      std::to_string(g_soi_state_diag_sink->step_index),
+      std::to_string(n_subiter),
+      fmt(d->old_tn1), fmt(d->new_tn1), fmt(d->old_p1, 4), fmt(d->new_p1, 4),
+      fmt(d->old_wn1, 8), fmt(d->new_wn1, 8), fmt(d->old_h1, 8), fmt(d->new_h1, 8),
+      fmt(d->psat0, 4), fmt(d->h0, 8), fmt(d->psat1, 4), fmt(d->psat2, 4), fmt(d->h2, 8),
+      fmt(d->s1, 8), fmt(d->hvap1, 4), fmt(d->kh1, 8), fmt(d->enh1, 8), fmt(d->kv1, 12),
+      fmt(d->kh2, 8), fmt(d->kv2, 12),
+      fmt(d->ke0, 8), fmt(d->ke1, 8), fmt(d->kev0, 12), fmt(d->kev1, 12),
+      fmt(d->conv1, 8), fmt(d->vcon1, 12), fmt(d->cp1, 8),
+      fmt(d->d_jv, 8), fmt(d->d_jvdt, 8), fmt(d->d_jvdp, 8),
+      fmt(d->dC_before_boundary, 6), fmt(d->dC_after_boundary, 6), fmt(d->dv, 8),
+      fmt(d->dCdp, 8), fmt(d->dvdp, 8),
+      fmt(d->dCdt_before_boundary, 6), fmt(d->dCdt_after_boundary, 6), fmt(d->dvdt, 8),
+      fmt(d->r_rabs_in, 6), fmt(d->stefan_term, 6), fmt(d->tk_old, 4),
+      fmt(d->dtn_temperature_raw, 6), fmt(d->dtn_temperature_clamped, 1),
+      fmt(d->dtn_matric_raw, 4),
+      fmt(d->p1_before_range_clamp, 4), fmt(d->p1_clamp_branch, 1),
+      fmt(d->r_sev_running, 8), fmt(d->r_seh_running, 4),
+      g_soi_state_diag_sink->row_hash});
+  ++g_soi_state_diag_sink->surfup_rows_written;
+}
 
 static const std::vector<std::string> SOIL_CAMPBELL_HEADER = {
     "case_id", "expect_error", "brn_ignited", "soil_type", "moist_cond",
@@ -2007,6 +2305,12 @@ static const std::vector<std::string> SOIL_CAMPBELL_HEADER = {
 
 static const int kSoilCampbellNLayers = 14;     // eC_Lay == e_mplus1, fixed
 static const int kSoilCampbellMaxSteps = 6000;  // eC_sfi, fof_co.h:222
+
+// SoiDiagRecordTimestep()'s own node_count parameter is always
+// e_mplus1 + 1 == kSoilCampbellNLayers + 1 (rr_*[] arrays are sized [15]
+// against e_mplus1==14, one extra for the fixed lower-boundary node) --
+// see fof_soi_instr.cpp's hook call site.
+static const int kSoilStateDiagNodeCount = kSoilCampbellNLayers + 1;
 
 // n_steps: strict positive integer in [1, eC_sfi]. Not a real d_SI field --
 // a harness-only bookkeeping value bounding how many side-file entries are
@@ -2131,14 +2435,106 @@ static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
   summary_header.push_back("heat_frac");
   summary_header.push_back("lay_max_deg1_index");
   summary_header.push_back("lay_max_deg2_index");
+  // Schema v2: direct DuffBurn() outputs -- see the "Schema v2" note above.
+  summary_header.push_back("duff_burn_intensity_kw");
+  summary_header.push_back("duff_burn_duration_s");
+  summary_header.push_back("duff_burn_consumed_per_sec");
   summary.header(summary_header);
   field.header({"case_id", "layer_index", "time_index", "time_s", "temp_c",
                 "input_sha256"});
+
+  // F-70 diagnostic pass: opt-in only, via FOFEM_TEST_SOIL_DIAG. See the
+  // "F-70 diagnostic pass" comment block above (near the rr_tn/.../rr_enh
+  // extern declarations) for exactly what is and is not observable and
+  // why. The normal summary/field schema above is completely unaffected
+  // whether or not this is enabled.
+  const char *soil_diag_env = std::getenv("FOFEM_TEST_SOIL_DIAG");
+  bool soil_diag_requested = (soil_diag_env != nullptr && soil_diag_env[0] != '\0');
+  std::unique_ptr<CsvWriter> soidiag;
+  size_t soidiag_rows_written = 0;
+  size_t soidiag_rows_expected = 0;
+  if (soil_diag_requested) {
+    soidiag.reset(new CsvWriter(prefix + "_soidiag.csv"));
+    if (!soidiag->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil diagnostic output file\n";
+      return 1;
+    }
+    soidiag->header({
+        "case_id", "record_kind", "time_index", "time_s", "node_index",
+        "temp_tn_c", "temp_t_c", "water_content_wn", "water_content_w",
+        "matric_potential_p", "humidity_h", "vapor_pressure_psat_pa",
+        "cond_kh", "cond_kv", "cond_enh", "surface_flux_w", "heat_frac_pc",
+        "ambient_rabs_w", "fire_forcing_w", "input_sha256"});
+  }
+
+  // F-70 second diagnostic pass: opt-in only, via FOFEM_TEST_SOIL_STATE_DIAG,
+  // independent of FOFEM_TEST_SOIL_DIAG above. Every field comes from a
+  // real SoiDiagRecordTimestep() call (see its own definition above) --
+  // only ever populated when the CURRENTLY RUNNING binary was built from
+  // fof_soi_instr.cpp (the fofem_test_soidiag target). Running the
+  // NORMAL fofem_test binary with this env var set opens the file, writes
+  // only the header, and closes it cleanly (zero rows, zero error) --
+  // documented, not hidden; see soil_state_diag_enabled_for()'s own
+  // comment and the executable proof in
+  // test_soil_state_diag_requires_the_diagnostic_binary.
+  const char *soil_state_diag_env = std::getenv("FOFEM_TEST_SOIL_STATE_DIAG");
+  bool soil_state_diag_requested =
+      (soil_state_diag_env != nullptr && soil_state_diag_env[0] != '\0');
+  std::unique_ptr<CsvWriter> soistate;
+  if (soil_state_diag_requested) {
+    soistate.reset(new CsvWriter(prefix + "_soistate.csv"));
+    if (!soistate->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil state diagnostic output file\n";
+      return 1;
+    }
+    soistate->header({
+        "case_id", "step_index", "node_index", "temp_tn_c", "temp_t_true_c",
+        "water_content_wn", "water_content_w_true", "matric_potential_p",
+        "humidity_h", "vapor_pressure_psat_pa", "cond_kh", "cond_kv",
+        "cond_enh", "resid_water_r_sev", "resid_heat_r_seh", "n_subiter",
+        "surface_flux_w_rabs_in", "input_sha256"});
+  }
+
+  // F-70 second same-pass addition: per-Newton-sub-iteration trace
+  // (surface node only), gated by the SAME FOFEM_TEST_SOIL_STATE_DIAG
+  // env var as soistate above -- always opened/closed together with it,
+  // never independently requestable. See SoiDiagRecordSubIteration's own
+  // comment for why this exists (the per-TIMESTEP trace alone could not
+  // localise a large first-timestep divergence in the non-duff route).
+  std::unique_ptr<CsvWriter> soisubiter;
+  if (soil_state_diag_requested) {
+    soisubiter.reset(new CsvWriter(prefix + "_soisubiter.csv"));
+    if (!soisubiter->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil sub-iteration diagnostic output file\n";
+      return 1;
+    }
+    soisubiter->header({"case_id", "step_index", "n_subiter", "temp_tn1_c",
+                         "matric_potential_p1", "resid_water_r_sev",
+                         "resid_heat_r_seh", "input_sha256"});
+  }
+
+  // F-70 third same-pass addition: the full surface-node-update
+  // crosswalk record (SoiSurfaceUpdateDiag, 48 fields) -- gated by the
+  // SAME env var as soistate/soisubiter above, always opened/closed
+  // together. See SoiDiagRecordSurfaceUpdate's own comment for why this
+  // exists (the 5-field soisubiter trace alone could not isolate WHICH
+  // named quantity first diverges within one sub-iteration).
+  std::unique_ptr<CsvWriter> soisurfup;
+  if (soil_state_diag_requested) {
+    soisurfup.reset(new CsvWriter(prefix + "_soisurfup.csv"));
+    if (!soisurfup->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil surface-update diagnostic output file\n";
+      return 1;
+    }
+    soisurfup->header(SOIL_SURFUP_DIAG_COLUMNS);
+  }
 
   bool any_unexpected = false;
   size_t ok_rows = 0;
   size_t field_rows_written = 0;
   size_t expected_field_rows = 0;
+  size_t soisubiter_rows_written_total = 0;
+  size_t soisurfup_rows_written_total = 0;
 
   for (size_t r = 0; r < in.rows.size(); ++r) {
     const auto &f = in.rows[r];
@@ -2182,6 +2578,25 @@ static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
     if (duff_load_tac < 0.0f) {
       std::cerr << "[fofem_test] FATAL row " << r + 1
                 << " field duff_load_tac: must be >= 0\n";
+      return 1;
+    }
+
+    // Schema v2: direct DuffBurn() outputs, computed from the SAME
+    // conversions SD_Mngr_New itself applies (fof_sd.cpp:98-107) before
+    // calling DuffBurn -- TPA_To_KiSq(duff_load_tac), duff_moist_pct/100.0
+    // -- and using duff_consumed_pct exactly as SD_Mngr_New passes its own
+    // f_DufConPer (fof_sd.cpp:106), unconverted. Computed unconditionally
+    // (independent of whether SH_Mngr below succeeds): DuffBurn is a pure
+    // function of these three already-validated inputs.
+    double duff_burn_wdf = (double)TPA_To_KiSq(duff_load_tac);
+    double duff_burn_dfm = (double)duff_moist_pct / 100.0;
+    double duff_burn_dfi = 0.0, duff_burn_tdf = 0.0, duff_burn_amt_sec = 0.0;
+    DuffBurn(duff_burn_wdf, duff_burn_dfm, &duff_burn_dfi, &duff_burn_tdf,
+             duff_consumed_pct, &duff_burn_amt_sec);
+    if (!std::isfinite(duff_burn_dfi) || !std::isfinite(duff_burn_tdf) ||
+        !std::isfinite(duff_burn_amt_sec)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": DuffBurn() produced a non-finite output\n";
       return 1;
     }
 
@@ -2271,7 +2686,48 @@ static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
     // temp-file I/O (fof_sd.cpp:64-66, fof_se.cpp:69-71); a local mutable
     // buffer, not a cast string literal, since cr_TmpFN[] is non-const.
     char tmp_fn[1] = {'\0'};
+
+    // F-70 second diagnostic pass: activate the global sink ONLY for this
+    // row's own SH_Mngr() call, ONLY when this exact case_id was requested
+    // via FOFEM_TEST_SOIL_STATE_DIAG. step_index resets to 0 per row (a
+    // fresh soiltemp_step() sequence each SH_Mngr() call) so (case_id,
+    // step_index, node_index) stays a unique key even across multiple rows
+    // in one input file. Never left set across rows -- cleared
+    // unconditionally immediately after the call returns, regardless of
+    // outcome, so a failed/errored row can never leak a dangling sink into
+    // the NEXT row's unrelated SH_Mngr() call.
+    SoiStateDiagSink state_sink;
+    bool state_sink_active = (soistate && soil_state_diag_enabled_for(f[0]));
+    if (state_sink_active) {
+      state_sink.writer = soistate.get();
+      state_sink.subiter_writer = soisubiter.get();
+      state_sink.surfup_writer = soisurfup.get();
+      state_sink.case_id = f[0];
+      state_sink.row_hash = row_hash;
+      state_sink.step_index = 0;
+      g_soi_state_diag_sink = &state_sink;
+    }
     int ret = SH_Mngr(&si, &so, fr_FI.data(), fr_FIhs.data(), tmp_fn, err_buf);
+    g_soi_state_diag_sink = nullptr;
+    if (state_sink_active) {
+      // Every SoiDiagRecordTimestep() call writes exactly node_count
+      // (kSoilStateDiagNodeCount) rows -- one full solver step's worth of
+      // per-node state, never a partial write. A total that is not an
+      // exact multiple means either the hook or this reconciliation logic
+      // itself is broken; fail closed rather than silently accept a
+      // truncated diagnostic trace. A count of exactly 0 is NOT an error
+      // here -- it is the documented fail-quiet behavior of running the
+      // NORMAL (non-instrumented) fofem_test binary with this env var set.
+      if (state_sink.rows_written % (size_t)kSoilStateDiagNodeCount != 0) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": soil state diagnostic reconciliation failed: wrote "
+                  << state_sink.rows_written << " rows, not a multiple of "
+                  << kSoilStateDiagNodeCount << " nodes\n";
+        return 1;
+      }
+      soisubiter_rows_written_total += state_sink.subiter_rows_written;
+      soisurfup_rows_written_total += state_sink.surfup_rows_written;
+    }
     bool model_errored = (ret != 1);
 
     Outcome oc = classify(expect_error, model_errored);
@@ -2313,6 +2769,14 @@ static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
                    "on a successful row\n";
       return 1;
     }
+    // Schema v2: DuffBurn() outputs are independent of the SH_Mngr()
+    // outcome above (DuffBurn is a pure function of the three already-
+    // validated inputs) -- always real values, never NA_SENTINEL.
+    // Finiteness was already checked (and FATAL-raised on failure) right
+    // after computing them, above.
+    row.push_back(fmt(duff_burn_dfi, 6));
+    row.push_back(fmt(duff_burn_tdf, 6));
+    row.push_back(fmt(duff_burn_amt_sec, 9));
     summary.row(row);
 
     if (oc == Outcome::OK) {
@@ -2338,6 +2802,87 @@ static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
                      "temperature on a successful row\n";
         return 1;
       }
+
+      // F-70 diagnostic pass: "timestep" rows (real per-tick surface
+      // flux/heat-fraction from the pinned SHA_TP table, joined with the
+      // real per-tick per-node temperature already read above via
+      // SHA_Get) plus "final_node" rows (the real fof_soi.cpp module
+      // globals, final-converged-timestep state only -- see the header
+      // comment near their extern declarations for exactly why no
+      // earlier snapshot is observable). Emitted only for this row's
+      // case_id when FOFEM_TEST_SOIL_DIAG requests it; a row that
+      // succeeded (oc == Outcome::OK) but was not requested writes
+      // nothing here, matching the "opt-in only" contract.
+      if (soidiag && soil_diag_enabled_for(f[0])) {
+        // A trivial, already-independently-verified (F-69) constant,
+        // computed from the FIXED family-table starting temperature
+        // (e_StaSoiTem = 21 degC, fof_sh2.h:17 -- soil_campbell has no
+        // start_temp input column; every scenario uses this same fixed
+        // family default). NOT read from any C++ variable: fof_sd.cpp's/
+        // fof_se.cpp's own r_Rabs is a local, unexposed variable, so
+        // restating its known constant formula here is not
+        // reimplementing solver physics, only labeling an already-cited
+        // one-line constant for readability.
+        const float kSoilDiagStartTempC = 21.0f;
+        const float kSoilDiagTk4 =
+            (kSoilDiagStartTempC + 273.0f) * (kSoilDiagStartTempC + 273.0f) *
+            (kSoilDiagStartTempC + 273.0f) * (kSoilDiagStartTempC + 273.0f);
+        const float ambient_rabs = 5.67e-8f * kSoilDiagTk4;
+
+        for (int t = 0; t < n_time_indices; ++t) {
+          int tp_tim = -1;
+          float tp_pc = -1.0f, tp_wts = -1.0f;
+          bool have_tp = (SHA_TP_Get(t, &tp_tim, &tp_pc, &tp_wts) != 0);
+          std::string surface_flux_str(NA_SENTINEL);
+          std::string heat_frac_str(NA_SENTINEL);
+          std::string ambient_str(NA_SENTINEL);
+          std::string fire_forcing_str(NA_SENTINEL);
+          if (have_tp) {
+            surface_flux_str = fmt(tp_wts, 6);
+            heat_frac_str = fmt(tp_pc, 6);
+            ambient_str = fmt(ambient_rabs, 6);
+            fire_forcing_str = fmt(tp_wts - ambient_rabs, 6);
+          }
+          for (int ni = 0; ni < kSoilDiagNodeCount; ++ni) {
+            int node = kSoilDiagNodes[ni];
+            float temp_tn = SHA_Get(node, t);
+            soidiag->row({f[0], "timestep", std::to_string(t),
+                          std::to_string(t * inc_s), std::to_string(node),
+                          fmt(temp_tn),
+                          // 8 NA placeholders: temp_t_c, water_content_wn,
+                          // water_content_w, matric_potential_p, humidity_h,
+                          // vapor_pressure_psat_pa, cond_kh, cond_kv --
+                          // "final_node"-only fields, never available per
+                          // timestep (see the header comment above).
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          // cond_enh -- also "final_node"-only.
+                          std::string(NA_SENTINEL),
+                          surface_flux_str, heat_frac_str, ambient_str,
+                          fire_forcing_str, row_hash});
+            ++soidiag_rows_written;
+          }
+        }
+        soidiag_rows_expected += (size_t)n_time_indices * (size_t)kSoilDiagNodeCount;
+
+        for (int ni = 0; ni < kSoilDiagNodeCount; ++ni) {
+          int node = kSoilDiagNodes[ni];
+          soidiag->row({f[0], "final_node", std::string(NA_SENTINEL),
+                        std::string(NA_SENTINEL), std::to_string(node),
+                        fmt(rr_tn[node]), fmt(rr_t[node]),
+                        fmt(rr_wn[node], 8), fmt(rr_w[node], 8),
+                        fmt(rr_p[node], 4), fmt(rr_h[node], 8),
+                        fmt(rr_psat[node], 4), fmt(rr_kh[node], 8),
+                        fmt(rr_kv[node], 12), fmt(rr_enh[node], 8),
+                        std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                        std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                        row_hash});
+          ++soidiag_rows_written;
+        }
+        soidiag_rows_expected += (size_t)kSoilDiagNodeCount;
+      }
     }
   }
 
@@ -2355,6 +2900,61 @@ static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
   if (!summary.close_and_check() || !field.close_and_check()) {
     std::cerr << "[fofem_test] FATAL: soil_campbell output write/flush/close failed\n";
     return 1;
+  }
+  if (soidiag) {
+    if (soidiag_rows_written != soidiag_rows_expected) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell diagnostic row "
+                   "reconciliation failed: wrote " << soidiag_rows_written
+                << " rows, expected " << soidiag_rows_expected << "\n";
+      return 1;
+    }
+    if (!soidiag->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell diagnostic output "
+                   "write/flush/close failed\n";
+      return 1;
+    }
+  }
+  if (soistate) {
+    // No a-priori "expected" count exists here (unlike soidiag's
+    // n_time_indices*node_count, the internal Newton-step count is not
+    // knowable before the solver actually runs) -- each row's own
+    // multiple-of-node-count check above is the real reconciliation; this
+    // is a pure write/flush/close proof.
+    if (!soistate->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell state diagnostic "
+                   "output write/flush/close failed\n";
+      return 1;
+    }
+  }
+  if (soisubiter) {
+    // Same reasoning as soistate above: no a-priori expected count (the
+    // real Newton sub-iteration count is not knowable in advance); this
+    // is a pure write/flush/close proof, not a fresh reconciliation.
+    if (!soisubiter->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell sub-iteration "
+                   "diagnostic output write/flush/close failed\n";
+      return 1;
+    }
+  }
+  if (soisurfup) {
+    // Unlike soistate/soisubiter, THIS reconciliation IS knowable a
+    // priori: SoiDiagRecordSubIteration() and SoiDiagRecordSurfaceUpdate()
+    // are called EXACTLY once each, from the same i==1 pass of the same
+    // sub-iteration loop -- their cumulative row counts across the
+    // entire run must be identical, or one of the two hooks has a real
+    // bug (fired for a row/case the other didn't, or vice versa).
+    if (soisubiter && soisubiter_rows_written_total != soisurfup_rows_written_total) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell surface-update "
+                   "diagnostic reconciliation failed: soisubiter wrote "
+                << soisubiter_rows_written_total << " rows, soisurfup wrote "
+                << soisurfup_rows_written_total << "\n";
+      return 1;
+    }
+    if (!soisurfup->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell surface-update "
+                   "diagnostic output write/flush/close failed\n";
+      return 1;
+    }
   }
   return any_unexpected ? 1 : 0;
 }
@@ -2384,7 +2984,7 @@ static const ModeSpec MODES[] = {
     {"mortality", "2", &MORTALITY_HEADER, run_mortality},
     {"bark_thick", "1", &BARK_THICK_HEADER, run_bark_thick},
     {"canopy_cover", "1", &CANOPY_COVER_HEADER, run_canopy_cover},
-    {"soil_campbell", "1", &SOIL_CAMPBELL_HEADER, run_soil_campbell},
+    {"soil_campbell", "2", &SOIL_CAMPBELL_HEADER, run_soil_campbell},
 };
 
 int main(int argc, char **argv) {

@@ -327,9 +327,9 @@ def mort_crcabe(
     else:
         spp = spp.astype(str)
 
-    # C++ accepts Crn Dam% directly. Preserve geometry-derived input as the
-    # default convenience path, while allowing callers to provide that field
-    # verbatim for the non-PK equations that consume it.
+    # Preserve geometry-derived input as the default convenience path,
+    # while allowing callers to provide that field verbatim for the
+    # non-PK equations that consume it.
     if crown_damage is None:
         _, cvs, cls = calc_crown_length_vol_scorched(scorch_ht, ht, crown_depth)
     else:
@@ -371,7 +371,8 @@ def mort_crcabe(
         atk = np.where(beetles[mask_abco], 1, -1).astype(float)
         Pm[mask_abco] = 1 / (1 + np.exp(
             -(-3.5964 + (np.power(cls[mask_abco], 3) * 0.00000628) +
-              (ckr[mask_abco] * 0.3019) + (dbh[mask_abco] * 0.019) + (atk * 0.5209))))
+              (ckr[mask_abco] * 0.3019) +
+              (dbh[mask_abco] * (0.0483 / 2.54)) + (atk * 0.5209))))
 
     # FOFEM Eq SF - Grand Fir and Subalpine Fir
     if np.any(mask_abgr):
@@ -405,14 +406,16 @@ def mort_crcabe(
             -(-1.8912 + (cvs[mask_psme] * 0.07) -
               (np.power(cvs[mask_psme], 2) * 0.0019) +
               (np.power(cvs[mask_psme], 3) * 0.000018) +
-              (ckr[mask_psme] * 0.5840) - (dbh[mask_psme] * 0.031) -
-              (atk * 0.7959) + (dbh[mask_psme] * atk * 0.0492))))
+              (ckr[mask_psme] * 0.5840) +
+              (dbh[mask_psme] * (-0.0788 / 2.54)) - (atk * 0.7959) +
+              (dbh[mask_psme] * atk * (0.1251 / 2.54)))))
 
     # FOFEM Eq WP - Whitebark Pine and Lodgepole Pine
     if np.any(mask_pial):
         Pm[mask_pial] = 1 / (1 + np.exp(
             -(-1.4059 + (np.power(cvs[mask_pial], 3) * 0.000004459) +
-              (np.power(ckr[mask_pial], 2) * 0.2843) - (dbh[mask_pial] * 0.0485))))
+              (np.power(ckr[mask_pial], 2) * 0.2843) +
+              (dbh[mask_pial] * (-0.1232 / 2.54)))))
 
     # FOFEM Eq SP - Sugar Pine (red turpentine / mountain pine beetle; atk: attacked=1, unattacked=-1)
     if np.any(mask_pila):
@@ -649,14 +652,15 @@ def mort_crnsch(
         Pm[mask_cade] = 1 / (1 + np.exp(-(-4.2466 + (np.power(cls[mask_cade], 3) * 0.000007172))))
     # FOFEM Eq 14 - Western Larch
     if np.any(mask_laoc):
-        Pm[mask_laoc] = 1 / (1 + np.exp(-(-1.6594 + (cvs[mask_laoc] * 0.0327) - (dbh[mask_laoc] * 0.0489))))
+        Pm[mask_laoc] = 1 / (1 + np.exp(-(-1.6594 + (cvs[mask_laoc] * 0.0327) +
+                                          (dbh[mask_laoc] * (-0.1241 / 2.54)))))
     # FOFEM Eq 17 - Whitebark/Logepole Pine
     if np.any(mask_pial):
         Pm[mask_pial] = 1 / (1 + np.exp(-(-0.3268 +
                                           (cvs[mask_pial] * 0.1387) -
                                           (np.power(cvs[mask_pial], 2) * 0.0033) +
-                                          (np.power(cvs[mask_pial], 3) * 0.000025) -
-                                          (dbh[mask_pial] * 0.0266))))
+                                          (np.power(cvs[mask_pial], 3) * 0.000025) +
+                                          (dbh[mask_pial] * (-0.0676 / 2.54)))))
     # FOFEM Eq 3 - All other spruce species
     if np.any(mask_spruce):
         dbh_in = dbh[mask_spruce] / 2.54
@@ -696,7 +700,7 @@ def mort_crnsch(
             )
             _Pm[small_interpolate] = small_base + ((1 - small_base) * height_factor)
 
-        # C++ applies the Equation-3 0.8 floor after every branch.
+        # Apply the Equation-3 0.8 floor after every branch.
         _Pm = np.maximum(_Pm, 0.8)
         Pm[mask_spruce] = _Pm
     # FOFEM Eq 15 - Engelmann spruce

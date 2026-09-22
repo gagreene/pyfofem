@@ -68,6 +68,18 @@ CORE_TESTS: List[str] = [
     # read committed CSVs and never build or invoke C++, so they are CORE -
     # the same rule that puts the other golden-CSV-driven modules here.
     "tests/unit/test_phase4_consumption_parity.py",
+    "tests/unit/test_bark_thickness_contract.py",
+    # CON-01/CON-02 post-suite correction: consm_shrub() Eq 16/234 four-term
+    # f_WPRE fix and zero-load NaN fix. Reads the committed Phase 4 consume
+    # golden for one live-C++-discriminating case - no live C++ build needed
+    # at test-run time, same rule as the golden-CSV-driven modules above.
+    "tests/unit/test_con01_con02_shrub_eq234.py",
+    # F-39 (Coastal Plain sub-finding): consm_litter()/consm_duff()/
+    # consm_mineral_soil() forest-floor route (Eq 30/31/32). Reads the
+    # already-committed Phase 4 consume golden's se-cp-entire-m050 row -
+    # no live C++ build needed at test-run time, same rule as the
+    # golden-CSV-driven modules above.
+    "tests/unit/test_f39_coastal_plain.py",
     "tests/unit/test_phase4_emissions_parity.py",
     # Phase 6 investigation A: default-emissions-equivalence full-pipeline
     # comparison (F-54) against the committed Phase 6 consume golden. Reads
@@ -118,6 +130,13 @@ CORE_TESTS: List[str] = [
     # soil_heat_campbell against the committed Phase 5 golden - reads
     # committed golden CSVs, no live C++ build.
     "tests/unit/test_phase5_soil_campbell_characterization.py",
+    # Campbell duff-forcing correction pass (F-69/F-53): class (a) Python
+    # contract/source-relation coverage for the new _duff_burn_rate/
+    # _duff_heat_fraction/_duff_burn_profile helpers, plus one class (c)
+    # Campbell-outcome characterization test (soil_heat_campbell()
+    # directly, monkeypatch-reconstructed pre-correction comparison, no
+    # C++ golden/tolerance touched). Pure Python/SciPy, no live C++ build.
+    "tests/unit/test_duff_forcing_correction.py",
     # Phase 5 Part 3: fail-closed completeness + git-trackability coverage
     # for the committed Phase 5 golden tree, mirroring
     # test_phase4_golden_tracking.py's state-independent contract.
@@ -209,12 +228,25 @@ CORE_TESTS: List[str] = [
     # guarantee; the existing FULL_EXTRA_TESTS generator-driver modules
     # already cover them as pytest nodes).
     "tests/unit/test_phase8_operational_hardening.py",
+    # 2026-09-18 xfail-disposition audit: meta-test guaranteeing
+    # development/plans/gate0/08-xfail-disposition.csv exactly covers
+    # the suite's currently-collected xfail nodes. Spawns its own bounded
+    # subprocess restricted to 8 already-CORE test files, no live C++
+    # build of its own.
+    "tests/unit/test_xfail_disposition_audit.py",
+    # 2026-09-21 F-62 partial-resolution regression coverage: synthetic,
+    # golden-independent proof of the burnup() duff-remaining termination
+    # gate fix. Pure Python, no live C++ build.
+    "tests/unit/test_burnup_duff_smolder_continuation.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [
     "tests/cpp_parity_live/test_compare_cpp_python.py",     # was tests/test_compare_cpp_python.py
     "tests/cpp_parity_live/test_cpp_comparison.py",          # was tests/test_cpp_comparison.py
-    "tests/cpp_parity_live/test_soil_heating_cpp_parity.py",  # was tests/test_soil_heating_cpp_parity.py
+    # Opt-in soil_campbell intermediate-state diagnostic plus Python-side
+    # comparison against the live reference implementation. Requires the
+    # live C++ build like every other FULL_EXTRA_TESTS module here.
+    "tests/cpp_parity_live/test_soil_solver_diagnostic_comparison.py",
     # Phase 2: builds and drives the live fofem_test C++ harness binary
     # directly (MSVC/CMake/Ninja required) — not a golden-CSV comparison.
     "tests/cpp_parity_live/test_cpp_harness_contract.py",
@@ -249,6 +281,14 @@ FULL_EXTRA_TESTS: List[str] = [
     # subprocess run of the full Phase 7 generator-driver suite under that
     # hostile environment. Needs the live build (same as the module above).
     "tests/unit/test_prepare_cpp_reference_git_ownership.py",
+    # F-62 completion/acceptance-recovery pass (2026-09-21): a real
+    # wheel-build/isolated-venv-install/import-from-outside-the-checkout
+    # regression for the FOF_SPP.CSV packaging defect this pass fixed.
+    # Genuinely slow (network/disk-bound wheel build + full dependency
+    # install) — kept out of CORE_TESTS, unlike its sibling
+    # test_runtime_data_resources.py, which only pins the corrected
+    # package-data declaration.
+    "tests/unit/test_packaging_wheel_install.py",
 ]
 
 #: A deliberately small, representative subset of :data:`CORE_TESTS` for
@@ -266,6 +306,7 @@ CI_SMOKE_TESTS: List[str] = [
     "tests/unit/test_2d_input_regression.py",
     "tests/unit/test_phase8_unit_system_contract.py",
 ]
+
 #: Environment variable set on the pytest subprocess when ``--installed-only``
 #: is requested, so ``tests/conftest.py``'s ``pytest_sessionstart`` hook can
 #: verify the import origin *inside* the process that collects/runs tests.

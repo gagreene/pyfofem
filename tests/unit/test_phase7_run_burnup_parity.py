@@ -356,44 +356,114 @@ def test_flame_smolder_split_matches_cpp_for_nominal_duration_scenarios():
 #: every combination genuinely runs and genuinely fails under
 #: ``--runxfail``, verified directly (see the correction pass's final
 #: report).
-_AFFECTED_SCENARIO_IDS = ("hot-amb-duff", "long-igtime")
-_SPLIT_FIELDS = ("FlaCon", "SmoCon", "SmoDur")
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-62 (gate0/04-findings.md): the flaming/smoldering consumption-"
-        "and-duration SPLIT diverges substantially for hot-amb-duff/"
-        "long-igtime (the two scenarios exhibiting the measured split "
-        "divergence), even though the underlying TotCon these two fields "
-        "split does not. Root cause not fully isolated within this pass's "
-        "scope; pinned as a desired-behavior xfail, not silently omitted. "
-        "See tolerance_policy.json's flame_smolder_consumption_affected_"
-        "scenarios/smoldering_duration_affected_scenarios routes for the "
-        "measured evidence, including direct executable evidence that "
-        "refutes the original 'extends the effective simulated burn "
-        "duration' causal hypothesis for both scenarios."
-    ),
+#:
+#: F-62 partial-resolution pass (2026-09-21): ``("hot-amb-duff",
+#: "SmoDur")`` was REMOVED from this list -- ``burnup()``'s termination
+#: condition was missing a check for remaining duff mass (matching
+#: pinned ``bur_brn.cpp:377-380``'s ``if (fi<=fimin) { if
+#: (d_Duf_Tot!=0) continue; break; }``), cutting the simulation short
+#: whenever wood/litter/herb-shrub fire intensity fizzled before duff
+#: finished burning. Fixed; ``hot-amb-duff``'s ``SmoDur`` matches the
+#: golden exactly (2280.0 s).
+#:
+#: F-62 completion/acceptance-recovery pass (2026-09-21, same day):
+#: ``FlaCon``/``SmoCon`` for BOTH scenarios are ALSO now removed. Root
+#: cause found via a live C++ diagnostic-observer build
+#: (``bur_brn_instr.cpp``, dumping ``Start()``'s own per-(k,l) ``wodot``
+#: values and ``FireIntensity()``'s first-call ``wdotk``/``term`` side
+#: by side): C++'s ``gd_Fudge1``/``gd_Fudge2`` (``bur_brn.cpp`` ``Start()``
+#: ~line 553-560) are a SINGLE shared pair of scratch slots, not one per
+#: fuel class -- ``gd_Fudge2`` gets overwritten by ANY ``kl!=0`` pair
+#: that fully consumes during the ignition pulse, so it frequently ends
+#: up holding a DIFFERENT class's rate than litter's own, which
+#: ``FireIntensity()`` then restores into litter's own ``wodot[1]``
+#: slot regardless. Python previously approximated this ("achieves the
+#: same effect" per the removed comment in ``burnup.py``) by leaving
+#: EVERY fully-consumed particle's OWN rate non-zero at its OWN index --
+#: not equivalent, and it inflated litter's ``wdotk``/``term`` roughly
+#: 18x for this scenario (measured directly: C++ term=7.1813 vs the
+#: pre-fix Python term=132.036 at the first classification call),
+#: causing litter (and sometimes other classes) to be misclassified as
+#: flaming when C++ classifies smolder. Fixed in ``burnup.py`` by
+#: replicating the exact 2-slot semantics (``fudge1``/``fudge2``
+#: closure variables, set only on ``dnext<=0.0`` exactly as C++ does,
+#: restored into ``wodot[0]``/``wodot[1]`` once inside
+#: ``_fire_intensity()``). Both scenarios' ``FlaCon``/``SmoCon`` now
+#: match the golden to float precision (see
+#: ``test_flame_smolder_split_should_match_cpp_for_the_affected_scenarios``'s
+#: own docstring for the exact measured values); fixing this also
+#: required a companion fix in ``burnup_calcs.py``'s
+#: ``_burnup_durations()`` (see ``test_hot_amb_duff_fladur_matches_cpp``/
+#: ``test_long_igtime_fladur_matches_cpp``'s own history) since, once
+#: wood/litter genuinely never flames for these two scenarios, ``FlaDur``
+#: needed herb+shrub+foliage+branch's own first-timestep contribution
+#: (which C++'s ``ES_Calc()`` always counts toward ``d_FlaCon``) to stay
+#: correct -- a real, C++-evidenced regression this same pass found and
+#: fixed before finalizing, not merely a coincidental side effect.
+#:
+#: F-62 final acceptance-recovery pass (2026-09-21, third same-day
+#: pass): ``("long-igtime", "SmoDur")`` -- the last remaining
+#: combination -- is ALSO now removed. Root cause found via the SAME
+#: live C++ diagnostic-observer build, extended with a third hook
+#: dumping ``DuffBurn()``'s own inputs/outputs (``d_tdf``/``d_Duf_Sec``/
+#: ``d_Duf_Tot``) once per run: C++ tracks a running remaining-duff-MASS
+#: pool (``d_Duf_Tot``), decremented every timestep by ``Duff_CPTS()``
+#: (``bur_brn.cpp:2017-2034``, which subtracts ``rate * elapsed`` and
+#: CLAMPS at exactly zero) -- a DISCRETE, clamped depletion process, not
+#: a continuous time-vs-duration comparison. Critically, the FIRST such
+#: decrement (right after ``Start()``) uses a HARDCODED literal ``60.0``
+#: (``bur_brn.cpp:322``), regardless of the scenario's actual ignition/
+#: residence time ``ti``. Python's prior ``tis < tdf`` check (a
+#: continuous comparison) only coincidentally matched C++ for
+#: ``hot-amb-duff`` because that scenario's own ``ti`` (60) happens to
+#: equal the hardcoded literal; for ``long-igtime`` (``ti=199.9``), the
+#: hardcoded-60 first decrement leaves MORE duff mass remaining than a
+#: ``ti``-sized decrement would, extending C++'s real termination time
+#: by roughly 90-105 s beyond the continuous model's prediction --
+#: exactly the gap this combination measured. Fixed in ``burnup.py`` by
+#: replicating C++'s exact discrete, clamped mass-pool mechanism
+#: (``duf_tot_mass``/``_duff_cpts()``, using the same hardcoded ``60.0``
+#: for the first decrement and ``dt`` for every subsequent one) in place
+#: of the continuous ``tis < tdf`` check. Verified: both scenarios' full
+#: ``FlaCon``/``SmoCon``/``FlaDur``/``SmoDur`` quadruple now match the
+#: golden closely (``long-igtime``'s ``SmoDur``: Python 2419.9 vs golden
+#: 2419.899902, |diff| ~1e-4 s), and none of the other 5 already-resolved
+#: combinations regressed (re-verified directly, unchanged).
+#:
+#: **All 6 of the original F-62 (case_id, field) combinations now PASS
+#: genuinely. No xfail marker remains on this parametrization.**
+_AFFECTED_COMBINATIONS = (
+    pytest.param("hot-amb-duff", "FlaCon"),  # RESOLVED 2026-09-21 -- no xfail marker.
+    pytest.param("hot-amb-duff", "SmoCon"),  # RESOLVED 2026-09-21 -- no xfail marker.
+    pytest.param("long-igtime", "FlaCon"),  # RESOLVED 2026-09-21 -- no xfail marker.
+    pytest.param("long-igtime", "SmoCon"),  # RESOLVED 2026-09-21 -- no xfail marker.
+    pytest.param("hot-amb-duff", "SmoDur"),  # RESOLVED 2026-09-21 -- no xfail marker.
+    pytest.param("long-igtime", "SmoDur"),  # RESOLVED 2026-09-21 -- no xfail marker.
 )
-@pytest.mark.parametrize("field", _SPLIT_FIELDS)
-@pytest.mark.parametrize("case_id", _AFFECTED_SCENARIO_IDS)
+
+
+@pytest.mark.parametrize("case_id,field", _AFFECTED_COMBINATIONS)
 def test_flame_smolder_split_should_match_cpp_for_the_affected_scenarios(case_id, field):
     """Desired-behavior pin for F-62: *field* (``FlaCon``/``SmoCon``/
     ``SmoDur``) SHOULD match the golden within the same tolerance the
     nominal-duration scenarios achieve (see
     :func:`test_flame_smolder_split_matches_cpp_for_nominal_duration_scenarios`),
-    for *case_id* (``hot-amb-duff``/``long-igtime``) too. Currently fails
-    for all 6 (case_id, field) combinations - every one exceeds its
-    applicable established tolerance (0.1 T/ac for ``FlaCon``/``SmoCon``,
-    60.0 s for ``SmoDur``), though not uniformly by the same margin:
-    ``hot-amb-duff``'s ``FlaCon``/``SmoCon`` diverge by roughly two
-    orders of magnitude versus the nominal-duration scenarios' own
-    measured divergence, while ``long-igtime``'s ``SmoDur`` diverges by
-    less than one order of magnitude - see the tolerance-policy routes'
-    justifications in ``tolerance_policy.json`` for the exact measured
-    value of each of the 6 combinations, not a single characterization
-    applied uniformly to all of them."""
+    for *case_id* (``hot-amb-duff``/``long-igtime``) too.
+
+    UPDATED 2026-09-21 (F-62 final acceptance-recovery pass): all 6 of
+    the original (case_id, field) combinations now PASS genuinely.
+    ``hot-amb-duff``'s ``SmoDur`` was resolved first (a missing
+    duff-remaining continuation check in ``burnup()``'s termination
+    condition). ``FlaCon``/``SmoCon`` for BOTH scenarios were resolved
+    next (C++'s ``gd_Fudge1``/``gd_Fudge2`` shared-scratch-slot
+    semantics, replicated in ``_fire_intensity()``). ``long-igtime``'s
+    ``SmoDur`` -- the final combination -- was resolved last, by
+    replacing a continuous ``tis < tdf`` duff-duration check with a
+    faithful discrete, clamped duff-mass-pool tracker
+    (``duf_tot_mass``/``_duff_cpts()``) matching C++'s own
+    ``Duff_CPTS()`` mechanics exactly, including its hardcoded
+    literal-60.0 first decrement. This function no longer carries any
+    ``xfail`` marker for any combination."""
     if field == "SmoDur":
         atol, _ = phase7_tolerance("consume", "smoldering_duration_nominal")
     else:

@@ -253,12 +253,18 @@ def compute_equation_arrays(
     is_ne = reg_a == "NorthEast"
     is_iw_pw = np.isin(reg_a, ("InteriorWest", "PacificWest"))
     is_pocosin = np.isin(cvr_a, ("Pocosin", "PC"))
+    # Case-insensitive per F-39's own contract (matches C++ CI_isCoastPlain(),
+    # xstrcmpi) — deliberately narrower than the rest of this function's
+    # case-sensitive cover-group checks, which are out of this pass's scope.
+    cvr_lower = np.array([str(v).strip().lower() for v in cvr_a], dtype=object)
+    is_coastplain = np.isin(cvr_lower, ("cp", "coastplain"))
     is_ponderosa = np.isin(cvr_a, ("Ponderosa pine", "PN", "Ponderosa"))
     is_redjac = np.isin(cvr_a, ("Red Jack Pine", "Red, Jack Pine", "RedJacPin", "RJP"))
     is_balsam = np.isin(
         cvr_a,
         ("Balsam", "Black Spruce", "Red Spruce", "White Spruce", "BalBRWSpr", "Balsam Fir", "BFS"),
     )
+    is_white_pine_hemlock = np.isin(cvr_a, ("White Pine Hemlock", "WhiPinHem", "WPH"))
     is_chaparral = np.isin(cvr_a, ("Chaparral", "Shrub-Chaparral", "SGC", "ShrubGroupChaparral"))
     is_sage = np.isin(cvr_a, ("Sagebrush", "SB"))
     is_shrubgrp = np.isin(cvr_a, ("Shrub", "SG", "ShrubGroup"))
@@ -267,7 +273,10 @@ def compute_equation_arrays(
     is_summer = sea_a == "Summer"
     is_fall = sea_a == "Fall"
     is_winter = sea_a == "Winter"
-    lit_eq_arr = np.where(is_flatwood, 997, np.where(is_se, 998, 999))
+    lit_eq_arr = np.where(
+        is_flatwood, 997,
+        np.where(is_se & is_coastplain, 30, np.where(is_se, 998, 999)),
+    )
 
     duf_con_eq_arr = np.full(reg_a.shape, 2, dtype=int)
     duf_red_eq_arr = np.full(reg_a.shape, 6, dtype=int)
@@ -277,13 +286,14 @@ def compute_equation_arrays(
     duf_red_eq_arr = np.where(is_chaparral, 19, duf_red_eq_arr)
     mse_eq_arr = np.where(is_chaparral, 19, mse_eq_arr)
 
-    iw_pw_ponderosa = is_iw_pw & is_ponderosa
-    iw_pw_other = is_iw_pw & ~is_ponderosa
+    iw_pw_effective = is_iw_pw | (is_ne & is_white_pine_hemlock)
+    iw_pw_ponderosa = iw_pw_effective & is_ponderosa
+    iw_pw_other = iw_pw_effective & ~is_ponderosa
     duf_con_eq_arr = np.where(iw_pw_ponderosa | iw_pw_other, 2, duf_con_eq_arr)
     duf_red_eq_arr = np.where(iw_pw_ponderosa | iw_pw_other, 6, duf_red_eq_arr)
     mse_eq_arr = np.where(iw_pw_ponderosa | iw_pw_other, 10, mse_eq_arr)
 
-    ne_other = is_ne & ~is_redjac & ~is_balsam
+    ne_other = is_ne & ~is_redjac & ~is_balsam & ~is_white_pine_hemlock
     ne_redjac = is_ne & is_redjac
     ne_balsam = is_ne & is_balsam
     duf_con_eq_arr = np.where(ne_other, 2, duf_con_eq_arr)
@@ -294,10 +304,17 @@ def compute_equation_arrays(
     mse_eq_arr = np.where(ne_redjac | ne_balsam, 14, mse_eq_arr)
 
     se_pocosin = is_se & is_pocosin
-    se_other = is_se & ~is_pocosin
+    se_coastplain = is_se & is_coastplain
+    se_other = is_se & ~is_pocosin & ~is_coastplain
     duf_con_eq_arr = np.where(se_pocosin, 20, duf_con_eq_arr)
     duf_red_eq_arr = np.where(se_pocosin, 20, duf_red_eq_arr)
     mse_eq_arr = np.where(se_pocosin, 202, mse_eq_arr)
+    # Coastal Plain (F-39): Equ_CP_Per/Equ_CP_Red/Equ_CP_MSE report distinct
+    # equation IDs 30/31/32 (fof_duf.h:11-13), unlike Pocosin/other-SE which
+    # reuse the same ID for both the percent and depth outputs.
+    duf_con_eq_arr = np.where(se_coastplain, 30, duf_con_eq_arr)
+    duf_red_eq_arr = np.where(se_coastplain, 31, duf_red_eq_arr)
+    mse_eq_arr = np.where(se_coastplain, 32, mse_eq_arr)
     duf_con_eq_arr = np.where(se_other, 16, duf_con_eq_arr)
     duf_red_eq_arr = np.where(se_other, 16, duf_red_eq_arr)
     mse_eq_arr = np.where(se_other, 14, mse_eq_arr)
@@ -357,8 +374,17 @@ def compute_pre_burnup_consumption(
     Compute all consumption arrays that are independent of burnup execution.
 
     Calls consm_litter, consm_herb, consm_canopy, consm_mineral_soil,
-    consm_duff, and consm_shrub for every cell, and applies the SouthEast
-    non-Pocosin non-Flatwoods shrub override (C++ Eq 234 parity).
+    consm_duff, and consm_shrub for every cell. consm_shrub's own SE
+    non-Pocosin Eq 234 branch (CON-02) receives dw10_a/dw1_a directly, so
+    no separate post-hoc shrub override is applied here.
+
+    F-39 (Coastal Plain): consm_litter/consm_duff/consm_mineral_soil all
+    receive duf_a (and consm_duff/consm_litter also receive lit_a/l_m_a) so
+    each can detect a Coastal Plain (CP/CoastPlain) cvr_a cell and route it
+    through the shared Eq 30/31/32 forest-floor helper -- this is the SOLE
+    source of litter consumption for such a cell (no separate Burnup litter
+    accounting exists in this pipeline, so there is no double-counting to
+    guard against beyond routing litter through this one call).
 
     :param lit_a: Pre-fire litter load per cell.
     :param l_m_a: Litter (~1-hr) moisture content (%) per cell.
@@ -389,7 +415,7 @@ def compute_pre_burnup_consumption(
     """
     n = len(lit_a)
     lit_con_arr = np.asarray(
-        consm_litter(lit_a, l_m_a, cvr_grp=cvr_a, reg=reg_a, units=units),
+        consm_litter(lit_a, l_m_a, cvr_grp=cvr_a, reg=reg_a, units=units, pre_dl=duf_a),
         dtype=float,
     )
     lit_pre_arr = lit_a.copy()
@@ -412,12 +438,6 @@ def compute_pre_burnup_consumption(
     bra_con_arr = np.asarray(crown_res["blc"], dtype=float)
     bra_pos_arr = bra_pre_arr - bra_con_arr
 
-    mse_arr = np.clip(
-        np.asarray(consm_mineral_soil(reg_a, cvr_a, ft_a, duf_m_a, "edm"), dtype=float),
-        0.0,
-        100.0,
-    )
-
     duf_pre_arr = duf_a.copy()
     duf_dep_pre_arr = duf_dep_a.copy()
 
@@ -438,6 +458,8 @@ def compute_pre_burnup_consumption(
             pre_l110=pre_l110,
             pre_dl110=pre_dl110,
             units=units,
+            pre_ll=float(lit_a[i]),
+            l_moist=float(l_m_a[i]),
         )
         pdc_list[i] = float(np.asarray(res["pdc"]).ravel()[0])
         ddc_list[i] = (
@@ -447,7 +469,24 @@ def compute_pre_burnup_consumption(
     pdc_arr = np.clip(pdc_list, 0.0, 100.0)
     duf_dep_con_arr = np.clip(ddc_list, 0.0, duf_dep_pre_arr)
     duf_dep_pos_arr = duf_dep_pre_arr - duf_dep_con_arr
+    mse_arr = np.asarray(
+        consm_mineral_soil(
+            reg_a,
+            cvr_a,
+            ft_a,
+            duf_m_a,
+            "edm",
+            pdr=pdc_arr,
+            duff_load=duf_a,
+        ),
+        dtype=float,
+    )
 
+    # consm_shrub()'s SE non-Pocosin Eq 234 branch now takes pre_dw10/pre_dw1
+    # directly (CON-02, fof_hsf.cpp:229-274's 4-term f_WPRE), so the separate
+    # inline Eq 234 re-implementation formerly here is no longer needed.
+    # A facade-versus-helper regression covers nonzero 1-hr/10-hr loads and
+    # the zero-shrub guard; see test_con01_con02_shrub_eq234.py.
     slc_pct_arr = np.clip(
         np.asarray(
             consm_shrub(
@@ -458,6 +497,8 @@ def compute_pre_burnup_consumption(
                 pre_ll=lit_a,
                 pre_dl=duf_a,
                 pre_rl=np.zeros_like(shr_a),
+                pre_dw10=dw10_a,
+                pre_dw1=dw1_a,
                 duff_moist=duf_m_a,
                 llc=lit_con_arr,
                 ddc=duf_a * pdc_arr / 100.0,
@@ -468,27 +509,6 @@ def compute_pre_burnup_consumption(
         0.0,
         100.0,
     )
-
-    # C++ Eq 234 parity for SouthEast non-Pocosin non-Flatwoods shrub.
-    fw = ("Flatwood", "Pine Flatwoods", "PFL", "PinFltwd", "PinFlaWoo")
-    is_se_np = (
-        (reg_a == "SouthEast")
-        & ~np.isin(cvr_a, ("Pocosin", "PC"))
-        & ~np.isin(cvr_a, fw)
-    )
-    if np.any(is_se_np):
-        wpre = lit_a + duf_a + dw10_a + dw1_a
-        wpre_safe = np.maximum(wpre, 1e-12)
-        eq16_w = 3.4958 + (0.3833 * wpre) - (0.0237 * duf_m_a) - (5.6075 / wpre_safe)
-        shr_safe = np.maximum(shr_pre_arr, 1e-12)
-        f = (
-            (3.2484 + (0.4322 * wpre) + (0.6765 * shr_pre_arr)
-             - (0.0276 * duf_m_a) - (5.0796 / wpre_safe) - eq16_w)
-            / shr_safe
-        )
-        f = np.where((wpre <= 0.0) | (shr_pre_arr <= 0.0) | (eq16_w == 0.0), 0.0, f)
-        eq234_pct = np.clip(f * 100.0, 0.0, 100.0)
-        slc_pct_arr = np.where(is_se_np, eq234_pct, slc_pct_arr)
 
     shr_con_arr = shr_pre_arr * slc_pct_arr / 100.0
     shr_pos_arr = shr_pre_arr - shr_con_arr

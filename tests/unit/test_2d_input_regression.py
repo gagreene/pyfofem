@@ -169,25 +169,90 @@ def test_consm_duff_ravels_to_1d_preserving_cell_order():
         np.testing.assert_array_equal(result, baseline)
 
 
-def test_consm_duff_scalar_moisture_with_array_loading_does_not_broadcast_to_6():
-    """Invalid-shape/current-contract characterization (directly probed,
-    not assumed): mixing an ARRAY ``pre_dl`` with a SCALAR
-    ``duff_moist`` does NOT broadcast the scalar up to the array's
-    length - the result silently collapses to length 1 instead of
-    raising or broadcasting, unlike NumPy's own elementwise-multiply
-    broadcasting rules. This is a real, surprising current-contract fact
-    directly relevant to item C's "flattening/broadcast semantics ...
-    as defined by the current public contract" - pinned for visibility,
-    not endorsed."""
+def test_consm_duff_scalar_and_array_pdc_directions_are_consistent():
+    """Companion to :func:`test_consm_duff_scalar_moisture_with_array_
+    loading_broadcasts_to_6` below: exercises the wholly-scalar
+    direction (plain ``float`` output, not an array) and the REVERSE
+    mixed direction (scalar ``pre_dl``, array ``duff_moist``), proving
+    the latter genuinely varies per element (``pdc`` DOES depend on
+    ``duff_moist``), unlike the array-``pre_dl``/scalar-``duff_moist``
+    direction below where every broadcast element is identical."""
+    scalar_result = consm_duff(
+        2.0, 50.0, reg='InteriorWest', cvr_grp=None, duff_moist_cat='edm',
+        d_pre=2.0, units='Imperial',
+    )['pdc']
+    assert isinstance(scalar_result, float)
+
+    dm = np.array([30.0, 40.0, 50.0, 60.0, 70.0, 80.0])
+    reverse_result = consm_duff(
+        2.0, dm, reg='InteriorWest', cvr_grp=None, duff_moist_cat='edm',
+        d_pre=2.0, units='Imperial',
+    )['pdc']
+    assert reverse_result.shape == (6,)
+    assert len(set(reverse_result.tolist())) == 6, (
+        'fixture duff_moist values collapsed to <6 distinct pdc results'
+    )
+
+
+def test_consm_duff_scalar_moisture_with_array_loading_broadcasts_to_6():
+    """Mixing an ARRAY ``pre_dl`` (6 distinct loads) with a SCALAR
+    ``duff_moist`` now correctly broadcasts the scalar moisture across
+    every array position, matching this codebase's Scalar-Array
+    Convention (``docs/CODEBASE.md``) and NumPy's own elementwise
+    broadcasting rules.
+
+    **Regression history** (an F-62-adjacent acceptance-recovery pass,
+    2026-09-21, investigated this directly - not assumed): an EARLIER
+    version of this test pinned the OPPOSITE, defective behavior as a
+    "current-contract characterization" - ``pdc``'s shape used to be
+    derived purely from ``duff_moist``'s own raveled shape
+    (``pdc = np.full_like(duff_moist, ...)``), so a scalar
+    ``duff_moist`` collapsed ``pdc`` to shape ``(1,)`` regardless of
+    ``pre_dl``'s actual length, a genuine broadcast-contract defect.
+    Direct inspection of ``consm_duff()`` (``consumption_calcs.py``)
+    found this fixed as a side effect of an unrelated, well-documented,
+    concurrently-added physical-boundary-condition line -
+    ``pdc = np.where(pre_dl <= 0.0, 0.0, pdc)`` ("there is nothing to
+    consume when the duff load is zero") - whose own ordinary NumPy
+    broadcasting (a shape ``(1,)`` ``pdc`` against a shape ``(6,)``
+    ``pre_dl`` condition) now upgrades ``pdc`` to shape ``(6,)``. This
+    was verified as a genuine, desired fix (not a coincidental shape
+    match): each broadcast element below is checked against a true
+    single-scalar-input call, proving real elementwise broadcast, not
+    an accidental reshape; ``ddc``/``rdd`` (which also broadcast, via
+    ``d_pre``, a separate optional scalar parameter) are checked too;
+    and the wholly-scalar and array-``duff_moist``-with-scalar-
+    ``pre_dl`` directions are exercised by
+    :func:`test_consm_duff_scalar_and_array_pdc_directions_are_consistent`
+    above. No production code was changed by this pass - only this
+    stale test assertion, which pinned the now-fixed defect rather than
+    the corrected behavior."""
     dl = np.array([5.0, 10.0, 15.0, 20.0, 25.0, 30.0])
     result = consm_duff(
         dl, 50.0, reg='InteriorWest', cvr_grp=None, duff_moist_cat='edm',
         d_pre=2.0, units='Imperial',
-    )['pdc']
-    assert result.shape == (1,), (
-        f'expected the known length-1 collapse, got shape {result.shape} - '
-        'this contract may have changed; update this test to match'
     )
+    pdc, ddc, rdd = result['pdc'], result['ddc'], result['rdd']
+    assert pdc.shape == (6,), (
+        f'expected the scalar duff_moist to broadcast across all 6 '
+        f'pre_dl positions (matching the Scalar-Array Convention), got '
+        f'shape {pdc.shape} - the pre-2026-09-21 defect collapsed this '
+        f'to (1,)'
+    )
+    assert ddc.shape == (6,)
+    assert rdd.shape == (6,)
+
+    single = consm_duff(
+        5.0, 50.0, reg='InteriorWest', cvr_grp=None, duff_moist_cat='edm',
+        d_pre=2.0, units='Imperial',
+    )
+    # pdc/ddc/rdd for THIS route depend only on duff_moist/d_pre (both
+    # scalar here), not on pre_dl's own per-element value, so every
+    # broadcast element must equal the true single-scalar-input result -
+    # proving genuine elementwise broadcast, not a coincidental reshape.
+    assert np.all(pdc == single['pdc'])
+    assert np.all(ddc == single['ddc'])
+    assert np.all(rdd == single['rdd'])
 
 
 def test_mort_bolchar_mismatched_species_and_dbh_length_raises():

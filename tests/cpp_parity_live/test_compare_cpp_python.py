@@ -162,9 +162,11 @@ def _compute_failing_case_fields():
     ``_COMPARE_COLS``'s tolerance.
 
     Shared by both :func:`test_cpp_python_case_summary_matches` (the
-    scientific xfail) and :func:`test_case6_is_the_only_expected_divergent_case`
-    (the F-23 blast-radius regression guard) so the two tests can never
-    silently drift apart on what "the current failure set" actually is.
+    direct parity assertion) and
+    :func:`test_case6_is_the_only_expected_divergent_case` (the
+    zero-divergence regression guard, originally F-23's blast-radius
+    guard) so the two tests can never silently drift apart on what "the
+    current failure set" actually is.
 
     :return: List of ``(case, field, py_val, cpp_val, diff, tol)`` tuples.
     """
@@ -205,37 +207,37 @@ def _compute_failing_case_fields():
     return failures
 
 
-#: The EXACT, currently-known blast radius of Gate 0 Finding F-23
-#: (Northeast case-6 duff-routing defect): all four fields are downstream
+#: RESOLVED 2026-09-21 (F-23 fix pass — see gate0/04-findings.md). This
+#: WAS the exact, then-known blast radius of Gate 0 Finding F-23
+#: (Northeast case-6 duff-routing defect): all four fields were downstream
 #: consequences of the SAME wrong duff percent propagating through Burnup
 #: (gate0/04-findings.md, F-23 "Consequences" paragraph) — not four
-#: independent defects. If this set ever changes (a new case starts
-#: failing, a field stops failing, or an additional field starts failing),
-#: that is new scientific information requiring its own investigation
-#: before this constant is touched — see
-#: test_case6_is_the_only_expected_divergent_case.
-F23_EXPECTED_FAILING_CASE_FIELDS = frozenset({
-    (6, 'RotDW1kCon'),
-    (6, 'DufCon'),
-    (6, 'SmoDur'),
-    (6, 'TotCon'),
-})
+#: independent defects. F-23's two root causes (NorthEast-generic percent
+#: routing; the unconditional non-batch depth-override C++ Note-5 applies
+#: to every region) are both fixed in consm_duff() — case 6 now agrees
+#: with the C++ golden on every field, confirmed by direct re-measurement.
+#: Kept as an explicit empty set (not deleted) so this file continues to
+#: document what "the currently expected failing set" means and so
+#: test_case6_is_the_only_expected_divergent_case keeps guarding against
+#: ANY future regression, not just F-23's specific fields. If this set
+#: ever becomes non-empty again, that is new scientific information
+#: requiring its own investigation before this constant is touched.
+F23_EXPECTED_FAILING_CASE_FIELDS = frozenset()
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Known Northeast case-6 duff-routing defect (Gate 0 Finding F-23): "
-        "consm_duff() derives NorthEast generic percent-consumed through the "
-        "Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth "
-        "reduction diverges from fof_duf.cpp's percent-derived override. "
-        "Owning fix: development/plans/2026-08-26-pypi-release-readiness.md "
-        "Phase 2 (Correct Northeast duff routing)."
-    ),
-    strict=True,
-)
 def test_cpp_python_case_summary_matches():
     """
     Compare Python outputs against the CSV-based C++ golden summary.
+
+    RESOLVED 2026-09-21: this was a strict ``xfail`` documenting Gate 0
+    Finding F-23 (Northeast case-6 duff-routing defect — consm_duff()
+    derived NorthEast generic percent-consumed through the Eq-15 relation
+    instead of C++ Duf_Default's Equ_2_Per, and duff-depth reduction
+    diverged from fof_duf.cpp's unconditional percent-derived override).
+    Both root causes are now fixed in consm_duff(); this test passes
+    genuinely (verified: it fails for real under a reverted pre-fix
+    consm_duff() — see the F-23 fix pass's own discriminating-test
+    evidence in gate0/04-findings.md).
 
     :return: None. Raises via ``pytest.fail`` on any mismatch.
     """
@@ -250,16 +252,16 @@ def test_cpp_python_case_summary_matches():
 
 def test_case6_is_the_only_expected_divergent_case():
     """
-    Regression/traceability guard for F-23's blast radius (Phase 2 round 4
-    correction item 2): the currently expected failing ``(case, field)``
-    set must be EXACTLY :data:`F23_EXPECTED_FAILING_CASE_FIELDS` — no
-    fewer (which would mean F-23 was fixed and the strict xfail above
-    should be removed) and no more (which would mean a NEW divergence
-    exists and must be investigated on its own evidence, not silently
-    folded into F-23 by assumption).
+    Regression/traceability guard, originally for F-23's blast radius
+    (Phase 2 round 4 correction item 2), now a general zero-divergence
+    guard now that F-23 is resolved: the currently expected failing
+    ``(case, field)`` set must be EXACTLY :data:`F23_EXPECTED_FAILING_CASE_FIELDS`
+    (now empty) — any non-empty result means a NEW divergence exists and
+    must be investigated on its own evidence, not silently attributed to
+    a resolved finding.
 
     Deliberately NOT marked xfail: this test's OWN job is to fail loudly
-    the moment the failure set expands or changes shape.
+    the moment the failure set becomes non-empty again.
     """
     actual = {(case, field) for case, field, *_ in _compute_failing_case_fields()}
     assert actual == F23_EXPECTED_FAILING_CASE_FIELDS, (
@@ -267,7 +269,8 @@ def test_case6_is_the_only_expected_divergent_case():
         f"{sorted(F23_EXPECTED_FAILING_CASE_FIELDS)}, got {sorted(actual)}. "
         "A new/removed/expanded divergence needs its own root-cause "
         "investigation before this expectation is updated — do not assume "
-        "it is F-23 without per-case/per-field C++/Python evidence."
+        "it is F-23 (resolved) without per-case/per-field C++/Python "
+        "evidence for a NEW finding."
     )
 
 

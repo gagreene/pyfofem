@@ -57,7 +57,7 @@ __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple, cast
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 
@@ -452,6 +452,22 @@ def _duff_burn(
     return dfi, tdf, smolder_rate
 
 
+def _duff_cpts(remaining: float, rate: float, elapsed: float) -> float:
+    """Mirror C++ ``Duff_CPTS()`` (``bur_brn.cpp:2017-2034`): consume
+    ``rate * elapsed`` from *remaining*, clamped at exactly zero (never
+    negative). Matches the pinned function's own two early-return guards
+    (``remaining == 0`` or ``rate == 0`` both leave *remaining*
+    unchanged) via ordinary arithmetic, since both guards are no-ops
+    once ``rate * elapsed`` is ``0.0`` in either case.
+
+    :param remaining: Remaining duff mass (kg/m²) before this call.
+    :param rate: Duff smoldering mass rate (kg/m²·s).
+    :param elapsed: Seconds elapsed since the previous call.
+    :return: New remaining duff mass (kg/m²), never negative.
+    """
+    return max(0.0, remaining - rate * elapsed)
+
+
 def _heat_exchange(
         v_eff: float,
         dia: float,
@@ -697,6 +713,7 @@ def burnup(
         validate: bool = True,
         hsf_consumed: float = 0.0,
         brafol_consumed: float = 0.0,
+        on_fire_intensity: Optional[Callable[[dict], None]] = None,
 ) -> Tuple[List[BurnResult], List[BurnSummaryRow]]:
     """Run the complete BURNUP post-frontal combustion simulation.
 
@@ -735,6 +752,16 @@ def burnup(
     :param brafol_consumed: Total branch + foliage consumed (kg/m²).  In
         C++, this is consumed entirely in the first timestep and adds fire
         intensity via ``BRN_Intensity()``.  Default 0.
+    :param on_fire_intensity: Optional diagnostic-only callback, mirroring
+        the pinned C++ ``_CompDump()`` per-fuel-class flame/smolder dump
+        (see ``bur_brn_instr.cpp``, an overlay-only diagnostic-observer
+        build). When given, called once per fuel class per timestep from
+        inside the per-timestep flaming/smoldering classification with a
+        dict of that class's own intermediate quantities (``k`` (1-based
+        class index), ``sigma``, ``wdotk``, ``wnoduff``, ``fint``,
+        ``ark``, ``term``, ``test``, ``threshold``, ``classified_flame``).
+        Purely observational — never changes any classification, mass, or
+        returned result. Default ``None`` (no overhead, no calls).
     :return: ``(results, summary)`` where *results* is a list of
         :class:`BurnResult` (one per completed timestep) and *summary* is
         a list of :class:`BurnSummaryRow` (one per fuel component).
@@ -828,6 +855,15 @@ def burnup(
     dfi, tdf, duff_smolder_rate = _duff_burn(wdf, dfm, duff_pct_consumed)
     smoldering[number] = duff_smolder_rate
 
+    # F-62 completion/acceptance-recovery pass (2026-09-21, second pass):
+    # C++ tracks a running remaining-duff-MASS pool (`d_Duf_Tot`,
+    # initialised to `d_Duf_Sec * d_tdf` -- bur_brn.cpp:299 -- decremented
+    # every call to `Duff_CPTS()`, bur_brn.cpp:2017-2034, which subtracts
+    # `rate * elapsed` and CLAMPS at exactly zero, never negative) -- this
+    # is a DISCRETE, clamped depletion process, not a continuous
+    # time-vs-duration comparison. `duf_tot_mass` mirrors it exactly.
+    duf_tot_mass = duff_smolder_rate * tdf
+
     # ------------------------------------------------------------------
     # 8. Start — initialise drying/ignition/burnout state
     # ------------------------------------------------------------------
@@ -906,6 +942,34 @@ def burnup(
     mask = tign < _RINDEF
     tign[mask] -= trt_min
 
+    # F-62 completion/acceptance-recovery pass (2026-09-21): C++'s own
+    # gd_Fudge1/gd_Fudge2 (bur_brn.cpp Start(), ~line 553-560) are a
+    # SINGLE pair of scratch slots, not one per fuel class: gd_Fudge1 is
+    # set only when kl==0 (always the litter/duff pair, unique), but
+    # gd_Fudge2 is set by the `else` branch on EVERY kl!=0 whose diameter
+    # reaches zero during the ignition pulse -- so by the time Start()
+    # finishes, gd_Fudge2 holds whichever kl (in increasing k,l order)
+    # was the LAST to fully consume, which is frequently a DIFFERENT
+    # fuel class than litter's own self-pair (kl==1). FireIntensity()'s
+    # own restoration (`if (gd_Fudge1!=0) wodot[0]=gd_Fudge1; ... if
+    # (gd_Fudge2!=0) wodot[1]=gd_Fudge2;`) then unconditionally writes
+    # that possibly-unrelated rate into litter's kl==1 slot specifically,
+    # once, on the first post-Start() call only (both fudges reset to 0
+    # immediately after use, matching C++ exactly). This is a real,
+    # C++-evidenced quirk of the pinned oracle -- verified directly via
+    # a dedicated live diagnostic build (bur_brn_instr.cpp) that dumped
+    # Start()'s own per-(k,l) wodot values and FireIntensity()'s
+    # first-call wdotk side by side. Previously (see the removed comment
+    # this replaces) Python instead left EVERY fully-consumed particle's
+    # OWN wodot non-zero at its OWN index, which is NOT the same effect:
+    # it credits litter's classification with its own full frontal-burn
+    # rate every time (rather than at most one, possibly-unrelated,
+    # carried-over rate), inflating wdotk/term for the very first
+    # FireIntensity() call and misclassifying litter (and sometimes
+    # other classes) as flaming when the pinned C++ classifies smolder.
+    fudge1 = 0.0
+    fudge2 = 0.0
+
     # ---- establish initial burning rates for ignited components ----
     for k in range(1, number + 1):
         ki = k - 1
@@ -935,11 +999,15 @@ def burnup(
                 if dnext <= 0.0:
                     flit[ki] -= xmat[kl]
                     fout[ki] += xmat[kl]
-                    # Keep wodot[kl] non-zero here so _fire_intensity() (called
-                    # immediately below) sees the frontal-pass burn rate for
-                    # particles that are fully consumed during ignition. The C++
-                    # code achieves the same effect via gd_Fudge1/gd_Fudge2.
-                    # The time-step loop handles zeroing via "if tnow >= tdun".
+                    # C++ bur_brn.cpp Start(): "if (kl==0) gd_Fudge1 =
+                    # wodot[kl]; else gd_Fudge2 = wodot[kl];" -- a single
+                    # shared kl!=0 scratch slot, overwritten every time
+                    # (see the block comment above this loop).
+                    if kl == 0:
+                        fudge1 = wodot[kl]
+                    else:
+                        fudge2 = wodot[kl]
+                    wodot[kl] = 0.0
                     ddot[kl]  = 0.0
 
     ncalls = 0
@@ -953,6 +1021,19 @@ def burnup(
 
         :return: Site-average fire intensity (kW/m²).
         """
+        nonlocal fudge1, fudge2
+        # C++ FireIntensity(): "if (gd_Fudge1!=0) {wodot[0]=gd_Fudge1;
+        # gd_Fudge1=0;} if (gd_Fudge2!=0) {wodot[1]=gd_Fudge2;
+        # gd_Fudge2=0;}" -- fires at most once (both reset to 0.0 after
+        # use; Start() is the only place that ever sets them), matching
+        # the block comment above the Start()-equivalent loop.
+        if fudge1 != 0.0:
+            wodot[0] = fudge1
+            fudge1 = 0.0
+        if fudge2 != 0.0:
+            wodot[1] = fudge2
+            fudge2 = 0.0
+
         total = 0.0
         for k in range(1, number + 1):
             ki = k - 1
@@ -969,10 +1050,19 @@ def burnup(
 
             # C++ FireIntensity line 1710: changed from > to >= to ensure litter
             # loads over ~11.4 T/ac go to flaming (matches comment in BUR_BRN.cpp)
-            if test >= (fint_switch / ark - fint_switch) if ark > _SMALLX else False:
+            threshold = (fint_switch / ark - fint_switch) if ark > _SMALLX else None
+            classified_flame = (test >= threshold) if threshold is not None else False
+            if classified_flame:
                 flaming[ki] += wnoduff
             else:
                 smoldering[ki] += wnoduff
+            if on_fire_intensity is not None:
+                on_fire_intensity({
+                    "k": k, "sigma": sigma[ki], "wdotk": wdotk,
+                    "wnoduff": wnoduff, "fint": fint[ki], "ark": ark,
+                    "term": term, "test": test, "threshold": threshold,
+                    "classified_flame": classified_flame,
+                })
             total += term
         return total
 
@@ -1065,6 +1155,17 @@ def burnup(
     fi_cur = fi_wl + fi_hs + _brafol_fi(ti)
 
     _record(ti, fi_wl=fi_wl, fi_hs=fi_hs)
+
+    # C++ bur_brn.cpp:322: the FIRST duff-mass decrement after Start()
+    # uses a HARDCODED literal 60.0 -- NOT `ti`/`dt` -- regardless of the
+    # scenario's actual ignition/residence time. Verified directly via a
+    # live C++ diagnostic build (bur_brn_instr.cpp) that this literal,
+    # not ti, is what the pinned oracle actually uses here; reproducing
+    # it exactly (rather than substituting ti) is required for scenarios
+    # where ti != 60 (e.g. long-igtime's ti=199.9) -- see the
+    # duf_tot_mass comment above _duff_burn()'s own call for the full
+    # crosswalk.
+    duf_tot_mass = _duff_cpts(duf_tot_mass, duff_smolder_rate, 60.0)
 
     fimin = 0.1
     tis = ti
@@ -1355,7 +1456,37 @@ def burnup(
             _record(tis, fi_wl=fi_wl, fi_hs=fi_hs)
 
             # ---- termination ----
-            if fi_cur <= fimin or ncalls >= ntimes:
+            # C++ bur_brn.cpp:377-380: once wood/litter/herb-shrub fire
+            # intensity drops to fimin, the simulation does NOT stop
+            # immediately if duff is still smoldering -- C++ checks its own
+            # running remaining-duff total (`d_Duf_Tot`, decremented every
+            # timestep by `Duff_CPTS()`) and only breaks once BOTH
+            # conditions hold (`fi <= fimin` AND `d_Duf_Tot == 0`); while
+            # duff remains it `continue`s (does not break) even though
+            # wood/litter/herb-shrub intensity has already fallen below
+            # fimin.
+            #
+            # F-62 completion/acceptance-recovery pass (2026-09-21,
+            # second pass): the PRIOR continuous check here (`tis < tdf`)
+            # is NOT bit-for-bit equivalent to C++'s actual discrete,
+            # CLAMPED mass-pool depletion -- it only coincidentally
+            # matched for scenarios whose ignition/residence time `ti`
+            # equals the hardcoded 60.0 C++ uses for the FIRST duff
+            # decrement (bur_brn.cpp:322; see the `duf_tot_mass`
+            # initialisation above). For any `ti != 60` (e.g. a long
+            # ignition time), the continuous `tis < tdf` check diverges
+            # from C++'s real termination instant by however much extra
+            # (or less) duff mass that first hardcoded-60 decrement left
+            # behind relative to a `ti`-sized first decrement -- verified
+            # directly via a live C++ diagnostic build (bur_brn_instr.cpp)
+            # dumping `DuffBurn()`'s own `d_tdf`/`d_Duf_Sec`/`d_Duf_Tot`
+            # and the per-timestep `FireIntensity()` trace side by side.
+            # `duf_tot_mass` now replicates C++'s exact discrete,
+            # clamped-at-zero decrement (`_duff_cpts()`, using `dt` here
+            # to match `Duff_CPTS(..., 15.0)`'s in-loop calls) instead.
+            duf_tot_mass = _duff_cpts(duf_tot_mass, duff_smolder_rate, dt)
+            duff_still_smoldering = duf_tot_mass > 0.0
+            if (fi_cur <= fimin and not duff_still_smoldering) or ncalls >= ntimes:
                 break
 
     # ------------------------------------------------------------------

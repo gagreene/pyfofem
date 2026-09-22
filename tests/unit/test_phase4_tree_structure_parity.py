@@ -15,9 +15,10 @@ test_phase4_tree_structure_parity.py - Phase 4 coverage for
   tests, whose expected values come from the committed, fully manifested
   Phase 4 ``canopy_cover`` golden (``SMT_CalcCrnCov`` per tree,
   ``MRT_Overlap`` per stand, at the pinned revision).
-- Class **(a) Python contract tests** - the bark-thickness tests (the Python
-  function is dead on arrival, F-19) and the oracle-invariant and
-  shape/validation tests, none of which claim parity.
+- Class **(a) Python contract tests** - oracle-invariant and
+  shape/validation tests that make no executable-parity claim. The complete
+  bark-thickness parity contract is covered by
+  ``test_bark_thickness_contract.py``.
 
 Python exposes no per-tree crown area: ``calc_canopy_cover`` returns only the
 stand percent. A single-tree stand is therefore used to recover the per-tree
@@ -87,33 +88,16 @@ ATOL_AREA = _CANOPY_COVER_ATOL
 
 #: Absolute tolerance for a bark-thickness value (inches), retrieved from
 #: the centralized ``bark_thick_p4.all`` policy entry - the golden's own
-#: ``fmt(v, 6)`` six-decimal output resolution, not a measured agreement
-#: bound (see that entry's justification: no Python-vs-C++ bark-thickness
-#: value has ever agreed, F-19).
+#: ``fmt(v, 6)`` six-decimal output resolution. The complete 525-code
+#: extraction is verified separately against the pinned C++ coefficient
+#: ladder; this manifested-row comparison uses the same central bound.
 ATOL_BARK_THICK = phase4_tolerance("bark_thick", "all")[0]
 
 #: ``calc_canopy_cover`` per-tree comparisons that DIVERGE.
-CANOPY_TREE_XFAIL = {
-    case: (
-        "F-02",
-        "C++ SMT_CalcCrnCov returns 0 as soon as `f_Hgt <= 0` "
-        "(fof_mrt.cpp:1616-1617), so a zero- or negative-height tree "
-        "contributes no crown area; calc_canopy_cover excludes a tree only "
-        "for `dbh <= 0` or NaN DBH and still credits this tree the full "
-        "30.229674 ft2 its DBH implies.",
-    )
-    for case in ("ccv-p4s4-psme-ht0", "ccv-p4s4-psme-htneg")
-}
+CANOPY_TREE_XFAIL = {}
 
 #: ``calc_canopy_cover`` stand comparisons that DIVERGE.
-CANOPY_STAND_XFAIL = {
-    "p4s4": (
-        "F-02",
-        "every member of this stand has zero/negative height or zero DBH, so "
-        "C++ reports 0.0000 percent cover; Python credits the two "
-        "nonpositive-height trees and reports 0.138699 percent.",
-    ),
-}
+CANOPY_STAND_XFAIL = {}
 
 
 #: Canopy scenarios whose C++ row is a real success, derived from the
@@ -273,52 +257,36 @@ def test_bark_thickness_golden_zero_bark_species_returns_zero():
     assert float(rows["brk100-pipa2-d12"]["bark_thick_in"]) == 0.0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-19: calc_bark_thickness always raises "
-        "KeyError('FOFEM_BrkThck_Vsp') because it reads a column the "
-        "bundled species_codes_lut.csv does not have, so no Python-vs-C++ "
-        "bark-thickness comparison is possible."
-    ),
+@pytest.mark.parametrize(
+    "case_id, species, dbh_in, _expect_error, _branches",
+    [scenario for scenario in BARK_THICK_SCENARIOS if scenario[3] == "0"],
 )
-def test_bark_thickness_is_dead_on_arrival():
+def test_bark_thickness_matches_cpp_manifested_oracle(
+        case_id, species, dbh_in, _expect_error, _branches,
+):
     """
-    Class (a) Python contract test (F-19), strict xfail.
+    Class (c) executable C++ parity for every successful manifested row.
 
-    ``calc_bark_thickness`` reads ``SPP_CODES['FOFEM_BrkThck_Vsp']``, a
-    column the bundled ``species_codes_lut.csv`` does not have, so every call
-    raises. The C++ side of this comparison IS available and fully
-    manifested (the Phase 4 ``bark_thick`` golden); only the Python side is
-    unreachable.
+    The 34 rows span the coefficient ladder, its zero-bark equation, zero
+    and large-DBH boundaries, and every mortality cross-reference input.
+    The separate full-table contract checks the entire 525-code extraction
+    against C++ source; this test also verifies its measured harness output.
 
-    Asserts the DESIRED behaviour - a real bark-thickness value matching the
-    manifested ``brkxr-psme-d12`` golden row (PSME, DBH 12 in) - not the
-    current ``KeyError``. Currently the call raises before the comparison is
-    reached, so this genuinely executes and genuinely fails - it is not
-    vacuous.
+    :param case_id: Manifested C++ bark-thickness scenario identifier.
+    :param species: FOFEM species code passed to both implementations.
+    :param dbh_in: C++ DBH input in inches.
+    :param _expect_error: Scenario error marker; success-only here.
+    :param _branches: Traceability label for the scenario.
+    :returns: None. Raises via ``assert`` on mismatch.
     """
-    expected_in = float(
-        golden_rows_by_case("bark_thick")["brkxr-psme-d12"]["bark_thick_in"]
-    )
+    expected_in = float(golden_rows_by_case("bark_thick")[case_id]["bark_thick_in"])
     value_cm = calc_bark_thickness(
-        np.array(["PSME"]), np.array([12.0 * IN_TO_CM])
+        np.array([species]), np.array([float(dbh_in) * IN_TO_CM])
     )
     value_in = float(np.asarray(value_cm)[0]) / IN_TO_CM
     assert value_in == pytest.approx(expected_in, abs=ATOL_BARK_THICK)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-02: calc_canopy_cover defaults every species to equation 39. "
-        "Measured against the manifested canopy_cover golden, that gives "
-        "334.271 ft2 for PIAL where C++ (equation 31) gives 197.588, "
-        "140.845 vs 100.669 for ABBA (equation 2), 373.996 vs 815.559 for "
-        "QURU (equation 28) and 454.212 vs 267.778 for PICO (equation 11) - "
-        "relative errors of 40 % to 70 %."
-    ),
-)
 @pytest.mark.parametrize("case_id", DEFAULT_MAPPING_XFAIL_CASES)
 def test_canopy_cover_default_equation_mapping_diverges(case_id):
     """

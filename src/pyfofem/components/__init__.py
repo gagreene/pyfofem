@@ -18,10 +18,7 @@ from .burnup import (
     burnup,
 )
 
-from .soil_heating import (
-    soil_heat_campbell,
-    soil_heat_massman,
-)
+from .soil_heating import soil_heat_campbell
 
 from .tree_flame_calcs import (
     SPP_CODES,
@@ -90,7 +87,6 @@ __all__ = [
     '_run_burnup_cell',
     # soil heating
     'soil_heat_campbell',
-    'soil_heat_massman',
     # tree / flame
     'SPP_CODES',
     'calc_bark_thickness',

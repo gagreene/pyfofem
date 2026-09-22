@@ -61,6 +61,20 @@ from tests.cpp_parity_live._proc import ProcTimeout, run_bounded
 FOF_UNIX_DIR = os.path.join(CPP_REFERENCE_DIR, "FOF_UNIX")
 BUILD_DIR = os.path.join(CPP_REFERENCE_DIR, "build")
 HARNESS_EXE = os.path.join(BUILD_DIR, "fofem_test.exe")
+#: F-70 diagnostic-observer binary (built from the overlay's
+#: fof_soi_instr.cpp, see that file's own header comment) — required for
+#: FOFEM_TEST_SOIL_STATE_DIAG to produce any rows; the normal HARNESS_EXE
+#: silently writes an empty (header-only) diagnostic file when that env
+#: var is set, by design (see test_soil_state_diag_requires_the_diagnostic_binary).
+HARNESS_SOIDIAG_EXE = os.path.join(BUILD_DIR, "fofem_test_soidiag.exe")
+#: F-62 completion/acceptance-recovery pass (2026-09-21) diagnostic-
+#: observer binary (built from the overlay's bur_brn_instr.cpp, see that
+#: file's own header comment) — required for FOFEM_TEST_BURN_DIAG to
+#: produce ``_FireInt-Dump.csv`` in the harness's own cwd
+#: (:data:`FOF_UNIX_DIR`); the normal HARNESS_EXE links the real, pinned
+#: bur_brn.cpp, whose _CompDump() ignores the env var unconditionally, so
+#: setting the env var against HARNESS_EXE produces no file at all.
+HARNESS_BURNDIAG_EXE = os.path.join(BUILD_DIR, "fofem_test_burndiag.exe")
 HARNESS_SOURCE = os.path.join(FOF_UNIX_DIR, "test_harness.cpp")
 SPECIES_CSV = os.path.join(
     PROJECT_ROOT, "src", "pyfofem", "supporting_data", "FOFEM6.7", "FOF_SPP.CSV"
@@ -281,6 +295,94 @@ def ensure_built() -> Tuple[bool, str]:
     return True, ""
 
 
+def ensure_soidiag_built() -> Tuple[bool, str]:
+    """
+    Ensure ``fofem_test_soidiag.exe`` exists (the F-70 diagnostic-observer
+    binary built from the overlay's ``fof_soi_instr.cpp`` — see that
+    file's own header comment for what it instruments and why).
+
+    Identical fail-closed gating to :func:`ensure_built` (pinned-SHA
+    check, overlay reapply, same sourced MSVC/CMake/Ninja environment);
+    builds the ``fofem_test_soidiag`` CMake target instead of
+    ``fofem_test``. Calls :func:`ensure_built` FIRST — a caller that
+    needs both binaries never re-does the pinned-SHA check or overlay
+    reapply twice, and the normal target is proven to still build
+    whenever the diagnostic target is requested.
+
+    :return: ``(True, "")`` on success; ``(False, reason)`` otherwise.
+    """
+    ok, reason = ensure_built()
+    if not ok:
+        return False, reason
+
+    env = _msvc_env()
+    if env is None:
+        return False, "failed to source the MSVC/CMake/Ninja build environment"
+    cmake_exe = shutil.which("cmake", path=env.get("PATH", ""))
+    if cmake_exe is None:
+        return False, "cmake not found on the sourced MSVC/CMake/Ninja PATH"
+
+    try:
+        build = run_bounded(
+            [cmake_exe, "--build", BUILD_DIR, "--target", "fofem_test_soidiag"],
+            cwd=CPP_REFERENCE_DIR, env=env, timeout=TIMEOUT_BUILD_S,
+        )
+    except ProcTimeout as exc:
+        return False, f"cmake --build (fofem_test_soidiag) timed out: {exc}"
+    if build.returncode != 0:
+        return False, f"cmake --build (fofem_test_soidiag) failed:\n{build.stdout}\n{build.stderr}"
+
+    if not os.path.isfile(HARNESS_SOIDIAG_EXE):
+        return False, f"build reported success but {HARNESS_SOIDIAG_EXE} is missing"
+
+    return True, ""
+
+
+def ensure_burndiag_built() -> Tuple[bool, str]:
+    """
+    Ensure ``fofem_test_burndiag.exe`` exists (the F-62 completion/
+    acceptance-recovery pass diagnostic-observer binary built from the
+    overlay's ``bur_brn_instr.cpp`` — see that file's own header comment
+    for what it instruments and why).
+
+    Identical fail-closed gating to :func:`ensure_built` (pinned-SHA
+    check, overlay reapply, same sourced MSVC/CMake/Ninja environment);
+    builds the ``fofem_test_burndiag`` CMake target instead of
+    ``fofem_test``. Calls :func:`ensure_built` FIRST, matching
+    :func:`ensure_soidiag_built`'s own established pattern — a caller
+    that needs both binaries never re-does the pinned-SHA check or
+    overlay reapply twice, and the normal target is proven to still
+    build whenever the diagnostic target is requested.
+
+    :return: ``(True, "")`` on success; ``(False, reason)`` otherwise.
+    """
+    ok, reason = ensure_built()
+    if not ok:
+        return False, reason
+
+    env = _msvc_env()
+    if env is None:
+        return False, "failed to source the MSVC/CMake/Ninja build environment"
+    cmake_exe = shutil.which("cmake", path=env.get("PATH", ""))
+    if cmake_exe is None:
+        return False, "cmake not found on the sourced MSVC/CMake/Ninja PATH"
+
+    try:
+        build = run_bounded(
+            [cmake_exe, "--build", BUILD_DIR, "--target", "fofem_test_burndiag"],
+            cwd=CPP_REFERENCE_DIR, env=env, timeout=TIMEOUT_BUILD_S,
+        )
+    except ProcTimeout as exc:
+        return False, f"cmake --build (fofem_test_burndiag) timed out: {exc}"
+    if build.returncode != 0:
+        return False, f"cmake --build (fofem_test_burndiag) failed:\n{build.stdout}\n{build.stderr}"
+
+    if not os.path.isfile(HARNESS_BURNDIAG_EXE):
+        return False, f"build reported success but {HARNESS_BURNDIAG_EXE} is missing"
+
+    return True, ""
+
+
 def resolve_harness_exe() -> str:
     """
     Return the compiled harness binary :func:`run_harness` should invoke:
@@ -316,6 +418,7 @@ def run_harness(
         output_suffixes: Tuple[str, ...] = ("",),
         magic_override: Optional[str] = None,
         header_override: Optional[List[str]] = None,
+        env: Optional[dict] = None,
 ) -> "HarnessResult":
     """
     Write an input CSV for *mode* and invoke ``fofem_test`` (or its
@@ -354,6 +457,13 @@ def run_harness(
         self-tests).
     :param header_override: Raw header line fields to write instead of
         *header* (for malformed-header self-tests).
+    :param env: Environment for the harness subprocess. ``None`` (the
+        default) inherits this process's own environment unchanged
+        (matching :func:`~tests.cpp_parity_live._proc.run_bounded`'s own
+        default) — pass an explicit dict (e.g. a copy of ``os.environ``
+        with ``FOFEM_TEST_SOIL_DIAG`` added) to exercise an opt-in,
+        environment-gated harness facility such as the soil_campbell
+        diagnostic output.
     :return: A populated :class:`HarnessResult`.
     :raises HarnessTimeout: If the harness process exceeds
         :data:`TIMEOUT_HARNESS_RUN_S` — the full descendant process tree is
@@ -386,7 +496,7 @@ def run_harness(
         args += extra_args
 
     try:
-        proc = run_bounded(args, cwd=FOF_UNIX_DIR, timeout=TIMEOUT_HARNESS_RUN_S)
+        proc = run_bounded(args, cwd=FOF_UNIX_DIR, env=env, timeout=TIMEOUT_HARNESS_RUN_S)
     except ProcTimeout as exc:
         for p in output_paths:
             if os.path.isfile(p):

@@ -29,13 +29,11 @@ out of Phase 8's "no production code" scope) - flagged for separate
 authorization, same as every other docstring-inaccuracy gotcha this
 project records rather than silently fixes.
 
-**Known bark-thickness defect (F-19/F-20) remains visible through the
-facade** - not re-derived here (the direct-call KeyError is already a
-strict xfail in ``test_phase4_mortality_parity.py::
-test_crnsch_without_bark_thickness_is_dead_on_arrival``); this module
-adds exactly one facade-specific proof that ``run_fofem_mortality``
-does not mask or change that defect, citing F-19/F-20 rather than
-duplicating the finding.
+**Bark-thickness default path is a facade contract.** The F-19 repair ships
+the full C++ first-occurrence species-to-slope extraction as wheel data.
+This module proves the facade forwards an omitted ``bark_thickness`` to that
+now-working default path; the complete 525-code C++-provenance audit lives
+in ``test_bark_thickness_contract.py``.
 
 Function order: private helpers first, then public test functions, each
 group alphabetized, per AGENTS.md.
@@ -79,9 +77,7 @@ def _crcabe_params(**overrides) -> dict:
 
 def _crnsch_params(**overrides) -> dict:
     """
-    Build a valid ``mort_crnsch`` params dict (with an explicit
-    ``bark_thickness`` to avoid the known F-19/F-20 dead-on-arrival
-    default path), with overrides applied.
+    Build a valid ``mort_crnsch`` params dict, with overrides applied.
 
     :param overrides: Keys to override in the base params dict.
     :return: A params dict suitable for
@@ -182,24 +178,9 @@ def test_facade_crnsch_has_no_unsupported_species_nan_path():
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        'F-19/F-20 (see test_phase4_mortality_parity.py::'
-        'test_crnsch_without_bark_thickness_is_dead_on_arrival for the '
-        "direct-call proof): mort_crnsch(bark_thickness=None) raises "
-        "KeyError('FOFEM_BrkThck_Vsp') via calc_bark_thickness, and the "
-        'facade forwards this call unmodified - it does not mask or '
-        'change the defect.'
-    ),
-)
-def test_facade_crnsch_without_bark_thickness_is_dead_on_arrival_too():
-    """Asserts the DESIRED behaviour (a finite probability) for
-    ``run_fofem_mortality('crnsch', ...)`` with ``bark_thickness``
-    omitted - proving the SAME F-19/F-20 defect reaches callers through
-    the facade, not only through a direct ``mort_crnsch`` call. Genuinely
-    executes and genuinely fails under ``--runxfail`` (real ``KeyError``,
-    not vacuous)."""
+def test_facade_crnsch_without_bark_thickness_returns_finite_probability():
+    """The facade must derive bark thickness when the optional argument is
+    omitted, returning a finite CRNSCH probability."""
     result = run_fofem_mortality('crnsch', _crnsch_params(bark_thickness=None))
     assert np.isfinite(result)
 

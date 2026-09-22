@@ -65,12 +65,12 @@ eq1_dm180_else,consm_duff,"{""pre_dl"":10.0,""duff_moist"":180,""reg"":""Interio
 eq4_ponderosa,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""InteriorWest"",""cvr_grp"":""Ponderosa"",""duff_moist_cat"":""ldm"",""units"":""Imperial""}",pdc,56.9,0.01
 eq3_nfdth_dw1000,consm_duff,"{""pre_dl"":10.0,""duff_moist"":80,""reg"":""InteriorWest"",""duff_moist_cat"":""nfdth"",""dw1000_moist"":20,""units"":""Imperial""}",pdc,30.7,0.01
 eq17_pile,consm_duff,"{""pre_dl"":10.0,""duff_moist"":50,""pile"":true,""units"":""Imperial""}",pdc,10.0,0.01
-eq5_ddc,consm_duff,"{""pre_dl"":10.0,""duff_moist"":50,""reg"":""InteriorWest"",""duff_moist_cat"":""ldm"",""d_pre"":2.0,""units"":""Imperial""}",ddc,1.417,0.001
-eq6_ddc,consm_duff,"{""pre_dl"":10.0,""duff_moist"":75,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""d_pre"":3.0,""units"":""Imperial""}",ddc,1.4781,0.001
-eq15_rdd_nopine,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""NorthEast"",""duff_moist_cat"":""edm"",""d_pre"":4.0,""units"":""Imperial""}",rdd,2.649,0.001
+eq5_ddc,consm_duff,"{""pre_dl"":10.0,""duff_moist"":50,""reg"":""InteriorWest"",""duff_moist_cat"":""ldm"",""d_pre"":2.0,""units"":""Imperial""}",ddc,1.423,0.001
+eq6_ddc,consm_duff,"{""pre_dl"":10.0,""duff_moist"":75,""reg"":""InteriorWest"",""duff_moist_cat"":""edm"",""d_pre"":3.0,""units"":""Imperial""}",ddc,1.5525,0.001
+ne_generic_edm_rdd,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""NorthEast"",""duff_moist_cat"":""edm"",""d_pre"":4.0,""units"":""Imperial""}",rdd,1.6744,0.001
 eq15_rdd_pine,consm_duff,"{""pre_dl"":10.0,""duff_moist"":60,""reg"":""NorthEast"",""cvr_grp"":""RedJacPin"",""duff_moist_cat"":""edm"",""d_pre"":4.0,""units"":""Imperial""}",rdd,3.209,0.001
 herb_eq22,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":"""",""pre_ll"":2.0,""pre_hl"":1.5,""units"":""Imperial""}",hlc,1.5,0.001
-herb_eq221_spring,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":""GrassGroup"",""pre_ll"":2.0,""pre_hl"":1.5,""season"":""Spring"",""units"":""Imperial""}",hlc,0.15,0.001
+herb_eq221_spring,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":""GrassGroup"",""pre_ll"":2.0,""pre_hl"":1.5,""season"":""Spring"",""units"":""Imperial""}",hlc,1.35,0.001
 herb_eq221_summer_fallback,consm_herb,"{""reg"":""InteriorWest"",""cvr_grp"":""GrassGroup"",""pre_ll"":2.0,""pre_hl"":1.5,""season"":""Summer"",""units"":""Imperial""}",hlc,1.5,0.001
 # Eq 222: -0.059 + 0.004*3.0 + 0.917*2.0 = -0.059 + 0.012 + 1.834 = 1.787
 herb_eq222_se,consm_herb,"{""reg"":""SouthEast"",""cvr_grp"":"""",""pre_ll"":3.0,""pre_hl"":2.0,""units"":""Imperial""}",hlc,1.787,0.001

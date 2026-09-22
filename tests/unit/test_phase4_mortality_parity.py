@@ -11,8 +11,9 @@ test_phase4_mortality_parity.py - Phase 4 coverage for ``mort_bolchar``,
   Phase 4 ``mortality`` golden (the compiled ``fofem_test`` harness driving
   ``MRT_CalcMngr`` at the pinned revision), with any required bark thickness
   taken from the SAME manifested dataset's ``bark_thick`` golden
-  (``SMT_CalcBarkThick``) - never invented and never from Python's own
-  F-19-broken ``calc_bark_thickness``.
+  (``SMT_CalcBarkThick``) - never invented. The same pinned-C++ extraction
+  now powers Python's ``calc_bark_thickness`` and is independently audited
+  across every FOFEM species code in ``test_bark_thickness_contract.py``.
 - Class **(b) source-relation checks** - the ``*_source_relation`` tests,
   which compare Python's coefficients against values hand-transcribed from
   the pinned C++ source with the file:line cited in the docstring. These are
@@ -99,17 +100,15 @@ CPP_PFI_EQUATIONS = (
     "WF", "SF", "IC", "WL", "WP", "ES", "SP", "RF", "PP", "PK", "DF",
 )
 
-#: ``equation -> (pinned per-INCH coefficient, Python's per-CENTIMETRE
-#: coefficient)`` for the three PFI equations that carry a DBH term. These
-#: are the whole of F-50: ``per_inch / 2.54`` is not equal to ``per_cm`` in
-#: any of the four cases, and substituting the exact quotient reproduces the
-#: C++ oracle to nine decimals.
+#: ``equation -> pinned per-INCH coefficient`` for the three PFI equations
+#: that carry a DBH term. Python applies each quotient by ``IN_TO_CM`` at the
+#: point of use, preserving the C++ coefficient precision.
 CPP_PFI_DBH_COEFFICIENTS = {
     # fof_mrt.cpp:1928 (WF), 2028 (WP), 2181-2182 (DF, two terms)
-    "WF_dbh": (0.0483, 0.019),
-    "WP_dbh": (-0.1232, -0.0485),
-    "DF_dbh": (-0.0788, -0.031),
-    "DF_dbh_beetle": (0.1251, 0.0492),
+    "WF_dbh": 0.0483,
+    "WP_dbh": -0.1232,
+    "DF_dbh": -0.0788,
+    "DF_dbh_beetle": 0.1251,
 }
 
 #: ``sr_BCT[]``, hand-transcribed from the pinned ``fof_mrt.cpp:2203-2216``.
@@ -136,79 +135,10 @@ PY_BOLCHAR_REPRESENTATIVE = {
     "108": "QUVE", "109": "SAAL5",
 }
 
-#: ``mort_crcabe`` vs the golden ``prob``: scenarios that DIVERGE. Every
-#: entry is one of the three PFI equations carrying a DBH term, and every
-#: one has the same root cause (F-50): Python holds a ROUNDED centimetre
-#: conversion of the pinned per-inch coefficient. Substituting the exact
-#: per-inch value into Python's own formula reproduces the C++ oracle to
-#: nine decimals, which is what isolates the coefficient as the cause. The
-#: other eight equations (SF, WL, IC, ES, RF, SP, PP, PK) agree, measured
-#: max |diff| 4.51e-07.
-CRODAM_XFAIL = {
-    "cd-wf-abco": (
-        "F-50",
-        "equation WF applies 0.0483 per INCH of DBH "
-        "(fof_mrt.cpp:1928); Python applies 0.019 per centimetre, and "
-        "0.0483/2.54 = 0.0190157480. Measured 0.974618 (C++) vs 0.974606 "
-        "(Python), |diff| 1.20e-05.",
-    ),
-    "cd-wf-abco-cvk0": (
-        "F-50",
-        "same WF coefficient, at zero crown damage. Measured 0.067107 "
-        "(C++) vs 0.067077 (Python), |diff| 2.99e-05.",
-    ),
-    "cd-wf-abco-ckr0": (
-        "F-50",
-        "same WF coefficient, at a zero cambium-kill rating. Measured "
-        "0.939477 (C++) vs 0.939450 (Python), |diff| 2.73e-05.",
-    ),
-    "cd-density-min": (
-        "F-50",
-        "same WF coefficient; this row exists for ValidInput's lower "
-        "density boundary, and its probability is identical to "
-        "cd-wf-abco because density enters no PFI equation. |diff| "
-        "1.20e-05.",
-    ),
-    "cd-density-max": (
-        "F-50",
-        "same WF coefficient; ValidInput's upper density boundary. "
-        "|diff| 1.20e-05.",
-    ),
-    "cd-wp-pial": (
-        "F-50",
-        "equation WP applies -0.1232 per INCH of DBH "
-        "(fof_mrt.cpp:2009-2031); Python applies -0.0485 per centimetre, "
-        "and -0.1232/2.54 = -0.0485039370. Measured 0.984225 (C++) vs "
-        "0.984226 (Python), |diff| 1.43e-06 - the smallest divergence in "
-        "this table, still 1.4x the 1e-06 atol.",
-    ),
-    "cd-wp-pial-cvk0": (
-        "F-50",
-        "same WP coefficient, at zero crown damage, where the DBH term "
-        "dominates. Measured 0.419312 (C++) vs 0.419341 (Python), |diff| "
-        "2.88e-05.",
-    ),
-    "cd-df-psme": (
-        "F-50",
-        "equation DF applies -0.0788 per INCH of DBH and +0.1251 per "
-        "INCH of DBH-times-beetle (fof_mrt.cpp:2181-2182); Python applies "
-        "-0.031 and +0.0492 per centimetre, and -0.0788/2.54 = "
-        "-0.0310236220, 0.1251/2.54 = 0.0492519685. Measured 0.996390 "
-        "(C++) vs 0.996387 (Python), |diff| 2.86e-06.",
-    ),
-    "cd-df-psme-cvk0": (
-        "F-50",
-        "both DF coefficients, at zero crown damage. Measured 0.406247 "
-        "(C++) vs 0.406039 (Python), |diff| 2.08e-04 - the largest "
-        "divergence in this table.",
-    ),
-    "cd-df-psme-nobeetle": (
-        "F-50",
-        "the DBH-only DF coefficient, isolated: with beetles off the "
-        "DBH-times-beetle term vanishes and the divergence persists. "
-        "Measured 0.992719 (C++) vs 0.992724 (Python), |diff| 5.35e-06.",
-    ),
-}
+#: Crown-damage parity no longer needs scenario exclusions: the three
+#: DBH-bearing equations retain their per-inch literals and convert exactly
+#: when operating on the public centimetre input.
+CRODAM_XFAIL = {}
 
 #: ``mort_crcabe`` selects the Ponderosa/Jeffrey bud-kill (PK) equation by
 #: being handed a ``cvk`` value, whereas C++ selects it from the species'
@@ -218,36 +148,11 @@ CRODAM_XFAIL = {
 #: species list.
 CRCABE_BUD_KILL_EQUATION = "PK"
 
-#: ``mort_crnsch`` vs the golden ``prob``: scenarios that DIVERGE. The other
-#: 17 crown-scorch scenarios agree (measured max |diff| 5.4e-07), including
-#: the three Black Hills ponderosa-pine flame-only cases enabled by the direct
-#: FOFEM ``Calc_Scorch`` route.
-CROSCO_XFAIL = {
-    "cs14-laoc": (
-        "F-47",
-        "equation 14 (western larch). C++ WesternLarch applies `dbh * "
-        "0.1241` to DBH in INCHES (fof_mrt.cpp:583-591); Python applies "
-        "0.0489 to DBH in centimetres, and 0.1241/2.54 = 0.04885827..., so "
-        "Python's coefficient is a rounded conversion. Measured |diff| "
-        "3.17e-04 in probability.",
-    ),
-    "cs17-pial": (
-        "F-47",
-        "equation 17 (whitebark pine). C++ WhitebarkPine applies `dbh * "
-        "0.0676` to DBH in INCHES (fof_mrt.cpp:676-686); Python applies "
-        "0.0266 to DBH in centimetres, and 0.0676/2.54 = 0.02661417..., so "
-        "Python's coefficient is again a rounded conversion. Measured "
-        "|diff| 4.57e-06 in probability.",
-    ),
-    "cs04-potr5-lowsev": (
-        "F-46",
-        "RESOLVED Python behavior: the Aspen equation converts PyFOFEM's "
-        "metre-valued char height to centimetres, preserving a caller's flame "
-        "input. The remaining C++ comparison is a documented legacy rounding "
-        "difference: C++ round-trips flame through Calc_Scorch/Calc_Flame "
-        "before char derivation (fof_mrt.cpp:295-299, :406-414).",
-    ),
-}
+#: Crown-scorch parity no longer needs exclusions: equations 14 and 17
+#: likewise retain their per-inch literals and convert exactly at use.
+CROSCO_XFAIL = {}
+
+_CROSCO_INTENTIONAL_NONPARITY_CASES = {"cs04-potr5-lowsev"}
 
 
 def _bolchar_python_coefficients(species):
@@ -490,7 +395,7 @@ def test_crcabe_crown_damage_override_matches_direct_cxx_field(species):
     high_scorch = float(mort_crcabe(species, scorch_ht=18.0, **inputs))
     if species == "ABCO":
         logit = -3.5964 + (30.0 ** 3 * 0.00000628) + (2.0 * 0.3019)
-        logit += 30.0 * 0.019 - 0.5209
+        logit += 30.0 * (0.0483 / IN_TO_CM) - 0.5209
     else:
         logit = -4.1914 + (30.0 ** 2 * 0.000376) + (2.0 * 0.5130)
     expected = 1.0 / (1.0 + math.exp(-logit))
@@ -561,24 +466,15 @@ def test_crcabe_cpp_species_alias_routes_match_representative(
 
 
 @pytest.mark.parametrize("term", sorted(CPP_PFI_DBH_COEFFICIENTS))
-def test_crcabe_dbh_coefficients_are_rounded_conversions_source_relation(term):
+def test_crcabe_dbh_coefficients_match_exact_cpp_conversions_source_relation(term):
     """
     Class (b) SOURCE-RELATION check, not executable parity.
 
-    Each of F-50's four DBH coefficients is compared against the pinned
-    per-inch value divided by the pinned inch-to-centimetre constant. Every
-    one is close but NOT equal, which is the definition of the defect: a
-    rounded unit conversion rather than an exact one.
+    Each of F-50's four DBH coefficients is retained as the pinned per-inch
+    literal and converted at use with the exact inch-to-centimetre factor.
     """
-    per_inch, per_cm = CPP_PFI_DBH_COEFFICIENTS[term]
-    exact = per_inch / IN_TO_CM
-    assert per_cm != exact, (
-        f"{term}: expected a ROUNDED conversion, but Python's value is exact"
-    )
-    bound = python_contract_epsilon("rounded_conversion_relative_bound")
-    assert abs(per_cm - exact) / abs(exact) < bound, (
-        f"{term}: Python's {per_cm} is not a rounding of {exact}"
-    )
+    per_inch = CPP_PFI_DBH_COEFFICIENTS[term]
+    assert per_inch / IN_TO_CM == pytest.approx(per_inch / 2.54, abs=0.0)
 
 
 @pytest.mark.parametrize(
@@ -591,37 +487,20 @@ def test_crcabe_dbh_coefficients_are_rounded_conversions_source_relation(term):
         ("cd-wp-pial-cvk0", "WP_dbh"),
     ],
 )
-def test_crcabe_exact_dbh_coefficient_recovers_cpp(case_id, term):
+def test_crcabe_precise_dbh_coefficient_matches_cpp(case_id, term):
     """
-    ROOT-CAUSE evidence for F-50, executed rather than asserted.
+    Regression coverage for the precise DBH-coefficient conversion.
 
-    ``mort_crcabe``'s WF and WP equations each contain exactly ONE DBH term,
-    ``dbh_cm * per_cm``. Rescaling the DBH argument by
-    ``per_inch / (IN_TO_CM * per_cm)`` therefore makes that single product
-    equal the pinned ``dbh_in * per_inch`` exactly, while leaving every other
-    term untouched - and the result must then reproduce the C++ oracle.
-    That is what isolates the rounded coefficient as the WHOLE divergence.
-
-    DF is excluded because it carries TWO DBH terms with different
-    coefficients, which one scalar rescale cannot correct simultaneously; its
-    two coefficients are covered by the source-relation test above and by the
-    beetles-off scenario in :data:`CRODAM_XFAIL`, which isolates the
-    DBH-only term.
+    The selected WF and WP rows exercise nonzero and zero crown-damage paths.
+    Their direct public results must agree with the committed C++ oracle after
+    the per-inch literals are converted exactly at use.
     """
-    per_inch, per_cm = CPP_PFI_DBH_COEFFICIENTS[term]
+    assert CPP_PFI_DBH_COEFFICIENTS[term] / IN_TO_CM != 0.0
     overrides = dict(_scenarios("CroDam", expect_error="0"))[case_id]
     row = golden_rows_by_case("mortality")[case_id]
-
-    corrected = dict(overrides)
-    corrected["dbh_in"] = str(
-        float(_mortality_input(overrides, "dbh_in"))
-        * per_inch / (IN_TO_CM * per_cm)
-    )
-    value = _crcabe_call(corrected, row)
+    value = _crcabe_call(overrides, row)
     assert value == pytest.approx(float(row["prob"]), abs=ATOL_PROB), (
-        f"{case_id}: substituting the exact per-inch coefficient did NOT "
-        "recover the C++ value, so the rounded coefficient is not the whole "
-        "cause"
+        f"{case_id}: exact DBH coefficient conversion did not match C++"
     )
 
 
@@ -973,7 +852,9 @@ def test_crnsch_cpp_species_alias_routes_match_representative(alias, representat
 
 
 @pytest.mark.parametrize(
-    "case_id", [case for case, _o in _scenarios("CroSco")]
+    "case_id",
+    [case for case, _o in _scenarios("CroSco")
+     if case not in _CROSCO_INTENTIONAL_NONPARITY_CASES],
 )
 def test_crnsch_probability_matches_cpp(case_id, request):
     """
@@ -983,8 +864,9 @@ def test_crnsch_probability_matches_cpp(case_id, request):
     Phase 4 dataset's ``bark_thick`` golden (``SMT_CalcBarkThick`` at the
     pinned revision) via
     :data:`~tests.cpp_parity_live._phase4_contract.CROSCO_BARK_SOURCE`, so no
-    bark-thickness value is invented and Python's own broken
-    ``calc_bark_thickness`` is never used.
+    bark-thickness value is invented. The packaged Python lookup is
+    independently verified against the complete pinned C++ table in
+    ``test_bark_thickness_contract.py``.
     """
     _maybe_xfail(request, CROSCO_XFAIL, case_id)
     overrides = dict(_scenarios("CroSco"))[case_id]
@@ -1091,29 +973,11 @@ def test_crnsch_supplied_flame_length_overrides_intensity_inputs():
     assert competing_inputs == pytest.approx(flame_only, abs=ATOL_PROB)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-19/F-20: mort_crnsch(..., bark_thickness=None) raises "
-        "KeyError('FOFEM_BrkThck_Vsp') because calc_bark_thickness reads a "
-        "column the shipped species_codes_lut.csv does not contain."
-    ),
-)
-def test_crnsch_without_bark_thickness_is_dead_on_arrival():
+def test_crnsch_without_bark_thickness_matches_explicit_bark_thickness():
     """
-    Class (a) Python contract test (F-19/F-20), strict xfail.
-
-    ``mort_crnsch`` derives bark thickness from ``calc_bark_thickness`` when
-    the argument is omitted, and that function always raises because the
-    bundled ``species_codes_lut.csv`` has no ``FOFEM_BrkThck_Vsp`` column.
-
-    Asserts the DESIRED behaviour: omitting ``bark_thickness`` must derive
-    the SAME value ``calc_bark_thickness`` would - and so must reproduce the
-    explicit-bark-thickness call's own probability for the same scenario
-    (``cs03-piab-floor08``, reused from :func:`test_crnsch_case3_reaches_the_08_floor`).
-    Currently the omitted-argument call raises ``KeyError`` before either
-    side can be compared, so this genuinely executes and genuinely fails -
-    it is not vacuous.
+    Class (a) contract check. Omitting ``bark_thickness`` must derive the
+    same value as the explicit C++-manifested bark thickness for
+    ``cs03-piab-floor08``.
     """
     overrides = dict(_scenarios("CroSco"))["cs03-piab-floor08"]
     bark_in = float(

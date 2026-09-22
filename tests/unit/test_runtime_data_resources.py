@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 test_runtime_data_resources.py - Phase 3 schema / provenance /
-semantic-content / installed-resource coverage for **both** runtime
+semantic-content / installed-resource coverage for every runtime
 scientific tables pyfofem actually reads, enumerated by
 ``development/plans/gate0/06-runtime-tables.md`` §1:
 
@@ -15,14 +15,38 @@ scientific tables pyfofem actually reads, enumerated by
 * ``src/pyfofem/supporting_data/fofem_crnsch_eq1_bark.csv`` - read at
     import time by ``components/mortality_calcs.py`` to reproduce C++
     Equation 1's small-tree bark recalculation in installed artifacts.
+* ``src/pyfofem/supporting_data/fofem_bark_thickness.csv`` - read at
+    import time by ``components/tree_flame_calcs.py`` to reproduce C++
+    ``SMT_CalcBarkThick`` for every FOFEM species code.
 
-Verified from the loader source (not assumed): those are the only two
-data files any pyfofem module opens at runtime.
-``supporting_data/FOFEM6.7/`` is a bundled vendor distribution that no
-pyfofem code reads and that the packaging config deliberately excludes
-from the wheel (``gate0/06-runtime-tables.md`` §3); the wheel-exclusion
-half of that is asserted here, and the tracked ``FOF_GUI.exe`` and
-Microsoft DLLs are otherwise out of scope for this phase.
+Verified from the loader source (not assumed): those are the only four
+top-level ``supporting_data/*.csv`` files any pyfofem module opens at
+runtime.
+
+**Updated 2026-09-21 (F-62 completion/acceptance-recovery pass).**
+``supporting_data/FOFEM6.7/`` is a bundled vendor distribution most of
+which no pyfofem code reads, and the packaging config still excludes
+the rest of it from the wheel - but ``components/tree_flame_calcs.py``'s
+``_load_canopy_equations()`` now reads exactly ONE file from it,
+``supporting_data/FOFEM6.7/FOF_SPP.CSV``, at import time (a real,
+concurrently-added runtime dependency this module did not previously
+have). An isolated-wheel run reproduced the resulting
+``FileNotFoundError`` directly: the package-data glob did not reach
+that nested file, so ``import pyfofem`` itself failed once installed
+from a wheel. Fixed with the smallest possible correction -
+``pyproject.toml``'s ``[tool.setuptools.package-data]`` gained one
+additional EXACT (non-glob, non-recursive) literal entry naming that
+one file, so the tracked ``FOF_GUI.exe``, the two Microsoft DLLs, the
+help PDF, and every other non-runtime file under ``FOFEM6.7/`` remain
+excluded exactly as before. This module's own
+``test_packaging_config_ships_runtime_csvs_and_no_vendor_binaries``
+pins the corrected config declaration; the full build-a-real-wheel/
+install-into-a-throwaway-venv/import-from-outside-the-checkout proof
+lives in ``tests/unit/test_packaging_wheel_install.py`` instead (a
+separate, ``FULL_EXTRA_TESTS``-only module - registered there rather
+than here because it is genuinely slow (network/disk-bound wheel
+build + full dependency install), unlike every other test in this
+CORE-registered module).
 
 **Test-category classification** (see the phase plan
 ``development/plans/2026-08-26-comprehensive-test-suite-plan.md``):
@@ -137,6 +161,14 @@ _EQ1_BARK_CSV_SHA256 = "8E432FEF13026A9F7E89AE5518C88435E536A25BC209EAC2599E81A8
 _EQ1_BARK_CSV_BYTES = 7582
 _EQ1_BARK_ROWS = 443
 
+#: Exact provenance of the wheel-packaged complete ``SMT_CalcBarkThick``
+#: extraction. The table has one first-occurrence row for each of the 525
+#: FOFEM species codes; its equation/slope relation is independently checked
+#: against the pinned C++ source by ``test_bark_thickness_contract.py``.
+_BARK_THICKNESS_CSV_SHA256 = "C18FBB2F75658A3E7D83D43528DEB75E1608DB9376B27517254B0DD36F5126FC"
+_BARK_THICKNESS_CSV_BYTES = 8256
+_BARK_THICKNESS_ROWS = 525
+
 
 def _declared_package_data_patterns() -> list:
     """
@@ -185,6 +217,21 @@ def _equation_1_bark_csv_path() -> str:
             "..",
             "supporting_data",
             "fofem_crnsch_eq1_bark.csv",
+        )
+    )
+
+
+def _bark_thickness_csv_path() -> str:
+    """Resolve the full bark-thickness extraction from its live loader.
+
+    :returns: Absolute, normalised resource path.
+    """
+    return os.path.normpath(
+        os.path.join(
+            os.path.dirname(os.path.abspath(tree_flame_calcs.__file__)),
+            "..",
+            "supporting_data",
+            "fofem_bark_thickness.csv",
         )
     )
 
@@ -419,6 +466,29 @@ def test_equation_1_bark_extraction_is_packaged_and_has_pinned_provenance():
     assert float(frame.set_index("fofem_cd").loc["ABAM", "bark_thickness_per_inch"]) == pytest.approx(0.047)
 
 
+def test_full_bark_thickness_extraction_is_packaged_and_has_pinned_provenance():
+    """Category (b). Pin the complete C++ bark-thickness extraction.
+
+    The compact wheel resource represents all 525 first-occurrence FOFEM
+    species codes and preserves the paired C++ bark-equation identifier,
+    allowing source-level validation without shipping the full vendor table.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    path = _bark_thickness_csv_path()
+    frame = pd.read_csv(path)
+
+    assert os.path.getsize(path) == _BARK_THICKNESS_CSV_BYTES
+    assert _sha256_upper(path) == _BARK_THICKNESS_CSV_SHA256
+    assert list(frame.columns) == [
+        "fofem_cd", "bark_equation", "bark_thickness_per_inch",
+    ]
+    assert len(frame) == _BARK_THICKNESS_ROWS
+    assert frame["fofem_cd"].is_unique
+    assert int(frame.set_index("fofem_cd").loc["PSME", "bark_equation"]) == 36
+    assert float(frame.set_index("fofem_cd").loc["PSME", "bark_thickness_per_inch"]) == pytest.approx(0.063)
+
+
 @pytest.mark.installed_artifact
 def test_loaders_resolve_resources_independently_of_the_working_directory():
     """
@@ -446,8 +516,11 @@ def test_loaders_resolve_resources_independently_of_the_working_directory():
         "eq1 = os.path.normpath(os.path.join("
         "os.path.dirname(os.path.abspath(mortality_calcs.__file__)),"
         "'..','supporting_data','fofem_crnsch_eq1_bark.csv'));"
-        "print(pkg);print(ef);print(spp);print(eq1);"
-        "print(os.path.isfile(ef), os.path.isfile(spp), os.path.isfile(eq1));"
+        "bark = os.path.normpath(os.path.join("
+        "os.path.dirname(os.path.abspath(tree_flame_calcs.__file__)),"
+        "'..','supporting_data','fofem_bark_thickness.csv'));"
+        "print(pkg);print(ef);print(spp);print(eq1);print(bark);"
+        "print(os.path.isfile(ef), os.path.isfile(spp), os.path.isfile(eq1), os.path.isfile(bark));"
         "print(len(tree_flame_calcs.SPP_CODES), len(emission_calcs._load_ef_csv()))"
     )
     env = dict(os.environ)
@@ -461,12 +534,12 @@ def test_loaders_resolve_resources_independently_of_the_working_directory():
     )
     assert result.returncode == 0, result.stderr
 
-    package_dir, ef_path, spp_path, eq1_path, exists_line, sizes_line = (
+    package_dir, ef_path, spp_path, eq1_path, bark_path, exists_line, sizes_line = (
         result.stdout.strip().splitlines()
     )
-    assert exists_line == "True True True"
+    assert exists_line == "True True True True"
     assert sizes_line == f"121 {_EF_PARSED_ROWS}"
-    for path in (ef_path, spp_path, eq1_path):
+    for path in (ef_path, spp_path, eq1_path, bark_path):
         assert os.path.isabs(path)
         assert os.path.commonpath([package_dir, path]) == package_dir
 
@@ -476,22 +549,26 @@ def test_packaging_config_ships_runtime_csvs_and_no_vendor_binaries():
     Category (a). Assert from ``pyproject.toml`` - the packaging config,
     not merely the checkout - that all runtime CSVs are declared as
     installed package data and that the declaration cannot pull in the
-    bundled vendor distribution.
+    rest of the bundled vendor distribution.
 
-    ``[tool.setuptools.package-data] pyfofem = ["supporting_data/*.csv"]``
-    matches exactly the three runtime tables and, because the glob is not
-    recursive, matches nothing under ``supporting_data/FOFEM6.7/`` - so
-    the tracked ``FOF_GUI.exe``, the two Microsoft DLLs and the help PDF
-    stay out of the distribution. Gate 0 ``06-runtime-tables.md`` §3
-    notes that exclusion is currently *accidental*; this test makes it
-    an asserted contract, so widening the glob to
-    ``supporting_data/**`` fails here instead of silently shipping a
-    Windows executable.
+    ``[tool.setuptools.package-data] pyfofem`` must declare exactly two
+    entries: the non-recursive ``supporting_data/*.csv`` glob (matching
+    exactly the four top-level runtime tables) plus one EXACT, literal,
+    non-glob path naming ``supporting_data/FOFEM6.7/FOF_SPP.CSV`` - the
+    single file ``tree_flame_calcs.py::_load_canopy_equations()`` reads
+    from the bundled ``FOFEM6.7/`` vendor distribution at import time
+    (see the module docstring's 2026-09-21 update). No wildcard/glob
+    over ``FOFEM6.7/`` is permitted, so the tracked ``FOF_GUI.exe``, the
+    two Microsoft DLLs, the help PDF, and every other non-runtime file
+    in that directory stay out of the distribution.
 
     :return: None. Raises via ``assert`` on mismatch.
     """
     patterns = _declared_package_data_patterns()
-    assert patterns == ["supporting_data/*.csv"]
+    assert patterns == [
+        "supporting_data/*.csv",
+        "supporting_data/FOFEM6.7/FOF_SPP.CSV",
+    ]
 
     data_dir = os.path.join(PROJECT_ROOT, "src", "pyfofem", "supporting_data")
     matched = sorted(
@@ -502,13 +579,21 @@ def test_packaging_config_ships_runtime_csvs_and_no_vendor_binaries():
     )
     assert matched == [
         "emissions_factors.csv",
+        "fofem_bark_thickness.csv",
         "fofem_crnsch_eq1_bark.csv",
         "species_codes_lut.csv",
     ]
 
-    for pattern in patterns:
-        assert "**" not in pattern
-        assert "FOFEM6.7" not in pattern
+    fofem67_dir = os.path.join(data_dir, "FOFEM6.7")
+    fofem67_entries = sorted(os.listdir(fofem67_dir))
+    assert "FOF_SPP.CSV" in fofem67_entries
+    assert "FOF_GUI.exe" in fofem67_entries  # present in the checkout, excluded below
+
+    top_level_glob, fofem67_exact = patterns
+    assert "**" not in top_level_glob
+    assert "FOFEM6.7" not in top_level_glob
+    assert fofem67_exact == "supporting_data/FOFEM6.7/FOF_SPP.CSV"
+    assert "*" not in fofem67_exact and "?" not in fofem67_exact
 
 
 def test_species_table_columns_dtypes_and_row_count():
@@ -562,6 +647,7 @@ def test_species_table_loader_resolves_inside_the_installed_package():
         _species_csv_path(),
         _emissions_csv_path(),
         _equation_1_bark_csv_path(),
+        _bark_thickness_csv_path(),
     ):
         assert os.path.isabs(path)
         assert os.path.isfile(path)

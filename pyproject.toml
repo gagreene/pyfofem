@@ -51,6 +51,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 pyfofem = [
     "supporting_data/*.csv",
+    "supporting_data/FOFEM6.7/FOF_SPP.CSV",
 ]
 
 [tool.pytest.ini_options]
@@ -64,5 +65,6 @@ markers = [
     "installed_artifact: marks tests that validate installed-wheel/artifact behavior",
     "integration: marks tests under tests/integration/ (full-pipeline coverage)",
     "regression: marks tests under tests/regression/ (named historical-bug guards)",
+    "xfail_audit: marks the comprehensive-suite xfail-disposition audit meta-test",
 ]
 

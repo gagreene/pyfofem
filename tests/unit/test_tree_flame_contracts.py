@@ -313,18 +313,20 @@ def test_scorch_ht_array_broadcast_matches_row_by_row():
 def test_scorch_ht_equation_10_hand_derived_value():
     """
     Equation 10 must evaluate
-    ``0.74183 * I**(7/6) / (sqrt(0.025574*I + 0.021433*ws**3) * (60 - T))``.
+    ``0.74183 * I**(7/6) / (sqrt(0.025574*I + ws**3) * (60 - T))``.
+
+    Van Wagner (1973), Eq. [10] (p. 375), explicitly uses an m-s-kcal-C
+    system and a bare ``U**3`` term. PyFOFEM converts only the intensity
+    terms for kW/m input; applying another km/h-to-m/s conversion to ``ws``
+    would be incorrect.
 
     Hand derivation at ``I = 1000`` kW/m, ``ws = 2`` m/s, ``T = 20`` C:
 
     * ``1000 ** (7/6) = 1000 * 1000 ** (1/6) = 1000 * 3.1622776601683795
       = 3162.2776601683795``  (``1000 ** (1/6) == 10 ** 0.5``)
     * numerator ``= 0.74183 * 3162.2776601683795 = 2345.8317...``
-    * inner ``= 0.025574 * 1000 + 0.021433 * 2**3
-      = 25.574 + 0.171464 = 25.745464``
-    * ``sqrt(25.745464) = 5.0739988...``
-    * denominator ``= 5.0739988... * (60 - 20) = 202.9599...``
-    * result ``= 11.558302046462384``
+    * inner ``= 0.025574 * 1000 + 2**3 = 25.574 + 8 = 33.574``
+    * result ``= 10.12145289079142``
 
     The final value is frozen as a literal so this test compares against
     a hand-carried number rather than re-running the implementation's
@@ -332,7 +334,29 @@ def test_scorch_ht_equation_10_hand_derived_value():
 
     :return: None. Raises via ``assert`` on mismatch.
     """
-    _assert_close(float(calc_scorch_ht(1000.0, 20.0, 2.0)), 11.558302046462384)
+    _assert_close(float(calc_scorch_ht(1000.0, 20.0, 2.0)), 10.12145289079142)
+
+
+def test_scorch_ht_equation_10_wind_zero_hand_derived_value():
+    """
+    ``instand_ws=0`` must not raise or produce a spurious zero/NaN result:
+    the corrected bare ``U**3`` wind term degenerates to ``+ 0`` cleanly,
+    leaving the intensity-only component of Eq. [10] unaffected.
+
+    Hand derivation at ``I = 1000`` kW/m, ``ws = 0`` m/s, ``T = 20`` C:
+
+    * inner ``= 0.025574 * 1000 + 0**3 = 25.574``
+    * result ``= 11.596984339647461``
+
+    This is deliberately distinct from Equation 9's value at the same
+    ``sfi``/``amb_t`` (Eq. 9 and Eq. 10 use different constants and are
+    not expected to agree at ``ws=0``), confirming Eq. 10's own branch is
+    exercised rather than an accidental fallback to Eq. 9.
+
+    :return: None. Raises via ``assert`` on mismatch.
+    """
+    _assert_close(float(calc_scorch_ht(1000.0, 20.0, 0.0)), 11.596984339647461)
+    assert calc_scorch_ht(1000.0, 20.0, 0.0) != calc_scorch_ht(1000.0, 20.0)
 
 
 @pytest.mark.parametrize(

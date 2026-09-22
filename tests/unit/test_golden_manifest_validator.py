@@ -286,23 +286,43 @@ def test_divergences_for_keys_excludes_verified_and_unverified():
 
 
 def test_divergences_for_keys_includes_known_divergent():
+    """Uses ``canopy_cover.all`` as its example of a genuinely divergent
+    (``known_divergent``) route.
+
+    This test's own EXAMPLE has changed twice as the underlying findings
+    it cited were resolved - the ``divergences_for_keys()`` behavior it
+    verifies has NOT changed:
+
+    - Originally used ``consume_p7.flame_smolder_consumption_affected_
+      scenarios`` - resolved to ``status: verified`` by the F-62
+      completion/acceptance-recovery pass (2026-09-21, first same-day
+      pass: the ``gd_Fudge1``/``gd_Fudge2`` fix).
+    - Then used ``consume_p7.smoldering_duration_affected_scenarios``
+      instead - ALSO resolved to ``status: verified`` by the F-62 final
+      acceptance-recovery pass (2026-09-21, third same-day pass: the
+      discrete duff-mass-pool fix for ``long-igtime``'s ``SmoDur``),
+      which made ALL 6 of F-62's original combinations pass genuinely
+      and left zero ``known_divergent_strict_xfail`` routes anywhere in
+      the policy file (confirmed by direct enumeration). ``canopy_cover.
+      all`` uses a DIFFERENT, unrelated finding (Gate 0's own canopy-
+      cover crosswalk) and is not expected to be resolved by burnup-
+      related work, making it a more durable example."""
     policy = load_tolerance_policy()
-    out = divergences_for_keys(
-        policy, ["consume_p7.flame_smolder_consumption_affected_scenarios"]
-    )
+    out = divergences_for_keys(policy, ["canopy_cover.all"])
     assert len(out) == 1
-    assert out[0].startswith(
-        "consume_p7.flame_smolder_consumption_affected_scenarios: "
-        "known_divergent_strict_xfail"
-    )
+    assert out[0].startswith("canopy_cover.all: known_divergent")
 
 
-def test_manifest_empty_divergences_rejected_when_scenario_has_one(sample_manifest):
-    """Deleting CroSco's applicable limitation must fail reconciliation."""
-    corrupted = copy.deepcopy(sample_manifest)
-    corrupted["documented_expected_divergences"] = []
-    errors = validate_manifest(corrupted, check_against_live_checkout=False)
-    assert any("scenario-applicable divergences" in e for e in errors)
+def test_manifest_empty_divergences_is_valid_when_scenario_has_none(sample_manifest):
+    """The Phase-2 CroSco sample has no active divergence entry.
+
+    F-19's resolution makes the optional bark-thickness path callable again;
+    this one-row Phase-2 route remains deliberately ``unverified`` rather
+    than falsely reporting its former infrastructure failure as divergence.
+    """
+    sample_manifest["documented_expected_divergences"] = []
+    errors = validate_manifest(sample_manifest, check_against_live_checkout=False)
+    assert not any("scenario-applicable divergences" in error for error in errors)
 
 
 def test_manifest_non_list_divergences_is_rejected(sample_manifest):

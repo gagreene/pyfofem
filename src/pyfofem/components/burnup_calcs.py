@@ -42,6 +42,7 @@ def _burnup_durations(
         results: List[BurnResult],
         fla_threshold: float = 1e-05,
         smo_threshold: float = 1e-05,
+        first_step_flaming_extra: float = 0.0,
 ) -> Tuple[float, float]:
     """
     Derive flaming and smoldering durations from burnup time-series.
@@ -49,17 +50,38 @@ def _burnup_durations(
     :param results: Per-timestep burnup results from :func:`burnup`.
     :param fla_threshold: Minimum flaming mass-loss rate (kg/m²/s) counted as still flaming.
     :param smo_threshold: Minimum smoldering mass-loss rate (kg/m²/s) counted as still smoldering.
+    :param first_step_flaming_extra: Herb + shrub + foliage + branch mass
+        consumed (kg/m²), added to the FIRST result's own flaming total
+        only. C++ ``ES_Calc()`` always counts ``d_HSFB`` (entirely
+        consumed on the first 60-second timestep, never afterward — see
+        ``burnup()``'s ``hsf_consumed``/``brafol_consumed`` docstrings)
+        toward ``d_FlaCon``/``FlaDur`` regardless of whether ANY
+        wood/litter class itself classifies as flaming that timestep.
+        Without this, a scenario where every wood/litter class smolders
+        from timestep 1 (a real, C++-confirmed outcome, not merely
+        possible) reports ``FlaDur=0`` even though the golden's own
+        ``FlaDur`` reflects HSFB's contribution alone. Default 0.0
+        (no HSFB/branch+foliage contribution — standalone burnup calls
+        that never pass ``hsf_consumed``/``brafol_consumed`` are
+        unaffected).
     :return: Tuple of (flaming duration, smoldering duration), both in seconds.
     """
     if not results:
         return float('nan'), float('nan')
     fla_dur = 0.0
     smo_dur = 0.0
-    for r in results:
+    for idx, r in enumerate(results):
         if r.comp_flaming is not None:
             step_fla = sum(r.comp_flaming)
         else:
             step_fla = r.ff
+        if idx == 0 and r.time > 0.0:
+            # first_step_flaming_extra is a MASS (kg/m^2); step_fla (like
+            # every other comp_flaming-derived quantity here) is a RATE
+            # (kg/m^2/s -- see docs/CODEBASE.md gotcha on BurnResult.
+            # comp_flaming's rate-vs-mass docstring), so divide by this
+            # first result's own elapsed time before adding.
+            step_fla += first_step_flaming_extra / r.time
         if r.comp_smoldering is not None:
             step_smo = sum(r.comp_smoldering)
         else:
@@ -243,7 +265,9 @@ def _run_burnup_cell(ckw: dict):
             hsf_consumed=hsf_si, brafol_consumed=brafol_si,
         )
         bcon = _extract_burnup_consumption(res, summ, co, dt)
-        fla_dur, smo_dur = _burnup_durations(res)
+        fla_dur, smo_dur = _burnup_durations(
+            res, first_step_flaming_extra=hsf_si + brafol_si,
+        )
         burnup_times_s = [float(r.time) for r in res]
         burnup_fi_wl = [float(r.fi_wl or 0.0) for r in res]
         burnup_fi_hs = [float(r.fi_hs or 0.0) for r in res]

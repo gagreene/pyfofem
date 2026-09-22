@@ -28,7 +28,30 @@ equivalence partitions and meaningful boundaries, never an indiscriminate
 Cartesian product. Every scenario below names the
 ``gate0/07-branch-traceability.csv`` branch ID it exercises.
 
-**Item-7 scientific-risk note (F-17 / F-51 / F-52).** Python integrates the
+**CURRENT STATUS (2026-09-16/17, F-70) — supersedes the "Item-7" paragraph
+immediately below as HISTORICAL.** By explicit user decision, F-52's own
+"characterization is the permanent target" conclusion is no longer
+acceptable: `soil_heat_campbell()` must eventually reproduce the pinned
+C++ soil-temperature outputs. The SciPy-``solve_ivp``-driven heat-only
+model the paragraph below describes was entirely REMOVED and replaced
+with a direct port of C++'s real coupled ``soiltemp_step`` Newton solver
+(``pyfofem/components/soil_heating.py``); all 5 soil families now match
+the pinned C++ table bit-for-bit (F-51 fully resolved, not just
+"Coarse-Silt"). A 2026-09-17 diagnostic pass
+(``test_soil_solver_diagnostic_comparison.py``, and ``test_soil_diag_*``
+in ``test_cpp_harness_contract.py``) built real C++ intermediate-state
+observability and located — but has not yet fixed — a real divergence
+present from the very first Newton-converged timestep; forcing-value
+mismatch was ruled out as the cause. Every ``duff``/``nonduff``
+tolerance-policy route below STILL correctly reads ``"status":
+"unverified"`` — this is now accurate because full parity genuinely has
+not yet been demonstrated, not because it is being treated as a
+permanently-acceptable target. See F-70 in ``gate0/04-findings.md`` for
+the complete crosswalk and evidence.
+
+**HISTORICAL — Item-7 scientific-risk note (F-17 / F-51 / F-52), describes
+the REMOVED heat-only implementation, not the current one.** Python
+integrated the
 Campbell heat-conduction model with SciPy (``solve_ivp(method="Radau")``,
 ``soil_heating.py``); C++ performs a time-stepped nonlinear solve using
 residual/derivative updates (with step reduction on non-convergence)
@@ -54,24 +77,30 @@ characterization, not a parity claim, until a production decision is made
 either to extend Python's solver or to formally accept the two as
 intentionally different approximations (F-52's scope recommendation).
 
-**F-53 (2026-09-03, CONFIRMED 2026-09-04): a separate, distinct
-percent-to-ratio unit defect on the duff route, independent of F-17/F-51/
-F-52's full-model divergence.** ``_duff_flux_and_duration()`` never
-converts the documented whole-percent ``duff_moisture`` input to the ratio
-scale its equation requires (Frandsen 1991's ``R_M`` and the pinned C++'s
-own ``fof_sd.cpp:100`` conversion both confirm a ratio, e.g. ``0.45``, not
-``45.0``), so every realistic ``duff_moisture`` value computes exactly zero
-surface flux. This is CONFIRMED current defective behaviour, not an open
-scientific question — see F-53 in ``gate0/04-findings.md`` for the full
-evidence chain and
-``tests/unit/test_phase5_soil_campbell_characterization.py::test_duff_route_should_produce_positive_surface_forcing_at_realistic_moisture``
-for the strict-xfail pin of the desired behaviour. This is tracked as a
-DISTINCT contract-defect route,
-``soil_campbell_p5.duff_moisture_unit`` (``status:
-"known_divergent_strict_xfail"``, null ``atol``/``rtol`` — never scored as
-C++ parity), not folded into the ``duff`` route's full-model-comparison
-status above, which stays exactly as F-52 left it (F-51/F-52's structural
-divergence would remain even after F-53's unit conversion is fixed).
+**F-53 (2026-09-03, CONFIRMED 2026-09-04, RESOLVED 2026-09-16): a separate,
+distinct percent-to-ratio unit defect on the duff route, independent of
+F-17/F-51/F-52's full-model divergence.** The pre-correction
+``_duff_flux_and_duration()`` never converted the documented whole-percent
+``duff_moisture`` input to the ratio scale its equation required
+(Frandsen 1991's ``R_M`` and the pinned C++'s own ``fof_sd.cpp:100``
+conversion both confirm a ratio, e.g. ``0.45``, not ``45.0``), so every
+realistic ``duff_moisture`` value computed exactly zero surface flux. This
+was resolved by the Campbell duff-forcing correction pass (see **F-69** in
+``gate0/04-findings.md``, which bundles this fix together with the
+SOI-01/SOI-02 forcing-shape defects): the new ``_duff_burn_profile()``
+converts ``duff_moisture`` from percent to ratio exactly once, at its own
+boundary. The desired-behaviour assertion that was previously a strict
+xfail is now a real passing test,
+``tests/unit/test_phase5_soil_campbell_characterization.py::test_duff_route_produces_positive_surface_forcing_at_realistic_moisture``.
+This remains tracked as a DISTINCT route,
+``soil_campbell_p5.duff_moisture_unit`` (``status: "contract_only"``, null
+``atol``/``rtol`` — never scored as C++ parity, since this route has no
+golden-comparison scenario of its own), not folded into the ``duff``
+route's full-model-comparison status above, which stays exactly as F-52
+left it (F-51/F-52's structural divergence is a SEPARATE, still-open
+divergence source, unaffected by F-53/F-69's fix — fixing the unit
+conversion did not, and was never expected to, resolve the ``duff``/
+``nonduff`` routes' own ``EXPECT-INVESTIGATE``/``"unverified"`` status).
 
 Function order: module constants first, then top-level functions alphabetized
 private-then-public, per AGENTS.md.

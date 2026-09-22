@@ -38,7 +38,7 @@ pyfofem/
 - Fuel consumption for litter, duff, herb, shrub, canopy, mineral soil
 - Burnup post-frontal combustion engine (Albini & Reinhardt port)
 - Smoke emissions (`legacy`, `default`, `expanded` modes)
-- Campbell and Massman soil-heating models
+- Campbell soil-heating model (Massman HMV is in development and unavailable)
 - Integrated soil-heating outputs in `run_fofem_emissions` (`Lay0`, `Lay2`, `Lay4`, `Lay6`, `Lay60d`, `Lay275d`)
 - C++ parity scripts/tests for burnup/consumption and soil-heating outputs
 
