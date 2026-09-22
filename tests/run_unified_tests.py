@@ -6,8 +6,9 @@ Unified test runner for pyfofem.
 This script provides a stable single entrypoint for CI and packaging checks.
 It wraps pytest suites and supports two publishing-friendly modes:
 
-1) core  - fast, deterministic tests suitable for PyPI/Conda package checks.
-2) full  - core + parity/comparison tests that depend on reference assets.
+1) ci-smoke - fast representative checks for ordinary pull-request updates.
+2) core     - deterministic tests suitable for protected-branch integration.
+3) full     - core + parity/comparison tests that depend on reference assets.
 
 Examples
 --------
@@ -250,6 +251,21 @@ FULL_EXTRA_TESTS: List[str] = [
     "tests/unit/test_prepare_cpp_reference_git_ownership.py",
 ]
 
+#: A deliberately small, representative subset of :data:`CORE_TESTS` for
+#: ordinary pull-request feedback. Every path remains assigned to CORE or
+#: FULL exactly once; this list is only a CI execution tier, never a third
+#: ownership bucket.
+CI_SMOKE_TESTS: List[str] = [
+    "tests/unit/test_burnup_component_api.py",
+    "tests/unit/test_consumption_golden.py",
+    "tests/unit/test_run_unified_tests_contract.py",
+    "tests/unit/test_runtime_data_resources.py",
+    "tests/unit/test_tree_flame_contracts.py",
+    "tests/unit/test_utility_contracts.py",
+    "tests/integration/test_run_fofem_emissions.py",
+    "tests/unit/test_2d_input_regression.py",
+    "tests/unit/test_phase8_unit_system_contract.py",
+]
 #: Environment variable set on the pytest subprocess when ``--installed-only``
 #: is requested, so ``tests/conftest.py``'s ``pytest_sessionstart`` hook can
 #: verify the import origin *inside* the process that collects/runs tests.
@@ -321,10 +337,14 @@ def _resolve_tests(suite: str) -> List[str]:
     """
     Resolve the list of test-file paths for the requested suite.
 
-    :param suite: ``'core'`` for the publish-safe default tests, or
-        ``'full'`` to additionally include parity/comparison tests.
+    :param suite: ``'ci-smoke'`` for representative PR checks, ``'core'``
+        for the publish-safe integration suite, or ``'full'`` to additionally
+        include parity/comparison tests.
     :return: List of ``tests/*.py`` relative paths to run.
     """
+    if suite == "ci-smoke":
+        return list(CI_SMOKE_TESTS)
+
     tests = list(CORE_TESTS)
     if suite == "full":
         tests.extend(FULL_EXTRA_TESTS)
@@ -413,9 +433,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Unified pyfofem test runner.")
     parser.add_argument(
         "--suite",
-        choices=("core", "full"),
+        choices=("ci-smoke", "core", "full"),
         default="core",
-        help="core: publish-safe default tests; full: includes parity/comparison tests.",
+        help=(
+            "ci-smoke: representative PR checks; core: publish-safe "
+            "integration tests; full: includes parity/comparison tests."
+        ),
     )
     parser.add_argument(
         "--installed-only",

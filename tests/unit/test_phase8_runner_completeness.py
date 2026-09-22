@@ -175,6 +175,14 @@ def test_resolve_tests_core_equals_core_tests_only():
     assert not (set(unified._resolve_tests('core')) & set(unified.FULL_EXTRA_TESTS))
 
 
+def test_ci_smoke_is_a_duplicate_free_subset_of_core():
+    """The fast CI tier may select CORE tests but cannot redefine ownership."""
+    smoke = unified._resolve_tests('ci-smoke')
+    assert smoke == unified.CI_SMOKE_TESTS
+    assert len(smoke) == len(set(smoke))
+    assert set(smoke) <= set(unified.CORE_TESTS)
+
+
 def test_resolve_tests_full_equals_core_plus_full_extra_with_no_duplicates():
     """``_resolve_tests('full')`` must equal exactly ``CORE_TESTS +
     FULL_EXTRA_TESTS`` (order preserved, nothing added or dropped), and
