@@ -253,9 +253,8 @@ def compute_equation_arrays(
     is_ne = reg_a == "NorthEast"
     is_iw_pw = np.isin(reg_a, ("InteriorWest", "PacificWest"))
     is_pocosin = np.isin(cvr_a, ("Pocosin", "PC"))
-    # Case-insensitive per F-39's own contract (matches C++ CI_isCoastPlain(),
-    # xstrcmpi) — deliberately narrower than the rest of this function's
-    # case-sensitive cover-group checks, which are out of this pass's scope.
+    # Coastal Plain aliases are case-insensitive; other cover-group aliases
+    # retain their established case-sensitive behavior.
     cvr_lower = np.array([str(v).strip().lower() for v in cvr_a], dtype=object)
     is_coastplain = np.isin(cvr_lower, ("cp", "coastplain"))
     is_ponderosa = np.isin(cvr_a, ("Ponderosa pine", "PN", "Ponderosa"))
@@ -309,9 +308,8 @@ def compute_equation_arrays(
     duf_con_eq_arr = np.where(se_pocosin, 20, duf_con_eq_arr)
     duf_red_eq_arr = np.where(se_pocosin, 20, duf_red_eq_arr)
     mse_eq_arr = np.where(se_pocosin, 202, mse_eq_arr)
-    # Coastal Plain (F-39): Equ_CP_Per/Equ_CP_Red/Equ_CP_MSE report distinct
-    # equation IDs 30/31/32 (fof_duf.h:11-13), unlike Pocosin/other-SE which
-    # reuse the same ID for both the percent and depth outputs.
+    # Coastal Plain uses distinct equation IDs for percent, depth, and
+    # mineral-soil exposure; other Southeast routes reuse IDs where applicable.
     duf_con_eq_arr = np.where(se_coastplain, 30, duf_con_eq_arr)
     duf_red_eq_arr = np.where(se_coastplain, 31, duf_red_eq_arr)
     mse_eq_arr = np.where(se_coastplain, 32, mse_eq_arr)
@@ -375,16 +373,12 @@ def compute_pre_burnup_consumption(
 
     Calls consm_litter, consm_herb, consm_canopy, consm_mineral_soil,
     consm_duff, and consm_shrub for every cell. consm_shrub's own SE
-    non-Pocosin Eq 234 branch (CON-02) receives dw10_a/dw1_a directly, so
-    no separate post-hoc shrub override is applied here.
+    non-Pocosin Eq 234 branch receives dw10_a/dw1_a directly, so no separate
+    post-hoc shrub override is applied here.
 
-    F-39 (Coastal Plain): consm_litter/consm_duff/consm_mineral_soil all
-    receive duf_a (and consm_duff/consm_litter also receive lit_a/l_m_a) so
-    each can detect a Coastal Plain (CP/CoastPlain) cvr_a cell and route it
-    through the shared Eq 30/31/32 forest-floor helper -- this is the SOLE
-    source of litter consumption for such a cell (no separate Burnup litter
-    accounting exists in this pipeline, so there is no double-counting to
-    guard against beyond routing litter through this one call).
+    Coastal Plain cells receive the loads and moisture inputs required by the
+    shared Eq. 30/31/32 forest-floor calculation. That calculation is the
+    sole source of their litter consumption, preventing double counting.
 
     :param lit_a: Pre-fire litter load per cell.
     :param l_m_a: Litter (~1-hr) moisture content (%) per cell.

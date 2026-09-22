@@ -13,8 +13,7 @@ Two soil-heating approaches are represented here:
    implementation. The previous simplified approximation is retained only
    as in-development source code and is deliberately unavailable to users.
 
-Campbell uses a method-of-lines approach with ``scipy.integrate.solve_ivp``
-(Radau stiff solver) on a 15-node non-uniform grid.
+Campbell uses a coupled nonlinear solve on a 15-node non-uniform grid.
 """
 
 import math
@@ -28,52 +27,13 @@ from scipy.integrate import solve_ivp
 # Soil family defaults
 # ---------------------------------------------------------------------------
 
-#: Soil-family physical constants, corrected to match the pinned C++
-#: ``sr_SD``/``sr_SE`` tables EXACTLY (``fof_sd2.h``/``fof_se2.h`` — both
-#: tables carry identical physical values, differing only in a
-#: default-timestep field this dict does not carry). ``bulk_density``/
-#: ``particle_density`` are the RAW, UNCONVERTED pinned literals (the
-#: pinned tables' own comment calls the unit "g/m^3", but the pinned
-#: C++ solver itself never divides by 1000 anywhere — ``r_bd``/``r_pd``
-#: flow unconverted from ``sr_SD``/``sr_SE`` through
-#: ``soiltemp_initconsts``/``soiltemp_step``). A prior version of this
-#: dict divided both by 1000 "for this module's own SI convention",
-#: reasoning that ``xs = bd/pd`` (the only OTHER use) is a ratio and
-#: therefore scale-invariant — true for ``xs``, but this pass (F-70,
-#: third round) found and fixed a real, isolated, directly-evidenced
-#: transcription error that division caused: ``soiltemp_step``'s own
-#: ``cp[i] = v[i]*(0.87*bd + 4.18e6*wn[i])/dt`` uses ``bd`` as an
-#: ABSOLUTE (non-ratio) term, so the /1000 scaling propagated directly
-#: into every node's heat capacity, the residual, the Jacobian, and the
-#: Newton update from the very first sub-iteration — see F-70's
-#: write-up in ``gate0/04-findings.md`` for the live-C++-diagnostic
-#: evidence: for the SOI-NOD-04-like dry non-duff scenario's first
-#: sub-iteration, the pinned C++ ``cp[1]``=639.550 while this dict's
-#: pre-fix (divided-by-1000) value produced ``cp[1]``=105.035 -- fully
-#: explained by ``0.87*bd`` alone being 1000x too small; the
-#: ``4.18e6*wn[1]`` term (which does not depend on ``bd``) was already
-#: correct. This resolves F-51 (previously only
-#: "coarse-silty" matched, and even that only approximately — its own
-#: ``extrap_water`` was 0.16 here vs the pinned 0.157) as part of the
-#: C++-equivalent coupled-solver port (F-70/F-71): every field below is
-#: bit-for-bit the pinned literal, not a rounded transcription.
-#: ``bulk_density``/``particle_density`` are read by exactly one OTHER
-#: caller, the dead (unreachable, ``raise NotImplementedError``-gated)
-#: Massman HMV code in :func:`soil_heat_massman` — explicitly untouched
-#: and out of scope for this pass; that code never executes, so this
-#: value change has no effect on it.
-#:
-#: ``recirc_water`` (C++ ``r_xwo``, "water content for liquid
-#: recirculation") is a NEW field, added by this pass: the pre-existing
-#: dict conflated it with ``extrap_water`` (C++ ``r_xo``,
-#: "extrapolated water content at -1 J/kg") even though the pinned C++
-#: table carries two DISTINCT values per family (e.g. Fine-Silt:
-#: xo=0.207, xwo=0.148) — a real, previously-undiscovered gap the old
-#: heat-only Campbell model never exposed because it never used ``xwo``
-#: at all (only the new ``_cpp_tcond`` liquid-recirculation weighting
-#: does).
+#: Soil-family physical constants used by the coupled Campbell model.
+#: Densities remain in their native mass-per-volume scale because they are
+#: used directly in the volumetric heat-capacity calculation. ``recirc_water``
+#: is distinct from ``extrap_water``: it controls liquid-water recirculation
+#: in the thermal-conductivity relation.
 _SOIL_FAMILY_DEFAULTS: dict = {
-    "loamy-skeletal": dict(       # C++ "Loamy-Skeletal"
+    "loamy-skeletal": dict(
         bulk_density=0.8e6,
         particle_density=2.13e6,
         k_mineral=1.03,
@@ -82,7 +42,7 @@ _SOIL_FAMILY_DEFAULTS: dict = {
         recirc_water=0.133,
         cop_power=6.08,
     ),
-    "fine-silty": dict(           # C++ "Fine-Silt"
+    "fine-silty": dict(
         bulk_density=1.3e6,
         particle_density=2.35e6,
         k_mineral=2.31,
@@ -91,7 +51,7 @@ _SOIL_FAMILY_DEFAULTS: dict = {
         recirc_water=0.148,
         cop_power=4.14,
     ),
-    "fine": dict(                 # C++ "Fine"
+    "fine": dict(
         bulk_density=1.15e6,
         particle_density=2.35e6,
         k_mineral=2.21,
@@ -100,7 +60,7 @@ _SOIL_FAMILY_DEFAULTS: dict = {
         recirc_water=0.152,
         cop_power=4.63,
     ),
-    "coarse-silty": dict(         # C++ "Coarse-Silt"
+    "coarse-silty": dict(
         bulk_density=1.23e6,
         particle_density=2.35e6,
         k_mineral=2.53,
@@ -469,59 +429,35 @@ def _volumetric_heat_capacity(rho_b: float, theta_l: float) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Coupled heat/moisture/vapor solver — direct port of the pinned C++
-# soil-heating path (fof_soi.cpp/fof_sd.cpp/fof_se.cpp/fof_sh.cpp), per the
-# user-decision C++-equivalence requirement (F-52 is no longer accepted as
-# a permanent characterization outcome). Replaces the heat-only
-# _campbell_rhs/solve_ivp approximation entirely for BOTH the 'duff' and
-# 'non_duff' routes. See docs/CODEBASE.md Gotcha #30 and
-# gate0/04-findings.md F-70 (equation/state crosswalk) and F-71 (the
-# soiltemp_step step-halving-retry-is-dead-code finding) for the full
-# evidence trail and citations. soil_heat_massman() and its own dead
-# _massman_rhs code are untouched by this section.
+# Coupled Campbell heat/moisture/vapor solver
 # ---------------------------------------------------------------------------
 
-#: Number of solver-state array slots (index 0-14): index 0 is a virtual
-#: air/boundary-condition node (never a real depth, fixed at
-#: ``_CPP_SOI_TAIR``); indices 1-14 are the 14 real soil nodes (index 1 =
-#: surface, index 14 = the fixed deep boundary never updated by the
-#: Newton iteration) — matches C++'s ``[e_mplus1+1]``-sized arrays
-#: exactly (``fof_soi.cpp:45-54``).
+#: Number of solver-state array slots. Index 0 is the virtual air boundary;
+#: indices 1–14 are soil nodes, with index 14 as the fixed deep boundary.
 _CPP_SOI_N = 15
-_CPP_SOI_MPLUS1 = 14          # e_mplus1 (fof_sh.h:50)
-_CPP_SOI_M = _CPP_SOI_MPLUS1 - 1   # r_m (fof_soi.cpp:277)
+_CPP_SOI_MPLUS1 = 14
+_CPP_SOI_M = _CPP_SOI_MPLUS1 - 1
 
-_CPP_SOI_PATM = 92000.0       # e_Patm — atmospheric pressure at site, Pa
-_CPP_SOI_DVO = 2.12e-5        # e_Dvo — vapor diffusivity in air, m2/s
-_CPP_SOI_PO = 101300.0        # e_Po — sea-level/standard pressure, Pa
-_CPP_SOI_R = 8.3143           # e_R — gas constant, J/mol/K
-_CPP_SOI_MW = 0.018           # e_Mw — mole mass of water, kg/mol
-_CPP_SOI_HC = 20.0            # e_hc — surface boundary-layer resistance
-_CPP_SOI_EPSE = 100.0         # e_epse — energy-balance error, W/m2
-_CPP_SOI_EPSW = 1e-5          # e_epsw — water mass-balance error, kg/(m2 s)
-_CPP_SOI_DW = 1000.0          # e_dw — density of water, kg/m3
-_CPP_SOI_TOR = 0.66           # e_tor — soil tortuosity
-_CPP_SOI_AIRVP = 1000.0       # e_airvp — air vapor pressure, Pa
-_CPP_SOI_TAIR = 20.0          # e_Tair — starting air temp, degC
-_CPP_SOI_TSTD = 273.15        # e_Tstd — standard temperature, K
-_CPP_SOI_MAXITS_FAIL = 500    # iN_SoilBug cap (fof_soi.cpp:177) — the
-                              # REAL hard-failure threshold; e_maxits/i_its
-                              # is verified dead, see F-71.
+_CPP_SOI_PATM = 92000.0       # Atmospheric pressure at site (Pa).
+_CPP_SOI_DVO = 2.12e-5        # Vapor diffusivity in air (m²/s).
+_CPP_SOI_PO = 101300.0        # Standard atmospheric pressure (Pa).
+_CPP_SOI_R = 8.3143           # Gas constant (J/mol/K).
+_CPP_SOI_MW = 0.018           # Molar mass of water (kg/mol).
+_CPP_SOI_HC = 20.0            # Surface boundary-layer resistance.
+_CPP_SOI_EPSE = 100.0         # Energy-balance error limit (W/m²).
+_CPP_SOI_EPSW = 1e-5          # Water mass-balance error limit (kg/(m² s)).
+_CPP_SOI_DW = 1000.0          # Water density (kg/m³).
+_CPP_SOI_TOR = 0.66           # Soil tortuosity.
+_CPP_SOI_AIRVP = 1000.0       # Air vapor pressure (Pa).
+_CPP_SOI_TAIR = 20.0          # Initial air temperature (°C).
+_CPP_SOI_TSTD = 273.15        # Standard temperature (K).
+_CPP_SOI_MAXITS_FAIL = 500    # Newton-iteration failure limit.
 
-#: Defensive-only outer-step cap. The pinned C++ has no explicit cap on
-#: SD_Mngr_New's/SE_Mngr_Array's own clock loop other than _Done()'s own
-#: termination; this exists solely so a pathological Python-side input
-#: that would never satisfy _Done() cannot spin forever, and should never
-#: be reached by any input the pinned C++ itself handles.
+#: Defensive outer-step cap for pathological non-terminating inputs.
 _CPP_SOI_MAX_OUTER_STEPS = 200_000
 
-#: Fixed per-route timesteps (s), matching the pinned C++ family-table
-#: defaults exactly — ``e_SD_TimStep`` (``fof_sd2.h:5``) for the duff
-#: route, the literal ``10`` (``fof_se2.h``) for the non-duff route.
-#: NEVER user-configurable in C++ (every ``sr_SD``/``sr_SE`` row bakes
-#: in the same value for its own route); the public ``timestep``
-#: parameter on :func:`soil_heat_campbell` is accepted for signature
-#: compatibility only and has no effect on the coupled solver.
+#: Fixed route timesteps (s). The public ``timestep`` parameter is accepted
+#: for compatibility and does not change the coupled solver timestep.
 _CPP_SOI_DUFF_DT = 20.0
 _CPP_SOI_NONDUFF_DT = 10.0
 
@@ -530,36 +466,19 @@ class SoilSimulationError(RuntimeError):
     """
     Raised when the coupled soil solver fails to converge.
 
-    Matches C++'s ``e_SoiSimFail`` ("Soil Simulation Failed") fatal-error
-    path exactly: ``soiltemp_step()`` returns 0 after
-    :data:`_CPP_SOI_MAXITS_FAIL` non-converging Newton sub-iterations
-    (``fof_soi.cpp:176-178``), which its caller (``SD_Mngr_New``/
-    ``SE_Mngr_Array``) propagates as an immediate, non-retried, fatal
-    simulation failure — not a recoverable one. See F-71: the per-step
-    "reduce timestep and retry" branch those callers also contain is
-    verified DEAD CODE (``*ai_success`` is unconditionally 1 on every
-    non-hard-failure return), so this exception is the only failure mode
-    that actually exists in the pinned C++ today.
+    Raised after :data:`_CPP_SOI_MAXITS_FAIL` non-converging Newton
+    iterations. The failure is immediate rather than retried because a
+    converged timestep is required before advancing the coupled state.
     """
 
 
-#: T/ac -> kg/m², matching C++ ``TPA_To_KiSq()`` EXACTLY
-#: (``fof_util.cpp:543-549``: ``g = 4.46; f = f_TPA / g;``) — deliberately
-#: C++'s own (less precise) constant, not the ``4.4609`` used by pyfofem's
-#: other SI<->Imperial conversions elsewhere in this file: this conversion
-#: feeds a C++ formula (``DuffBurn()``) being ported bit-for-bit, so it must
-#: reproduce C++'s exact arithmetic, not a more "correct" rounding of it.
+#: Tons per acre to kilograms per square metre for the duff-burn relation.
 _CPP_TPA_TO_KGM2 = 1.0 / 4.46
 
-#: Inches -> centimetres, matching C++'s ``SD_HeatAdj()`` EXACTLY
-#: (``fof_sd.cpp:298-299``: ``x = InchtoMeter(r_Post); x = x * 100;``, where
-#: ``InchtoMeter`` (``fof_sh.cpp:209-215``) divides by ``39.37``, not the
-#: idealised ``2.54``) — deliberately C++'s own value
-#: (``100.0 / 39.37 = 2.5400558...``, not exactly ``2.54``).
+#: Inches to centimetres for the duff heat-adjustment relation.
 _CPP_INCH_TO_CM = 100.0 / 39.37
 
-#: C++'s non-burning duff-moisture threshold, a RATIO not a percent
-#: (``bur_brn.cpp:1960``: ``if (dfm >= 1.96) return;``).
+#: Non-burning duff-moisture threshold as a ratio, not a percentage.
 _DUFF_BURN_MOISTURE_RATIO_MAX = 1.96
 
 
@@ -567,10 +486,7 @@ def _campbell_commit_timestep(state: dict, dt: float) -> None:
     """
     Post-convergence "commit" step for one coupled timestep: back-sweep
     the cumulative vapor flux and advance ``t``/``w`` to the newly
-    Newton-converged ``tn``/``wn`` values. A direct extraction of
-    ``soiltemp_step()``'s own commit logic (``fof_soi.cpp:187-206``),
-    moved verbatim (same statements, same order) out of
-    :func:`_soiltemp_step` -- not re-derived.
+    Newton-converged ``tn``/``wn`` values.
 
     :param state: State dict from :func:`_soiltemp_initconsts` (and
         typically :func:`_soiltemp_initprofile`), after a converged

@@ -657,20 +657,15 @@ def consm_duff(
                 # nfdth → Eq 3
                 pdc = 114.7 - 4.2 * dw1k
         else:
-            # C++ DUF_NorthEast's generic fallback (non-WhiPinHem,
-            # non-RedJacPin, non-BalBRWSpr) calls Duf_Default()
-            # UNCONDITIONALLY (fof_duf.cpp:454-455) -- Equ_2_Per, with NO
-            # branching on duff_moist_method at all. F-23's case-6 defect
-            # was exactly this: the prior code below used Eq 15 whenever
-            # duff_moist_cat == 'edm', but C++ never reaches Equ_15_RedPer
-            # for this generic cover-group bucket -- only for RedJacPine/
-            # Balsam specifically (handled in the branches above).
+            # The generic NorthEast route uses Eq. 2 regardless of the
+            # moisture method. Red jack pine and balsam routes are handled
+            # separately above.
             pdc = 83.7 - 0.426 * duff_moist
 
     elif is_se:
         if is_pocosin:
-            # Eq 20 – Pocosin per-layer load-based algorithm (C++ Equ_20_PerRed_Pocosin)
-            # Works on duff load per 4-inch layer; mc_lyr1 is the top-layer moisture.
+            # Eq. 20 Pocosin per-layer load-based algorithm. It operates on
+            # duff load per 4-inch layer; mc_lyr1 is the top-layer moisture.
             mc0    = float(mc_lyr1[0]) if mc_lyr1 is not None else float(duff_moist[0])
             dl_val = float(pre_dl[0])
             dp_val = float(d_pre[0]) if d_pre is not None else 0.0
@@ -716,16 +711,14 @@ def consm_duff(
             pdc = np.ravel(np.full_like(duff_moist, pdc_val))
 
         elif is_coastplain:
-            # Eq 30 – Coastal Plain combined litter/duff percent consumed
-            # (C++ Equ_CP_Per, fof_duf.cpp:1171-1225). Only the DUFF percent
-            # is used here; consm_litter() derives the litter percent from
-            # the same shared helper for consistency.
+            # Eq. 30 Coastal Plain combined litter/duff consumption. This
+            # function uses the duff result; consm_litter() uses the matching
+            # litter result from the same helper.
             if pre_ll is None or l_moist is None:
                 raise ValueError(
                     "consm_duff(): Coastal Plain (cvr_grp="
                     f"{cvr_grp!r}) requires both pre_ll (litter load) and "
-                    "l_moist (litter moisture %) to compute Eq 30 "
-                    "(fof_duf.cpp:1171-1225)."
+                    "l_moist (litter moisture %) to compute Eq 30."
                 )
             _check_cp_litter_moisture(l_moist)
             _lit_pct_cp, duff_pct_cp = _coastal_plain_forest_floor(
@@ -762,7 +755,7 @@ def consm_duff(
         # Global fallback → Duf_Default → Eq 2
         pdc = 83.7 - 0.426 * duff_moist
 
-    # C++ DUF_Mngr: duff_moist ≤ 10 forces 100 % consumed (Note, 2012)
+    # Duff moisture at or below 10% forces complete consumption.
     low_moist_mask = duff_moist <= 10.0
     pdc = np.where(low_moist_mask, 100.0, pdc)
 
@@ -771,35 +764,15 @@ def consm_duff(
     # physical boundary condition.
     pdc = np.where(pre_dl <= 0.0, 0.0, pdc)
 
-    # Clamp to [0, 100] (C++ DUF_Mngr Note-1)
+    # Clamp to the physical percent range.
     pdc = np.clip(pdc, 0.0, 100.0)
 
     # ------------------------------------------------------------------
     # ddc / rdd – depth outputs.
     #
-    # C++ DUF_Mngr's own Note-5 (fof_duf.cpp:290-300) states plainly: "The
-    # Duff Reduction Equations are no longer used to calculate duff depth
-    # reduction... just base the reduction based on the amounts consumed."
-    # Concretely, every region/cover-group branch's own depth-reduction
-    # equation (Eq 5/6/7/15/etc., dispatched alongside its percent
-    # equation) IS still computed, but DUF_Mngr unconditionally DISCARDS
-    # it for every non-batch run with one final line (fof_duf.cpp:395):
-    #
-    #     a_DUF->f_Red = a_CI->f_DufDep * (a_DUF->f_Per / 100.0);
-    #
-    # This applies identically to EVERY region and fuel category (Piles,
-    # Chaparral, InteriorWest, PacificWest, NorthEast, SouthEast) -- there
-    # is no per-region depth formula left in real production output. The
-    # previous per-region Eq5/Eq6/Eq7/Eq15 branches here were F-23's
-    # depth-side defect: they reproduced equations C++ itself no longer
-    # uses for this output, diverging for every region whose depth
-    # equation differs from the percent-derived value (confirmed for
-    # InteriorWest/PacificWest AND NorthEast, including cover groups
-    # -- Chaparral, Piles -- that route through the InteriorWest region
-    # branch above without being InteriorWest cover types themselves).
-    # pdc above is already the FINAL, fully-clamped percent (including the
-    # duff_moist<=10 override and the [0,100] clamp), matching what
-    # DUF_Mngr's f_Per holds at line 395.
+    # Depth consumed is derived from the final, clamped percent consumed for
+    # every region and cover group. This preserves a physically consistent
+    # relationship between remaining depth and remaining duff load.
     # ------------------------------------------------------------------
     ddc = None
     rdd = None
