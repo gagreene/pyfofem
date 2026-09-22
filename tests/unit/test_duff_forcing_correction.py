@@ -46,8 +46,8 @@ import pytest
 
 import pyfofem.components.soil_heating as sh
 from pyfofem.components.soil_heating import (
-    _CPP_INCH_TO_CM,
-    _CPP_TPA_TO_KGM2,
+    _INCH_TO_CM,
+    _TONS_ACRE_TO_KG_M2,
     _duff_burn_profile,
     _duff_burn_rate,
     _duff_heat_fraction,
@@ -110,14 +110,14 @@ def _soil_params(soil_family: str = "coarse-silty", start_water: float = 0.10,
     return base
 
 
-def test_conversion_constants_match_cpp_source_relation():
-    """Class (a). ``_CPP_TPA_TO_KGM2`` == 1/4.46 (``fof_util.cpp:543-549``,
-    NOT pyfofem's own usual 4.4609) and ``_CPP_INCH_TO_CM`` ==
+def test_conversion_constants_match_source_relation():
+    """Class (a). ``_TONS_ACRE_TO_KG_M2`` == 1/4.46 (``fof_util.cpp:543-549``,
+    NOT pyfofem's own usual 4.4609) and ``_INCH_TO_CM`` ==
     100/39.37 (``fof_sd.cpp:298-299`` via ``fof_sh.cpp:209-215``'s
     ``InchtoMeter``, NOT the idealised 2.54)."""
-    assert _CPP_TPA_TO_KGM2 == pytest.approx(1.0 / 4.46, rel=0, abs=1e-15)
-    assert _CPP_INCH_TO_CM == pytest.approx(100.0 / 39.37, rel=0, abs=1e-12)
-    assert _CPP_INCH_TO_CM != pytest.approx(2.54, abs=1e-6)
+    assert _TONS_ACRE_TO_KG_M2 == pytest.approx(1.0 / 4.46, rel=0, abs=1e-15)
+    assert _INCH_TO_CM == pytest.approx(100.0 / 39.37, rel=0, abs=1e-12)
+    assert _INCH_TO_CM != pytest.approx(2.54, abs=1e-6)
 
 
 def test_duff_burn_profile_final_remaining_depth_matches_consumed_percent():

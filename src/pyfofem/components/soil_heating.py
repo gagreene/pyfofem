@@ -434,49 +434,49 @@ def _volumetric_heat_capacity(rho_b: float, theta_l: float) -> float:
 
 #: Number of solver-state array slots. Index 0 is the virtual air boundary;
 #: indices 1–14 are soil nodes, with index 14 as the fixed deep boundary.
-_CPP_SOI_N = 15
-_CPP_SOI_MPLUS1 = 14
-_CPP_SOI_M = _CPP_SOI_MPLUS1 - 1
+_CAMPBELL_NODE_COUNT = 15
+_CAMPBELL_DEEP_NODE = 14
+_CAMPBELL_INTERIOR_NODE_COUNT = _CAMPBELL_DEEP_NODE - 1
 
-_CPP_SOI_PATM = 92000.0       # Atmospheric pressure at site (Pa).
-_CPP_SOI_DVO = 2.12e-5        # Vapor diffusivity in air (m²/s).
-_CPP_SOI_PO = 101300.0        # Standard atmospheric pressure (Pa).
-_CPP_SOI_R = 8.3143           # Gas constant (J/mol/K).
-_CPP_SOI_MW = 0.018           # Molar mass of water (kg/mol).
-_CPP_SOI_HC = 20.0            # Surface boundary-layer resistance.
-_CPP_SOI_EPSE = 100.0         # Energy-balance error limit (W/m²).
-_CPP_SOI_EPSW = 1e-5          # Water mass-balance error limit (kg/(m² s)).
-_CPP_SOI_DW = 1000.0          # Water density (kg/m³).
-_CPP_SOI_TOR = 0.66           # Soil tortuosity.
-_CPP_SOI_AIRVP = 1000.0       # Air vapor pressure (Pa).
-_CPP_SOI_TAIR = 20.0          # Initial air temperature (°C).
-_CPP_SOI_TSTD = 273.15        # Standard temperature (K).
-_CPP_SOI_MAXITS_FAIL = 500    # Newton-iteration failure limit.
+_CAMPBELL_ATMOSPHERIC_PRESSURE = 92000.0       # Atmospheric pressure at site (Pa).
+_CAMPBELL_VAPOR_DIFFUSIVITY = 2.12e-5          # Vapor diffusivity in air (m²/s).
+_CAMPBELL_STANDARD_PRESSURE = 101300.0         # Standard atmospheric pressure (Pa).
+_CAMPBELL_GAS_CONSTANT = 8.3143                # Gas constant (J/mol/K).
+_CAMPBELL_WATER_MOLAR_MASS = 0.018             # Molar mass of water (kg/mol).
+_CAMPBELL_BOUNDARY_RESISTANCE = 20.0           # Surface boundary-layer resistance.
+_CAMPBELL_ENERGY_ERROR_LIMIT = 100.0           # Energy-balance error limit (W/m²).
+_CAMPBELL_WATER_ERROR_LIMIT = 1e-5             # Water mass-balance error limit (kg/(m² s)).
+_CAMPBELL_WATER_DENSITY = 1000.0               # Water density (kg/m³).
+_CAMPBELL_SOIL_TORTUOSITY = 0.66               # Soil tortuosity.
+_CAMPBELL_AIR_VAPOR_PRESSURE = 1000.0          # Air vapor pressure (Pa).
+_CAMPBELL_AIR_TEMPERATURE = 20.0               # Initial air temperature (°C).
+_CAMPBELL_STANDARD_TEMPERATURE = 273.15        # Standard temperature (K).
+_CAMPBELL_MAX_NEWTON_ITERATIONS = 500           # Newton-iteration failure limit.
 
 #: Defensive outer-step cap for pathological non-terminating inputs.
-_CPP_SOI_MAX_OUTER_STEPS = 200_000
+_CAMPBELL_MAX_TIMESTEPS = 200_000
 
 #: Fixed route timesteps (s). The public ``timestep`` parameter is accepted
 #: for compatibility and does not change the coupled solver timestep.
-_CPP_SOI_DUFF_DT = 20.0
-_CPP_SOI_NONDUFF_DT = 10.0
+_CAMPBELL_DUFF_TIMESTEP = 20.0
+_CAMPBELL_NONDUFF_TIMESTEP = 10.0
 
 
 class SoilSimulationError(RuntimeError):
     """
     Raised when the coupled soil solver fails to converge.
 
-    Raised after :data:`_CPP_SOI_MAXITS_FAIL` non-converging Newton
+    Raised after :data:`_CAMPBELL_MAX_NEWTON_ITERATIONS` non-converging Newton
     iterations. The failure is immediate rather than retried because a
     converged timestep is required before advancing the coupled state.
     """
 
 
 #: Tons per acre to kilograms per square metre for the duff-burn relation.
-_CPP_TPA_TO_KGM2 = 1.0 / 4.46
+_TONS_ACRE_TO_KG_M2 = 1.0 / 4.46
 
 #: Inches to centimetres for the duff heat-adjustment relation.
-_CPP_INCH_TO_CM = 100.0 / 39.37
+_INCH_TO_CM = 100.0 / 39.37
 
 #: Non-burning duff-moisture threshold as a ratio, not a percentage.
 _DUFF_BURN_MOISTURE_RATIO_MAX = 1.96
@@ -501,13 +501,13 @@ def _campbell_commit_timestep(state: dict, dt: float) -> None:
 
     u[m] = 0.0
     for i in range(m, 0, -1):
-        r_gvol = (_CPP_SOI_DW * v[i] * _CPP_SOI_R * (tn[i] + 273.0)
+        r_gvol = (_CAMPBELL_WATER_DENSITY * v[i] * _CAMPBELL_GAS_CONSTANT * (tn[i] + 273.0)
                   * (w[i] - wn[i])
-                  / (dt * air_por[i] * _CPP_SOI_MW * _CPP_SOI_PATM))
+                  / (dt * air_por[i] * _CAMPBELL_WATER_MOLAR_MASS * _CAMPBELL_ATMOSPHERIC_PRESSURE))
         if r_gvol < 0.0:
             r_gvol = 0.0
         u[i - 1] = u[i] + r_gvol
-    for i in range(1, _CPP_SOI_MPLUS1 + 1):
+    for i in range(1, _CAMPBELL_DEEP_NODE + 1):
         r_ch = wn[i] - w[i]
         w[i] = wn[i]
         wn[i] = w[i] + r_ch
@@ -545,18 +545,18 @@ def _campbell_newton_boundary_init(state: dict) -> tuple:
     t = state["t"]
 
     ke[0] = 0.0
-    kev[0] = 6.2e-9 * _CPP_SOI_HC
-    psat[0] = _cpp_vaporpressure(tn[0])
-    h[0] = _CPP_SOI_AIRVP / psat[0]
-    psat[1] = _cpp_vaporpressure(tn[1])
+    kev[0] = 6.2e-9 * _CAMPBELL_BOUNDARY_RESISTANCE
+    psat[0] = _campbell_vapor_pressure(tn[0])
+    h[0] = _CAMPBELL_AIR_VAPOR_PRESSURE / psat[0]
+    psat[1] = _campbell_vapor_pressure(tn[1])
     r_wav = 0.5 * (wn[1] + wn[2])
-    s[1] = _cpp_slope(tn[1], psat[1])
-    hvap[1] = _cpp_hv(tn[1])
-    kh[1], enh[1] = _cpp_tcond(
+    s[1] = _campbell_vapor_pressure_slope(tn[1], psat[1])
+    hvap[1] = _campbell_latent_heat(tn[1])
+    kh[1], enh[1] = _campbell_thermal_conductivity(
         tn[1], r_wav, xs, ls, ga, xwo, cop, h[1] * psat[1], s[1],
     )
     air_por[1] = xws - r_wav
-    kv[1] = enh[1] * air_por[1] * _CPP_SOI_TOR * _cpp_kvap(t[1], psat[1] * h[1])
+    kv[1] = enh[1] * air_por[1] * _CAMPBELL_SOIL_TORTUOSITY * _campbell_vapor_conductivity(t[1], psat[1] * h[1])
 
     # F-70 surface-update crosswalk pass: node 1's state as it stands
     # BEFORE this sub-iteration's own update -- mirrors the C++
@@ -621,25 +621,25 @@ def _campbell_newton_node_update(
     cop = state["cop"]; xo = state["xo"]; m = state["m"]; u = state["u"]
 
     cp[i] = v[i] * (0.87 * bd + 4.18e6 * wn[i]) / dt
-    psat[i + 1] = _cpp_vaporpressure(tn[i + 1])
+    psat[i + 1] = _campbell_vapor_pressure(tn[i + 1])
     if i < m:
         r_wav = 0.5 * (wn[i + 1] + wn[i + 2])
         r_tav = 0.5 * (tn[i + 1] + tn[i + 2]) + 273.0
     else:
-        r_wav = wn[_CPP_SOI_MPLUS1]
+        r_wav = wn[_CAMPBELL_DEEP_NODE]
         r_tav = tn[i + 1] + 273.0
     conv[i] = 0.5 * (u[i - 1] + u[i]) * 1200.0 * 293.0 / r_tav
-    vcon[i] = conv[i] * _CPP_SOI_MW / (_CPP_SOI_R * 1200.0 * 293.0)
-    s[i + 1] = _cpp_slope(tn[i + 1], psat[i + 1])
-    hvap[i + 1] = _cpp_hv(tn[i + 1])
-    kh[i + 1], enh[i + 1] = _cpp_tcond(
+    vcon[i] = conv[i] * _CAMPBELL_WATER_MOLAR_MASS / (_CAMPBELL_GAS_CONSTANT * 1200.0 * 293.0)
+    s[i + 1] = _campbell_vapor_pressure_slope(tn[i + 1], psat[i + 1])
+    hvap[i + 1] = _campbell_latent_heat(tn[i + 1])
+    kh[i + 1], enh[i + 1] = _campbell_thermal_conductivity(
         tn[i + 1], r_wav, xs, ls, ga, xwo, cop,
         h[i + 1] * psat[i + 1], s[i + 1],
     )
     ke[i] = kh[i] / (z[i + 1] - z[i]) + conv[i]
     air_por[i + 1] = xws - r_wav
-    kv[i + 1] = (enh[i + 1] * air_por[i + 1] * _CPP_SOI_TOR
-                 * _cpp_kvap(t[i + 1], psat[i + 1] * h[i + 1]))
+    kv[i + 1] = (enh[i + 1] * air_por[i + 1] * _CAMPBELL_SOIL_TORTUOSITY
+                 * _campbell_vapor_conductivity(t[i + 1], psat[i + 1] * h[i + 1]))
     kev[i] = (kv[i] + kv[i + 1]) / (2.0 * (z[i + 1] - z[i])) + vcon[i]
 
     d_jv = (kev[i - 1] * (psat[i] * h[i] - psat[i - 1] * h[i - 1])
@@ -650,10 +650,10 @@ def _campbell_newton_node_update(
     d_c = (ke[i - 1] * (tn[i] - tn[i - 1])
            - ke[i] * (tn[i + 1] - tn[i])
            + cp[i] * (tn[i] - t[i])
-           - hvap[i] * _CPP_SOI_DW * v[i] * (wn[i] - w[i]) / dt)
-    d_v = d_jv + _CPP_SOI_DW * v[i] * (wn[i] - w[i]) / dt
-    d_cdp = -hvap[i] * _CPP_SOI_DW * v[i] * dwdp[i] / dt
-    d_vdp = d_jvdp + _CPP_SOI_DW * v[i] * dwdp[i] / dt
+           - hvap[i] * _CAMPBELL_WATER_DENSITY * v[i] * (wn[i] - w[i]) / dt)
+    d_v = d_jv + _CAMPBELL_WATER_DENSITY * v[i] * (wn[i] - w[i]) / dt
+    d_cdp = -hvap[i] * _CAMPBELL_WATER_DENSITY * v[i] * dwdp[i] / dt
+    d_vdp = d_jvdp + _CAMPBELL_WATER_DENSITY * v[i] * dwdp[i] / dt
     d_vdt = d_jvdt
     d_cdt = ke[i] + ke[i - 1] + cp[i]
 
@@ -694,8 +694,8 @@ def _campbell_newton_node_update(
     if p[i] < -1e20:
         p[i] = -1e20
         surf_p_clamp_branch = 2.0
-    wn[i], dwdp[i] = _cpp_watercontent(p[i], xo)
-    h[i], dhdp[i] = _cpp_humidity(p[i], tn[i])
+    wn[i], dwdp[i] = _campbell_water_content(p[i], xo)
+    h[i], dhdp[i] = _campbell_humidity(p[i], tn[i])
 
     if i == 1 and on_surface_update is not None:
         # F-70 surface-update crosswalk pass: fires once per
@@ -739,7 +739,7 @@ def _campbell_newton_node_update(
     return d_v_abs, d_c_abs
 
 
-def _cpp_ambient_rabs(start_temp: float) -> float:
+def _campbell_ambient_radiation(start_temp: float) -> float:
     """
     Constant ambient radiative floor added to absorbed radiation for BOTH
     soil routes (``fof_sd.cpp:76``, ``fof_se.cpp:82``): a Stefan-Boltzmann
@@ -756,7 +756,7 @@ def _cpp_ambient_rabs(start_temp: float) -> float:
     return 5.67e-8 * (tk ** 4)
 
 
-def _cpp_get_fire_intensity(clock_sec: float, series, inc_s: float = 15.0) -> float:
+def _campbell_fire_intensity(clock_sec: float, series, inc_s: float = 15.0) -> float:
     """
     Port of C++ ``_Get_FirInt()`` (``fof_se.cpp:234-246``): a ZERO-ORDER
     HOLD sample from a fixed-increment array via INTEGER index division —
@@ -778,7 +778,7 @@ def _cpp_get_fire_intensity(clock_sec: float, series, inc_s: float = 15.0) -> fl
     return float(series[i])
 
 
-def _cpp_humidity(p: float, t: float) -> tuple:
+def _campbell_humidity(p: float, t: float) -> tuple:
     """
     Port of C++ ``humidity()`` (``fof_soi.cpp:346-354``): relative
     humidity of soil pore air as a function of matric potential *p* and
@@ -788,13 +788,13 @@ def _cpp_humidity(p: float, t: float) -> tuple:
     :param t: Temperature (degC).
     :return: ``(relative_humidity, dhdp)``.
     """
-    tk = t + _CPP_SOI_TSTD
-    h = math.exp(_CPP_SOI_MW * p / (_CPP_SOI_R * tk))
-    dhdp = _CPP_SOI_MW * h / (_CPP_SOI_R * tk)
+    tk = t + _CAMPBELL_STANDARD_TEMPERATURE
+    h = math.exp(_CAMPBELL_WATER_MOLAR_MASS * p / (_CAMPBELL_GAS_CONSTANT * tk))
+    dhdp = _CAMPBELL_WATER_MOLAR_MASS * h / (_CAMPBELL_GAS_CONSTANT * tk)
     return h, dhdp
 
 
-def _cpp_hv(t: float) -> float:
+def _campbell_latent_heat(t: float) -> float:
     """
     Port of C++ ``Hv()`` (``fof_soi.cpp:394-397``): latent heat of
     vaporization (J/kg).
@@ -805,7 +805,7 @@ def _cpp_hv(t: float) -> float:
     return 2.508e6 - 2670.0 * t
 
 
-def _cpp_kvap(t: float, p: float) -> float:
+def _campbell_vapor_conductivity(t: float, p: float) -> float:
     """
     Port of C++ ``Kvap()`` (``fof_soi.cpp:403-415``): vapor conductivity
     (kg/(m s Pa)).
@@ -814,17 +814,17 @@ def _cpp_kvap(t: float, p: float) -> float:
     :param p: Pressure (Pa).
     :return: Vapor conductivity (kg/(m s Pa)).
     """
-    tk = t + _CPP_SOI_TSTD
-    f = _cpp_spow(tk / _CPP_SOI_TSTD, 1.75)
-    g = _CPP_SOI_PO / _CPP_SOI_PATM
-    dv = _CPP_SOI_DVO * g * f
-    stcor = 1.0 - p / _CPP_SOI_PATM
+    tk = t + _CAMPBELL_STANDARD_TEMPERATURE
+    f = _campbell_signed_power(tk / _CAMPBELL_STANDARD_TEMPERATURE, 1.75)
+    g = _CAMPBELL_STANDARD_PRESSURE / _CAMPBELL_ATMOSPHERIC_PRESSURE
+    dv = _CAMPBELL_VAPOR_DIFFUSIVITY * g * f
+    stcor = 1.0 - p / _CAMPBELL_ATMOSPHERIC_PRESSURE
     if stcor < 0.3:
         stcor = 0.3
-    return _CPP_SOI_MW * dv / (_CPP_SOI_R * tk * stcor)
+    return _CAMPBELL_WATER_MOLAR_MASS * dv / (_CAMPBELL_GAS_CONSTANT * tk * stcor)
 
 
-def _cpp_slope(t: float, p: float) -> float:
+def _campbell_vapor_pressure_slope(t: float, p: float) -> float:
     """
     Port of C++ ``slope()`` (``fof_soi.cpp:380-388``): d(vapor
     pressure)/dT at temperature *t*, vapor pressure *p*.
@@ -833,13 +833,13 @@ def _cpp_slope(t: float, p: float) -> float:
     :param p: Vapor pressure (Pa).
     :return: Slope (Pa/degC).
     """
-    tk = t + _CPP_SOI_TSTD
+    tk = t + _CAMPBELL_STANDARD_TEMPERATURE
     tt = 1.0 - 373.15 / tk
     dydt = 373.15 / (tk * tk)
     return p * dydt * (13.3015 + tt * (-4.082 + tt * (0.78 + tt * 10.76)))
 
 
-def _cpp_soil_depths_mm(depth_layers: list) -> list:
+def _campbell_soil_depths_mm(depth_layers: list) -> list:
     """
     Build the 15-node depth array (mm), matching C++'s fixed
     ``rr_Lay``/``SH_Init_LayDis`` layer scheme (``fof_sh.cpp:162-163``)
@@ -856,7 +856,7 @@ def _cpp_soil_depths_mm(depth_layers: list) -> list:
     return [0.0, 0.0] + [float(d) * 10.0 for d in depth_layers]
 
 
-def _cpp_spow(x: float, y: float) -> float:
+def _campbell_signed_power(x: float, y: float) -> float:
     """
     Port of C++ ``sPOW()`` (``fof_soi.cpp:425-439``): ``x`` raised to
     ``y``, treating ``x`` as its absolute value (the Pascal-derived
@@ -872,7 +872,7 @@ def _cpp_spow(x: float, y: float) -> float:
     return math.exp(y * math.log(x))
 
 
-def _cpp_tcond(
+def _campbell_thermal_conductivity(
         t: float, xw: float, xs: float, ls: float, ga: float,
         xwo: float, cop: float, p: float, s: float,
 ) -> tuple:
@@ -892,7 +892,7 @@ def _cpp_tcond(
     :param p: Vapor pressure of the pore air (Pa) — C++'s
         ``h[i]*psat[i]``.
     :param s: Slope of the vapor-pressure curve (Pa/degC), from
-        :func:`_cpp_slope`.
+        :func:`_campbell_vapor_pressure_slope`.
     :return: ``(thermal_conductivity, vapor_enhancement_factor)``.
     """
     xws = 1.0 - xs
@@ -907,9 +907,9 @@ def _cpp_tcond(
     if xw < 0.01 * xwo:
         wf = 0.0
     else:
-        wf = 1.0 / (1.0 + _cpp_spow(xw / xwo, -cop * tc))
-    a = _cpp_kvap(t, p)
-    b = _cpp_hv(t)
+        wf = 1.0 / (1.0 + _campbell_signed_power(xw / xwo, -cop * tc))
+    a = _campbell_vapor_conductivity(t, p)
+    b = _campbell_latent_heat(t)
     c = wf * b * s * a
     la = lda + c
     gc = 1.0 - 2.0 * ga
@@ -924,7 +924,7 @@ def _cpp_tcond(
     return 1.0, enh
 
 
-def _cpp_vaporpressure(tn: float) -> float:
+def _campbell_vapor_pressure(tn: float) -> float:
     """
     Port of C++ ``vaporpressure()`` (``fof_soi.cpp:361-374``).
 
@@ -941,7 +941,7 @@ def _cpp_vaporpressure(tn: float) -> float:
     return 101325.0 * math.exp(r1b)
 
 
-def _cpp_watercontent(p: float, xo: float) -> tuple:
+def _campbell_water_content(p: float, xo: float) -> tuple:
     """
     Port of C++ ``watercontent()`` (``fof_soi.cpp:325-340``): volumetric
     water content as a function of matric potential *p*.
@@ -1050,7 +1050,7 @@ def _duff_burn_profile(duff_params: dict) -> dict:
 
     efficiency_duff = duff_params.get("efficiency_duff", 1.0)
 
-    wdf_kgm2 = duff_load_tac * _CPP_TPA_TO_KGM2
+    wdf_kgm2 = duff_load_tac * _TONS_ACRE_TO_KG_M2
     dfm_ratio = duff_moisture_pct / 100.0  # F-53 fix: percent -> ratio, once, here.
 
     intensity_kw, duration_s, consumed_rate = _duff_burn_rate(
@@ -1058,7 +1058,7 @@ def _duff_burn_profile(duff_params: dict) -> dict:
     )
     intensity_w = intensity_kw * 1000.0
 
-    pre_depth_cm = duff_depth_in * _CPP_INCH_TO_CM
+    pre_depth_cm = duff_depth_in * _INCH_TO_CM
     if duration_s > 0.0:
         post_depth_cm = pre_depth_cm * (1.0 - pct_consumed / 100.0)
     else:
@@ -1181,7 +1181,7 @@ def _make_duff_forcing_fn(duff_profile: dict, ambient_rabs: float):
 
     :param duff_profile: Dict from :func:`_duff_burn_profile`.
     :param ambient_rabs: Constant ambient radiative term (W/m^2), from
-        :func:`_cpp_ambient_rabs`.
+        :func:`_campbell_ambient_radiation`.
     :return: Callable ``clock_sec -> (r_rabsub, is_still_burning)``.
     """
     duration_s = duff_profile["duration_s"]
@@ -1207,7 +1207,7 @@ def _make_nonduff_forcing_fn(
     Build the non-duff-route ``forcing_fn`` for
     :func:`_run_coupled_soil_sim`, matching C++ ``SE_Mngr_Array``'s
     per-tick absorbed-radiation computation (``fof_se.cpp:107-121``): a
-    zero-order-hold sample (:func:`_cpp_get_fire_intensity`) of each of
+    zero-order-hold sample (:func:`_campbell_fire_intensity`) of each of
     the wood-litter and herb-shrub fire-intensity series, scaled by
     their respective efficiencies, plus the constant ambient term.
 
@@ -1216,7 +1216,7 @@ def _make_nonduff_forcing_fn(
     :param wl_eff: Wood-litter delivery efficiency (proportion).
     :param hs_eff: Herb-shrub delivery efficiency (proportion).
     :param ambient_rabs: Constant ambient radiative term (W/m^2), from
-        :func:`_cpp_ambient_rabs`.
+        :func:`_campbell_ambient_radiation`.
     :return: Callable ``clock_sec -> (r_rabsub, fi_now)`` — *fi_now* is
         the combined WL+HS intensity EXCLUDING the ambient term, for
         :func:`_soi_done_nonduff`.
@@ -1229,11 +1229,11 @@ def _make_nonduff_forcing_fn(
         :param clock_sec: Current simulation clock (s).
         :return: ``(r_rabsub, fi_now)``.
         """
-        f_wl = _cpp_get_fire_intensity(clock_sec, wl_series)
+        f_wl = _campbell_fire_intensity(clock_sec, wl_series)
         if f_wl < 0.0:
             f_wl = 0.0
         f_wl = f_wl * 1000.0 * wl_eff
-        f_hs = _cpp_get_fire_intensity(clock_sec, hs_series)
+        f_hs = _campbell_fire_intensity(clock_sec, hs_series)
         if f_hs < 0.0:
             f_hs = 0.0
         f_hs = f_hs * 1000.0 * hs_eff
@@ -1258,7 +1258,7 @@ def _run_coupled_soil_sim(state: dict, dt: float, forcing_fn, done_fn, start_tem
     ``i_its`` variable that would trigger the ``0`` branch is never
     incremented anywhere in the function. So a hard failure (the Newton
     iteration not converging within
-    :data:`_CPP_SOI_MAXITS_FAIL` sub-iterations, or ``dt <= 0``) is
+    :data:`_CAMPBELL_MAX_NEWTON_ITERATIONS` sub-iterations, or ``dt <= 0``) is
     propagated here exactly as C++ propagates it: as an immediate,
     fatal, non-retried simulation failure — see
     :class:`SoilSimulationError`.
@@ -1284,17 +1284,17 @@ def _run_coupled_soil_sim(state: dict, dt: float, forcing_fn, done_fn, start_tem
     records = []
     clock_sec = 0.0
     step_index = 0
-    for _ in range(_CPP_SOI_MAX_OUTER_STEPS):
+    for _ in range(_CAMPBELL_MAX_TIMESTEPS):
         r_rabsub, done_signal = forcing_fn(clock_sec)
         ok = _soiltemp_step(state, r_rabsub, dt)
         if not ok:
             raise SoilSimulationError(
                 "Soil Simulation Failed: the coupled Newton iteration did "
-                f"not converge within {_CPP_SOI_MAXITS_FAIL} sub-iterations "
+                f"not converge within {_CAMPBELL_MAX_NEWTON_ITERATIONS} sub-iterations "
                 f"at clock_sec={clock_sec}, dt={dt} -- matches the pinned "
                 "C++ soiltemp_step()'s own fatal e_SoiSimFail path."
             )
-        temps = np.array(state["tn"][1:_CPP_SOI_MPLUS1 + 1], dtype=float)
+        temps = np.array(state["tn"][1:_CAMPBELL_DEEP_NODE + 1], dtype=float)
         records.append((step_index * dt, temps))
         step_index += 1
         if done_fn(state["tn"], start_temp, clock_sec, done_signal):
@@ -1379,13 +1379,13 @@ def _soiltemp_initconsts(
     :param xwo: Water content for liquid recirculation (m^3/m^3).
     :param cop: Power for the liquid-recirculation function.
     :param xo: Extrapolated water content at -1 J/kg (m^3/m^3).
-    :param z_mm: 15 node depths (mm), from :func:`_cpp_soil_depths_mm`.
+    :param z_mm: 15 node depths (mm), from :func:`_campbell_soil_depths_mm`.
     :return: A fresh state dict for :func:`_soiltemp_step`.
     """
-    n = _CPP_SOI_N
+    n = _CAMPBELL_NODE_COUNT
     z = np.asarray(z_mm, dtype=float) / 1000.0   # mm -> m, fof_soi.cpp:284-286
     v = np.zeros(n, dtype=float)
-    for i in range(1, _CPP_SOI_M + 1):
+    for i in range(1, _CAMPBELL_INTERIOR_NODE_COUNT + 1):
         v[i] = 0.5 * (z[i + 1] - z[i - 1])
     air_por = np.zeros(n, dtype=float)
     air_por[0] = 1.0   # fof_soi.cpp:294
@@ -1393,7 +1393,7 @@ def _soiltemp_initconsts(
     return dict(
         bd=float(bd), pd=float(pd), ls=float(ls), ga=float(ga),
         xwo=float(xwo), cop=float(cop), xo=float(xo),
-        xs=xs, xws=1.0 - xs, m=_CPP_SOI_M,
+        xs=xs, xws=1.0 - xs, m=_CAMPBELL_INTERIOR_NODE_COUNT,
         z=z, v=v,
         w=np.zeros(n), wn=np.zeros(n), t=np.zeros(n), tn=np.zeros(n),
         p=np.zeros(n), dwdp=np.zeros(n), h=np.zeros(n), dhdp=np.zeros(n),
@@ -1419,7 +1419,7 @@ def _soiltemp_initprofile(state: dict, w_init: float, t_init: float) -> None:
     :param t_init: Starting temperature (degC), uniform across all 15
         nodes.
     """
-    n = _CPP_SOI_N
+    n = _CAMPBELL_NODE_COUNT
     xo = state["xo"]
     state["w"][:] = w_init
     state["wn"][:] = w_init
@@ -1427,10 +1427,10 @@ def _soiltemp_initprofile(state: dict, w_init: float, t_init: float) -> None:
     state["tn"][:] = t_init
     for i in range(n):
         state["p"][i] = -math.exp(13.82 * (1.0 - state["w"][i] / xo))
-        w, dwdp = _cpp_watercontent(state["p"][i], xo)
+        w, dwdp = _campbell_water_content(state["p"][i], xo)
         state["w"][i] = w
         state["dwdp"][i] = dwdp
-        h, dhdp = _cpp_humidity(state["p"][i], state["t"][i])
+        h, dhdp = _campbell_humidity(state["p"][i], state["t"][i])
         state["h"][i] = h
         state["dhdp"][i] = dhdp
         state["kev"][i] = 0.0
@@ -1445,8 +1445,8 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
     coupled temperature/matric-potential Newton iteration by one
     timestep, converging via a repeated linearized update until the
     energy and water mass-balance residuals fall below
-    :data:`_CPP_SOI_EPSE`/:data:`_CPP_SOI_EPSW`, or fail after
-    :data:`_CPP_SOI_MAXITS_FAIL` sub-iterations.
+    :data:`_CAMPBELL_ENERGY_ERROR_LIMIT`/:data:`_CAMPBELL_WATER_ERROR_LIMIT`,
+    or fail after :data:`_CAMPBELL_MAX_NEWTON_ITERATIONS` sub-iterations.
 
     This function is the coupled-timestep ORCHESTRATOR: each Newton
     sub-iteration delegates its boundary setup to
@@ -1504,7 +1504,7 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
         :func:`_campbell_newton_node_update` unchanged.
     :return: ``True`` on convergence; ``False`` if ``dt <= 0`` or the
         Newton iteration did not converge within
-        :data:`_CPP_SOI_MAXITS_FAIL` sub-iterations (both hard-failure
+        :data:`_CAMPBELL_MAX_NEWTON_ITERATIONS` sub-iterations (both hard-failure
         conditions in C++, propagated identically here).
     """
     if dt <= 0.0:
@@ -1515,7 +1515,7 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
         p = state["p"]
         m = state["m"]
 
-        tn[0] = _CPP_SOI_TAIR
+        tn[0] = _CAMPBELL_AIR_TEMPERATURE
         n_bug = 0
 
         while True:
@@ -1533,9 +1533,9 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
             n_bug += 1
             if on_subiter is not None:
                 on_subiter(n_bug, float(tn[1]), float(p[1]), float(r_sev), float(r_seh))
-            if n_bug >= _CPP_SOI_MAXITS_FAIL:
+            if n_bug >= _CAMPBELL_MAX_NEWTON_ITERATIONS:
                 return False
-            if r_sev < _CPP_SOI_EPSW and r_seh < _CPP_SOI_EPSE:
+            if r_sev < _CAMPBELL_WATER_ERROR_LIMIT and r_seh < _CAMPBELL_ENERGY_ERROR_LIMIT:
                 break
 
         # Converged -- commit state (fof_soi.cpp:187-206).
@@ -1682,8 +1682,8 @@ def soil_heat_campbell(
     start_water = props["start_water"]
     start_temp = props["start_temp"]
 
-    z_mm = _cpp_soil_depths_mm(depth_layers)
-    ambient_rabs = _cpp_ambient_rabs(start_temp)
+    z_mm = _campbell_soil_depths_mm(depth_layers)
+    ambient_rabs = _campbell_ambient_radiation(start_temp)
 
     state = _soiltemp_initconsts(
         props["bulk_density"], props["particle_density"], props["k_mineral"],
@@ -1712,7 +1712,7 @@ def soil_heat_campbell(
             """
             return _soi_done_duff(temps, st_temp, clock_sec, duration_s)
 
-        dt = _CPP_SOI_DUFF_DT
+        dt = _CAMPBELL_DUFF_TIMESTEP
     else:
         if burnup_intensity is None:
             # No C++ counterpart -- a documented, never-golden-tested
@@ -1743,7 +1743,7 @@ def soil_heat_campbell(
             """
             return _soi_done_nonduff(temps, st_temp, clock_sec, fi_now)
 
-        dt = _CPP_SOI_NONDUFF_DT
+        dt = _CAMPBELL_NONDUFF_TIMESTEP
 
     records = _run_coupled_soil_sim(state, dt, forcing_fn, done_fn, start_temp)
 

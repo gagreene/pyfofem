@@ -40,8 +40,8 @@ from __future__ import annotations
 import pytest
 
 from pyfofem.components.soil_heating import (
-    _cpp_ambient_rabs,
-    _cpp_soil_depths_mm,
+    _campbell_ambient_radiation,
+    _campbell_soil_depths_mm,
     _duff_burn_profile,
     _make_duff_forcing_fn,
     _make_nonduff_forcing_fn,
@@ -52,8 +52,8 @@ from pyfofem.components.soil_heating import (
     _soiltemp_initprofile,
     _soiltemp_step,
     _SOIL_FAMILY_DEFAULTS,
-    _CPP_SOI_DUFF_DT,
-    _CPP_SOI_NONDUFF_DT,
+    _CAMPBELL_DUFF_TIMESTEP,
+    _CAMPBELL_NONDUFF_TIMESTEP,
 )
 from tests.cpp_parity_live._harness_support import (
     HARNESS_EXE_OVERRIDE_ENV_VAR,
@@ -126,10 +126,10 @@ def _duff_forcing_and_records(soil_type, dep_pre_in, soil_moist_pct, load,
     start_water = soil_moist_pct / 100.0
     duff_params = dict(duff_load=load, duff_depth=dep_pre_in,
                         duff_moisture=moist, pct_consumed=consumed)
-    ambient = _cpp_ambient_rabs(start_temp)
+    ambient = _campbell_ambient_radiation(start_temp)
     duff_profile = _duff_burn_profile(duff_params)
     forcing_fn = _make_duff_forcing_fn(duff_profile, ambient)
-    z_mm = _cpp_soil_depths_mm(list(range(1, 14)))
+    z_mm = _campbell_soil_depths_mm(list(range(1, 14)))
     state = _soiltemp_initconsts(
         props["bulk_density"], props["particle_density"], props["k_mineral"],
         props["vries_shape"], props["recirc_water"], props["cop_power"],
@@ -142,7 +142,7 @@ def _duff_forcing_and_records(soil_type, dep_pre_in, soil_moist_pct, load,
         """Duff termination check bound to this scenario's burn duration."""
         return _soi_done_duff(temps, st_temp, clock_sec, duration_s)
 
-    records = _run_coupled_soil_sim(state, _CPP_SOI_DUFF_DT, forcing_fn,
+    records = _run_coupled_soil_sim(state, _CAMPBELL_DUFF_TIMESTEP, forcing_fn,
                                      done_fn, start_temp)
     return records, forcing_fn
 
@@ -317,16 +317,16 @@ def test_dry_nonduff_matches_cpp_within_tolerance(tmp_path):
     props = dict(_SOIL_FAMILY_DEFAULTS["coarse-silty"])
     start_temp = 21.0
     start_water = 0.05
-    ambient = _cpp_ambient_rabs(start_temp)
+    ambient = _campbell_ambient_radiation(start_temp)
     forcing_fn = _make_nonduff_forcing_fn(wl_series, hs_series, 0.15, 0.10, ambient)
-    z_mm = _cpp_soil_depths_mm(list(range(1, 14)))
+    z_mm = _campbell_soil_depths_mm(list(range(1, 14)))
     state = _soiltemp_initconsts(
         props["bulk_density"], props["particle_density"], props["k_mineral"],
         props["vries_shape"], props["recirc_water"], props["cop_power"],
         props["extrap_water"], z_mm,
     )
     _soiltemp_initprofile(state, start_water, start_temp)
-    records = _run_coupled_soil_sim(state, _CPP_SOI_NONDUFF_DT, forcing_fn,
+    records = _run_coupled_soil_sim(state, _CAMPBELL_NONDUFF_TIMESTEP, forcing_fn,
                                     _soi_done_nonduff, start_temp)
 
     first = _find_first_temp_divergence(cpp_rows, records, _FIRST_DIVERGENCE_THRESHOLD_C)
@@ -354,7 +354,7 @@ def test_dry_nonduff_forcing_matches_cpp_exactly(tmp_path):
         tmp_path, "dry-nonduff-force", "Coarse-Silt", "5",
     )
     start_temp = 21.0
-    ambient = _cpp_ambient_rabs(start_temp)
+    ambient = _campbell_ambient_radiation(start_temp)
     forcing_fn = _make_nonduff_forcing_fn(wl_series, hs_series, 0.15, 0.10, ambient)
 
     ts_rows = [r for r in cpp_rows if r["record_kind"] == "timestep"]
@@ -451,9 +451,9 @@ def _python_first_subiter_trace(soil_type, soil_moist_pct):
     n = 20
     wl_series = [max(0.0, 50.0 - i * 3.0) for i in range(n)]
     hs_series = [max(0.0, 10.0 - i * 0.5) for i in range(n)]
-    ambient = _cpp_ambient_rabs(start_temp)
+    ambient = _campbell_ambient_radiation(start_temp)
     forcing_fn = _make_nonduff_forcing_fn(wl_series, hs_series, 0.15, 0.10, ambient)
-    z_mm = _cpp_soil_depths_mm(list(range(1, 14)))
+    z_mm = _campbell_soil_depths_mm(list(range(1, 14)))
     state = _soiltemp_initconsts(
         props["bulk_density"], props["particle_density"], props["k_mineral"],
         props["vries_shape"], props["recirc_water"], props["cop_power"],
@@ -463,7 +463,7 @@ def _python_first_subiter_trace(soil_type, soil_moist_pct):
     r_rabs, _ = forcing_fn(0.0)
 
     trace = []
-    _soiltemp_step(state, r_rabs, _CPP_SOI_NONDUFF_DT,
+    _soiltemp_step(state, r_rabs, _CAMPBELL_NONDUFF_TIMESTEP,
                     on_subiter=lambda *args: trace.append(args))
     return trace
 
@@ -487,9 +487,9 @@ def _python_first_surface_update_trace(soil_type, soil_moist_pct):
     n = 20
     wl_series = [max(0.0, 50.0 - i * 3.0) for i in range(n)]
     hs_series = [max(0.0, 10.0 - i * 0.5) for i in range(n)]
-    ambient = _cpp_ambient_rabs(start_temp)
+    ambient = _campbell_ambient_radiation(start_temp)
     forcing_fn = _make_nonduff_forcing_fn(wl_series, hs_series, 0.15, 0.10, ambient)
-    z_mm = _cpp_soil_depths_mm(list(range(1, 14)))
+    z_mm = _campbell_soil_depths_mm(list(range(1, 14)))
     state = _soiltemp_initconsts(
         props["bulk_density"], props["particle_density"], props["k_mineral"],
         props["vries_shape"], props["recirc_water"], props["cop_power"],
@@ -499,7 +499,7 @@ def _python_first_surface_update_trace(soil_type, soil_moist_pct):
     r_rabs, _ = forcing_fn(0.0)
 
     trace = []
-    _soiltemp_step(state, r_rabs, _CPP_SOI_NONDUFF_DT,
+    _soiltemp_step(state, r_rabs, _CAMPBELL_NONDUFF_TIMESTEP,
                     on_surface_update=lambda n, d: trace.append((n, d)))
     return trace
 
