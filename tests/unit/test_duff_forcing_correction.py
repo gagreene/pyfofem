@@ -51,7 +51,9 @@ from pyfofem.components.soil_heating import (
     _duff_burn_profile,
     _duff_burn_rate,
     _duff_heat_fraction,
+    _make_guide_herb_shrub_intensity,
     soil_heat_campbell,
+    soil_heat_from_consumption,
 )
 
 pytestmark = pytest.mark.soil_solver
@@ -342,6 +344,61 @@ def test_duff_heat_fraction_monotonically_decreasing_in_depth():
     depths = [0.1, 0.3, 0.5, 1.0, 2.0, 4.0, 6.0]
     fractions = [_duff_heat_fraction(d) for d in depths]
     assert all(earlier > later for earlier, later in zip(fractions, fractions[1:]))
+
+
+def test_guide_herb_shrub_intensity_uses_first_minute_ramp_and_conserves_load():
+    """Guide-derived herb/shrub forcing uses four ramped 15-second samples.
+
+    A 6 T/ac consumed load has the guide's first-minute 5 T/ac allocation,
+    followed by a final 1 T/ac interval.  Converting the resulting intensity
+    samples back to load confirms that the full input is represented once.
+    """
+    heat_content = 1.86e7
+    consumed_load = 6.0 / 4.4609
+    intensities = _make_guide_herb_shrub_intensity(consumed_load, heat_content)
+
+    expected_loads = [0.5, 1.0, 1.5, 2.0, 1.0]
+    expected = [heat_content * (load / 4.4609) / 15.0 * 1.0e-3 for load in expected_loads]
+    assert intensities == pytest.approx(expected)
+    reconstructed_load = sum(intensities) * 15.0 * 1.0e3 / heat_content
+    assert reconstructed_load == pytest.approx(consumed_load)
+
+
+def test_soil_heat_campbell_nonduff_requires_wood_litter_intensity():
+    """The non-duff model rejects the former arbitrary forcing fallback."""
+    with pytest.raises(ValueError, match="requires burnup_intensity"):
+        soil_heat_campbell(
+            "non_duff", {}, _soil_params(), _DEPTHS,
+        )
+
+
+def test_soil_heat_from_consumption_builds_guide_forcing(monkeypatch):
+    """The consumption facade sends guide-derived WL and HS series to Campbell."""
+    captured = {}
+
+    def capture_campbell(**kwargs):
+        """Capture facade arguments without running the coupled solver.
+
+        :param kwargs: Keyword arguments delegated by the public facade.
+        :returns: A sentinel result used by the assertion.
+        """
+        captured.update(kwargs)
+        return "captured"
+
+    monkeypatch.setattr(sh, "soil_heat_campbell", capture_campbell)
+    result = soil_heat_from_consumption(
+        soil_params=_soil_params(),
+        depth_layers=_DEPTHS,
+        herb_shrub_consumed=5.0 / 4.4609,
+        woody_litter_intensity=[2.5, 1.5],
+    )
+
+    assert result == "captured"
+    assert captured["model"] == "non_duff"
+    assert captured["burnup_intensity"] == [2.5, 1.5]
+    expected_hs = [1.86e7 * (load / 4.4609) / 15.0 * 1.0e-3
+                   for load in (0.5, 1.0, 1.5, 2.0)]
+    assert captured["burnup_intensity_hs"] == pytest.approx(expected_hs)
 
 
 def test_partial_consumption_temperature_differs_from_constant_prefire_forcing_characterization(monkeypatch):

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import importlib
+
 import numpy as np
+import pandas as pd
 import pytest
 
 from pyfofem import run_fofem_emissions
@@ -77,6 +80,92 @@ def test_invalid_soil_family_cell_is_skipped_and_returns_nan():
         assert arr.shape == (n,)
         assert np.isfinite(arr[0])
         assert np.isnan(arr[1])
+
+
+def test_nonduff_pipeline_derived_forcing_ignores_head_fire(monkeypatch):
+    """Non-duff pipeline forcing comes from consumed fuels, never head fire.
+
+    :param monkeypatch: Pytest fixture used to capture the soil facade call.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    captured = {}
+    pipeline = importlib.import_module("pyfofem.pyfofem")
+
+    def capture_soil_heating(**kwargs):
+        """Capture non-duff forcing inputs and return a minimal trajectory.
+
+        :param kwargs: Keyword arguments delegated by the pipeline.
+        :returns: A valid soil-temperature DataFrame.
+        """
+        captured.update(kwargs)
+        columns = ["Surface"] + [f"{depth}cm" for depth in range(1, 14)]
+        return pd.DataFrame([[21.0] * len(columns)], columns=columns)
+
+    monkeypatch.setattr(pipeline, "soil_heat_from_consumption", capture_soil_heating)
+    kwargs = _base_kwargs()
+    kwargs.update(
+        duff=0.0,
+        duff_depth=0.0,
+        litter=0.0,
+        dw1=0.0,
+        dw10=0.0,
+        dw100=0.0,
+        dw1000s=0.0,
+        dw1000r=0.0,
+        soil_family="Fine-Silt",
+    )
+    run_fofem_emissions(**kwargs)
+
+    assert captured["woody_litter_intensity"] == []
+    assert captured["herb_shrub_consumed"] > 0.0
+    assert "hfi" not in captured
+    assert "flame_res_time" not in captured
+
+
+def test_nonduff_pipeline_requires_burnup_for_wood_litter_forcing():
+    """A non-duff fuel bed cannot derive wood/litter forcing without Burnup.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    kwargs = _base_kwargs()
+    kwargs.update(duff=0.0, duff_depth=0.0, soil_family="Fine-Silt")
+
+    with pytest.raises(ValueError, match="requires use_burnup=True"):
+        run_fofem_emissions(**kwargs)
+
+
+def test_nonduff_pipeline_uses_burnup_wood_litter_forcing(monkeypatch):
+    """Burnup supplies the wood/litter intensity used by non-duff heating.
+
+    :param monkeypatch: Pytest fixture used to capture the soil facade call.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    captured = {}
+    pipeline = importlib.import_module("pyfofem.pyfofem")
+
+    def capture_soil_heating(**kwargs):
+        """Capture non-duff forcing inputs and return a minimal trajectory.
+
+        :param kwargs: Keyword arguments delegated by the pipeline.
+        :returns: A valid soil-temperature DataFrame.
+        """
+        captured.update(kwargs)
+        columns = ["Surface"] + [f"{depth}cm" for depth in range(1, 14)]
+        return pd.DataFrame([[21.0] * len(columns)], columns=columns)
+
+    monkeypatch.setattr(pipeline, "soil_heat_from_consumption", capture_soil_heating)
+    kwargs = _base_kwargs()
+    kwargs.update(
+        duff=0.0,
+        duff_depth=0.0,
+        soil_family="Fine-Silt",
+        use_burnup=True,
+    )
+    run_fofem_emissions(**kwargs)
+
+    assert captured["woody_litter_intensity"]
+    assert all(np.isfinite(captured["woody_litter_intensity"]))
+    assert captured["herb_shrub_consumed"] > 0.0
 
 
 def test_scalar_invalid_soil_family_returns_nan_soil_outputs():

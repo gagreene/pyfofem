@@ -85,7 +85,7 @@ from .components.burnup_calcs import (
 )
 
 from .components.burnup import _BURNUP_LIMIT_ADJUST, _BURNUP_LIMIT_ERROR
-from .components.soil_heating import soil_heat_campbell
+from .components.soil_heating import soil_heat_campbell, soil_heat_from_consumption
 
 from .components.emission_calcs import (
     _EF_GROUP_DEFAULT,
@@ -520,9 +520,7 @@ def run_fofem_emissions(
     # ------------------------------------------------------------------
     # 5. Per-cell burnup (parallelised)
     # ------------------------------------------------------------------
-    burnup_times_cells = [None] * n
     burnup_wl_cells = [None] * n
-    burnup_hs_cells = [None] * n
 
     if use_burnup:
         # Build per-cell kwargs list
@@ -650,9 +648,7 @@ def run_fofem_emissions(
                 continue
 
             bcon = cr['bcon']
-            burnup_times_cells[i] = cr.get('burnup_times_s')
             burnup_wl_cells[i] = cr.get('burnup_fi_wl')
-            burnup_hs_cells[i] = cr.get('burnup_fi_hs')
             fsi  = from_si
             burnup_ran[i] = True
 
@@ -827,6 +823,17 @@ def run_fofem_emissions(
             duf_moist_pct = float(duf_m_a[i])
 
             model = 'duff' if duf_depth_pre_in > 0.0 else 'non_duff'
+            woody_litter_loads = (
+                lit_pre_arr[i], dw1_pre_arr[i], dw10_pre_arr[i], dw100_pre_arr[i],
+                dw1ks_pre[i], dw1kr_pre[i],
+            )
+            if model == 'non_duff' and not burnup_wl_cells[i] and any(
+                    load > 0.0 for load in woody_litter_loads
+            ):
+                raise ValueError(
+                    "Non-duff soil heating with wood or litter fuel requires "
+                    "use_burnup=True to derive wood/litter intensity."
+                )
             try:
                 if model == 'duff':
                     df_soil = soil_heat_campbell(
@@ -843,27 +850,18 @@ def run_fofem_emissions(
                         timestep=_cfg_float_at('timestep_s', 10.0, i),
                     )
                 else:
-                    wl_series = burnup_wl_cells[i]
-                    hs_series = burnup_hs_cells[i]
-                    t_series = burnup_times_cells[i]
-                    if not wl_series or not t_series:
-                        fi_fallback = float(hfi_a[i]) if not np.isnan(hfi_a[i]) else 20.0
-                        t_fallback = float(frt_a[i]) if not np.isnan(frt_a[i]) else 60.0
-                        wl_series = [max(fi_fallback, 0.0)]
-                        hs_series = [0.0]
-                        t_series = [max(t_fallback, 1.0)]
-
-                    df_soil = soil_heat_campbell(
-                        model='non_duff',
-                        duff_params={},
+                    woody_litter_intensity = burnup_wl_cells[i] or []
+                    herb_shrub_consumed = (
+                        (float(her_con_arr[i]) if not np.isnan(her_con_arr[i]) else 0.0)
+                        + (float(shr_con_arr[i]) if not np.isnan(shr_con_arr[i]) else 0.0)
+                    ) * to_si
+                    df_soil = soil_heat_from_consumption(
                         soil_params=soil_params,
                         depth_layers=depth_layers,
-                        burnup_intensity=wl_series,
-                        burnup_intensity_hs=hs_series,
-                        burnup_times=t_series,
+                        herb_shrub_consumed=herb_shrub_consumed,
+                        woody_litter_intensity=woody_litter_intensity,
                         efficiency_wl=_cfg_float_at('efficiency_wl', eff_wl_default, i),
                         efficiency_hs=_cfg_float_at('efficiency_hs', eff_hs_default, i),
-                        timestep=_cfg_float_at('timestep_s', 10.0, i),
                     )
 
                 max_t = df_soil.max(axis=0)

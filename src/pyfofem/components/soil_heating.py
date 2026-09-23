@@ -17,7 +17,7 @@ Campbell uses a coupled nonlinear solve on a 15-node non-uniform grid.
 """
 
 import math
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -1243,6 +1243,44 @@ def _make_nonduff_forcing_fn(
     return forcing_fn
 
 
+def _make_guide_herb_shrub_intensity(
+        consumed_load: float,
+        heat_content: float = 1.86e7,
+) -> list[float]:
+    """Build the FOFEM 6.9.4 herb/shrub intensity profile.
+
+    The guide specifies a maximum first-minute consumption of 5 T/ac.  Its
+    four 15-second intervals consume 10, 20, 30, and 40 percent of that
+    first-minute amount; any remaining consumed herb/shrub fuel then burns at
+    a constant 5 T/ac/min rate in 15-second intervals.
+
+    :param consumed_load: Total consumed herb plus shrub load (kg/m^2).
+    :param heat_content: Low heat of combustion (J/kg).
+    :returns: Herb/shrub fire-intensity samples (kW/m^2), 15 seconds apart.
+    :raises ValueError: If either input is non-finite, or if *consumed_load*
+        is negative or *heat_content* is not positive.
+    """
+    if not np.isfinite(consumed_load) or consumed_load < 0.0:
+        raise ValueError("consumed_load must be a finite value >= 0.")
+    if not np.isfinite(heat_content) or heat_content <= 0.0:
+        raise ValueError("heat_content must be a finite value > 0.")
+    if consumed_load == 0.0:
+        return []
+
+    interval_s = 15.0
+    rate_kg_m2_s = 5.0 / 4.4609 / 60.0
+    first_minute_load = min(consumed_load, rate_kg_m2_s * 60.0)
+    interval_loads = [first_minute_load * fraction for fraction in (0.10, 0.20, 0.30, 0.40)]
+
+    remaining_load = consumed_load - first_minute_load
+    while remaining_load > 0.0:
+        interval_load = min(rate_kg_m2_s * interval_s, remaining_load)
+        interval_loads.append(interval_load)
+        remaining_load -= interval_load
+
+    return [heat_content * load / interval_s * 1.0e-3 for load in interval_loads]
+
+
 def _run_coupled_soil_sim(state: dict, dt: float, forcing_fn, done_fn, start_temp: float) -> list:
     """
     Shared outer clock-driven loop — a direct port of the shared skeleton
@@ -1630,8 +1668,8 @@ def soil_heat_campbell(
         ever actually exercises (``SH_Init_LayDis`` is not
         user-configurable); other depth lists are still accepted for API
         generality but have no C++ counterpart to compare against.
-    :param burnup_intensity: Fire intensity (kW/m²) at each time step; used
-        when *model* is 'non_duff'.
+    :param burnup_intensity: Required wood/litter fire-intensity samples
+        (kW/m²), 15 seconds apart; used when *model* is 'non_duff'.
     :param burnup_intensity_hs: Heavy-slash fire intensity (kW/m²) at each
         time step; used when *model* is 'non_duff'.
     :param burnup_times: Accepted for signature compatibility only. C++'s
@@ -1715,10 +1753,11 @@ def soil_heat_campbell(
         dt = _CAMPBELL_DUFF_TIMESTEP
     else:
         if burnup_intensity is None:
-            # No C++ counterpart -- a documented, never-golden-tested
-            # convenience fallback for API completeness only.
-            wl_series = [20.0] * 120
-            hs_series = [0.0]
+            raise ValueError(
+                "model='non_duff' requires burnup_intensity. Supply explicit "
+                "wood/litter intensity samples or use soil_heat_from_consumption() "
+                "to construct guide-defined forcing from consumed fuels."
+            )
         else:
             wl_series = list(burnup_intensity)
             hs_series = (
@@ -1754,6 +1793,101 @@ def soil_heat_campbell(
     df = pd.DataFrame(temps, index=times_min, columns=cols)
     df.index.name = "time_min"
     return df
+
+
+def soil_heat_from_consumption(
+        soil_params: dict,
+        depth_layers: list,
+        herb_shrub_consumed: float,
+        woody_litter_intensity: Optional[Sequence[float]] = None,
+        burnup_results: Optional[Sequence] = None,
+        burnup_params: Optional[dict] = None,
+        efficiency_wl: float = 0.15,
+        efficiency_hs: float = 0.10,
+        heat_content: float = 1.86e7,
+) -> pd.DataFrame:
+    """Predict non-duff soil heating from guide-defined fuel forcing.
+
+    Woody/litter intensity is taken from supplied BURNUP results or from a
+    BURNUP run configured by *burnup_params*. Herb/shrub intensity follows
+    the FOFEM 6.9.4 guide: up to 5 T/ac is consumed in the first minute with
+    10/20/30/40 percent allocated to its four 15-second intervals, followed
+    by a uniform 5 T/ac/min rate until all consumed herb/shrub fuel is used.
+    A BURNUP run created here excludes herb/shrub and branch/foliage forcing,
+    so each guide-defined source is represented exactly once.
+
+    :param soil_params: Soil-family and initial-condition parameters accepted
+        by :func:`soil_heat_campbell`.
+    :param depth_layers: Exactly 13 requested soil depths (cm).
+    :param herb_shrub_consumed: Total consumed herb plus shrub load (kg/m^2).
+    :param woody_litter_intensity: Optional 15-second wood/litter intensity
+        samples (kW/m^2), such as the W/L series produced by Burnup.
+    :param burnup_results: Optional BURNUP result sequence whose ``fi_wl``
+        values provide 15-second woody/litter intensity samples (kW/m^2).
+    :param burnup_params: Optional keyword arguments for
+        :func:`pyfofem.components.burnup_calcs.run_burnup`; used to create
+        *burnup_results* when they are not supplied.
+    :param efficiency_wl: Woody/litter heat-delivery proportion.
+    :param efficiency_hs: Herb/shrub heat-delivery proportion.
+    :param heat_content: Low heat of combustion for guide-derived herb/shrub
+        forcing (J/kg).
+    :returns: Soil-temperature trajectory indexed by elapsed minutes.
+    :raises ValueError: If more than one wood/litter input is supplied, if
+        *burnup_params* does not use 15-second samples, or if a BURNUP result
+        lacks woody/litter intensity.
+    """
+    woody_inputs = (woody_litter_intensity, burnup_results, burnup_params)
+    if sum(value is not None for value in woody_inputs) > 1:
+        raise ValueError(
+            "Supply only one of woody_litter_intensity, burnup_results, or "
+            "burnup_params."
+        )
+
+    if burnup_params is not None:
+        if not isinstance(burnup_params, dict):
+            raise ValueError("burnup_params must be a dictionary when supplied.")
+        sample_interval = burnup_params.get("timestep", 15.0)
+        if not np.isclose(sample_interval, 15.0):
+            raise ValueError(
+                "burnup_params['timestep'] must be 15 seconds for the "
+                "FOFEM non-duff soil-forcing contract."
+            )
+        from .burnup_calcs import run_burnup
+
+        woody_burnup_params = dict(burnup_params)
+        woody_burnup_params["hsf_consumed"] = 0.0
+        woody_burnup_params["brafol_consumed"] = 0.0
+        burnup_results, _, _ = run_burnup(**woody_burnup_params)
+
+    if woody_litter_intensity is not None:
+        woody_litter_intensity = list(woody_litter_intensity)
+        if not all(np.isfinite(intensity) for intensity in woody_litter_intensity):
+            raise ValueError("Each wood/litter intensity must be finite.")
+    elif burnup_results is None:
+        woody_litter_intensity = []
+    else:
+        woody_litter_intensity = []
+        for result in burnup_results:
+            intensity = getattr(result, "fi_wl", None)
+            if intensity is None or not np.isfinite(intensity):
+                raise ValueError(
+                    "Each burnup result must provide a finite fi_wl intensity."
+                )
+            woody_litter_intensity.append(float(intensity))
+
+    herb_shrub_intensity = _make_guide_herb_shrub_intensity(
+        herb_shrub_consumed, heat_content,
+    )
+    return soil_heat_campbell(
+        model="non_duff",
+        duff_params={},
+        soil_params=soil_params,
+        depth_layers=depth_layers,
+        burnup_intensity=woody_litter_intensity,
+        burnup_intensity_hs=herb_shrub_intensity,
+        efficiency_wl=efficiency_wl,
+        efficiency_hs=efficiency_hs,
+    )
 
 
 def soil_heat_massman(
