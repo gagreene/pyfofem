@@ -12,22 +12,9 @@ This module covers the facade's real, verified ``(mort_function: str,
 params: dict)`` interface directly against the three real dispatched
 functions.
 
-**Documentation defect found and pinned, not fixed** (item C explicitly
-asks for this reconciliation): ``run_fofem_mortality``'s own docstring
-``Examples::`` block shows calling it as
-``run_fofem_mortality('crnsch', spp='PIPO', dbh=25.0, ...)`` - i.e. as
-if the second positional slot were ``**kwargs``. The REAL signature is
-``run_fofem_mortality(mort_function: str, params: dict)`` - exactly two
-positional/keyword parameters, no ``**kwargs`` catch-all - so the
-documented call form raises
-``TypeError: run_fofem_mortality() got an unexpected keyword argument
-'spp'`` before ever reaching the dispatch table. Confirmed directly by
-execution; see
-:func:`test_documented_examples_block_call_form_is_broken_but_the_real_params_dict_form_works`.
-Not fixed here (a docstring correction to `src/pyfofem/pyfofem.py` is
-out of Phase 8's "no production code" scope) - flagged for separate
-authorization, same as every other docstring-inaccuracy gotcha this
-project records rather than silently fixes.
+The public examples use the real ``(mort_function: str, params: dict)``
+interface.  This module executes their parameter shapes so documentation
+does not drift from the facade contract.
 
 **Bark-thickness default path is a facade contract.** The F-19 repair ships
 the full C++ first-occurrence species-to-slope extraction as wheel data.
@@ -91,22 +78,29 @@ def _crnsch_params(**overrides) -> dict:
     return base
 
 
-def test_documented_examples_block_call_form_is_broken_but_the_real_params_dict_form_works():
-    """``run_fofem_mortality``'s own docstring ``Examples::`` block calls
-    it as ``run_fofem_mortality('crnsch', spp=..., dbh=..., ...)`` - the
-    real ``(mort_function, params)`` signature has no ``**kwargs``
-    catch-all, so that exact documented form raises ``TypeError``. The
-    real, working form (a single ``params`` dict) is proven immediately
-    after."""
-    with pytest.raises(TypeError, match="unexpected keyword argument 'spp'"):
-        run_fofem_mortality(
-            'crnsch', spp='PIPO', dbh=25.0, ht=15.0, crown_depth=5.0,
-            fire_intensity=500.0,
-        )
+def test_documented_examples_use_the_params_dict_contract():
+    """The public crown-scorch and bole-char examples must execute using
+    the facade's two-argument ``(mort_function, params)`` interface."""
+    crown_scorch = run_fofem_mortality(
+        'crnsch',
+        {
+            'spp': 'PIPO', 'dbh': 25.0, 'ht': 15.0,
+            'crown_depth': 5.0, 'fire_intensity': 500.0,
+        },
+    )
+    bole_char = run_fofem_mortality(
+        'bolchar',
+        {
+            'spp': np.array(['ACRU', 'QUAL']),
+            'dbh': np.array([12.0, 20.0]),
+            'char_ht': np.array([1.5, 2.0]),
+        },
+    )
 
-    result = run_fofem_mortality('crnsch', _crnsch_params())
-    assert isinstance(result, float)
-    assert 0.0 <= result <= 1.0
+    assert isinstance(crown_scorch, float)
+    assert 0.0 <= crown_scorch <= 1.0
+    assert bole_char.shape == (2,)
+    assert np.all((0.0 <= bole_char) & (bole_char <= 1.0))
 
 
 def test_facade_bolchar_mixed_valid_and_unsupported_species_rows():

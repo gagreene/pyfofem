@@ -346,7 +346,7 @@ def calc_scorch_ht(
         flame_length: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
-    Van Wagner (1973) & Alexander (1982/85) lethal scorch height model.
+    Van Wagner (1973) and Alexander (1982) lethal scorch-height model.
 
     When *flame_length* is supplied it takes precedence over every other
     input. The conversion operates in feet internally; PyFOFEM accepts

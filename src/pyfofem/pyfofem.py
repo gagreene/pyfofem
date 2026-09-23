@@ -1009,16 +1009,20 @@ def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.nda
         # Crown scorch for a single ponderosa pine tree
         pm = run_fofem_mortality(
             'crnsch',
-            spp='PIPO', dbh=25.0, ht=15.0, crown_depth=5.0,
-            fire_intensity=500.0,
+            {
+                'spp': 'PIPO', 'dbh': 25.0, 'ht': 15.0,
+                'crown_depth': 5.0, 'fire_intensity': 500.0,
+            },
         )
 
         # Bole char for multiple broadleaf trees
         pm = run_fofem_mortality(
             'bolchar',
-            spp=np.array(['ACRU', 'QUAL']),
-            dbh=np.array([12.0, 20.0]),
-            char_ht=np.array([1.5, 2.0]),
+            {
+                'spp': np.array(['ACRU', 'QUAL']),
+                'dbh': np.array([12.0, 20.0]),
+                'char_ht': np.array([1.5, 2.0]),
+            },
         )
     """
     key = mort_function.strip().lower()

@@ -481,6 +481,11 @@ def mort_crnsch(
     equal length. Species without a dedicated equation fall back to the general
     bark-thickness model (FOFEM Eq 1).
 
+    The result is always a continuous mortality probability.  Applications
+    that convert Longleaf pine probabilities to a binary reporting class may
+    apply the 0.3 threshold described in the FOFEM user guide; that reporting
+    choice is intentionally outside this model function.
+
     :param spp: Species code(s) (str, int, or np.ndarray). A single string or
         int may be passed for a single tree. If int, codes are mapped to FOFEM
         species codes using ``tree_code_dict`` if provided; otherwise via the
@@ -732,7 +737,8 @@ def mort_crnsch(
                             (0.348 * np.power(cvs[mask_pipa2] / 10, 2))))
         )
     # FOFEM Eq 19 - Ponderosa/Jeffrey Pine
-    Pm[mask_pipo] = 1 / (1 + np.exp(-(-2.7103 + (np.power(cvs[mask_pipo], 3) * 0.000004093))))
+    if np.any(mask_pipo):
+        Pm[mask_pipo] = 1 / (1 + np.exp(-(-2.7103 + (np.power(cvs[mask_pipo], 3) * 0.000004093))))
     # FOFEM Eq 21 - Black Hills Ponderosa Pine
     if np.any(mask_pipo_bh):
         ht_bh = ht[mask_pipo_bh]
