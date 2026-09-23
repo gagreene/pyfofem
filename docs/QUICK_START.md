@@ -162,7 +162,7 @@ For large batches:
 `em_mode` controls which emission-factor path is used:
 
 - `default`: standard single-group emissions
-- `legacy`: C++/GUI-style legacy emissions behavior
+- `legacy`: original FOFEM-style legacy emissions behavior
 - `expanded`: separate flaming/coarse-smolder/duff-smolder factors
 
 Example:

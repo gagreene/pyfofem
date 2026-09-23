@@ -17,16 +17,16 @@ pyfofem/
 |   |-- _support.py                     # Shared path constants (no src/ sys.path insert)
 |   |-- conftest.py                     # Fixtures, markers, installed-only session check
 |   |-- run_unified_tests.py            # `--suite core|full`, `--installed-only` runner
-|   |-- prepare_cpp_reference.py        # Regenerates C++ reference fixtures
-|   |-- compare_cpp_python_soil_heating.py  # Scripted Lay* parity comparison driver
-|   |-- unit/                           # Golden-CSV + non-C++-live unit tests
+|   |-- prepare_cpp_reference.py        # Regenerates reference fixtures
+|   |-- compare_cpp_python_soil_heating.py  # Scripted Lay* reference-comparison driver
+|   |-- unit/                           # Golden-CSV + reference-independent unit tests
 |   |-- integration/                    # Full-pipeline (`run_fofem_emissions`) tests
-|   |-- regression/                     # Named historical-bug regression tests
-|   |-- cpp_parity_live/                # Tests requiring the compiled C++ reference
+|   |-- regression/                     # Behavior regression tests
+|   |-- cpp_parity_live/                # Tests requiring the compiled reference
 |   `-- test_data/                      # Input CSVs and expected outputs
 |-- examples/                           # Batch/array usage driver + example data
 |-- development/burnup_array/           # Experimental prototype, outside the test gate
-|-- reference/fofem_cpp/                # C++ FOFEM reference source
+|-- reference/fofem_cpp/                # Pinned FOFEM reference source
 |-- docs/reference/                     # Literature and reference docs
 |-- docs/CODEBASE.md                    # Architecture and model mapping
 `-- README.md
@@ -40,7 +40,7 @@ pyfofem/
 - Smoke emissions (`legacy`, `default`, `expanded` modes)
 - Campbell soil-heating model (Massman HMV is in development and unavailable)
 - Integrated soil-heating outputs in `run_fofem_emissions` (`Lay0`, `Lay2`, `Lay4`, `Lay6`, `Lay60d`, `Lay275d`)
-- C++ parity scripts/tests for burnup/consumption and soil-heating outputs
+- Reference-validation scripts/tests for burnup, consumption, and soil-heating outputs
 
 ## Installation
 
@@ -80,7 +80,7 @@ print(results["DufCon"])
 print(results["Lay2"])
 ```
 
-To match legacy GUI/C++ emissions behavior, pass `em_mode="legacy"`.
+To match original FOFEM legacy emissions behavior, pass `em_mode="legacy"`.
 In this mode, smoldering NOx (`NOXS`) is expected to be `0` by design.
 In `expanded` mode, default smolder group 7 (`CWDRSC`) also has `NOx as NO = 0`,
 so `NOXS` mainly comes from the duff group unless you change factor groups.
@@ -202,9 +202,8 @@ individual test: `test_consumption_calcs_array.py` imports
 itself uses a relative import (`from .burnup_array_kernel import ...`),
 raising `ImportError: attempted relative import with no known parent
 package`. This is a known, tracked failure — not a skip, and not silently
-part of the supported suite. The Phase 1 test-suite restructure does not
-fix the prototype; see
-`development/plans/2026-08-26-comprehensive-test-suite-plan.md`.
+part of the supported suite. Maintain it independently of the library's
+supported test suites.
 
 For package-validation workflows where you want to ensure tests are running
 against the installed package (not local `src/`), use:
@@ -236,12 +235,13 @@ test:
 The Conda recipe lives in `conda-recipe/`. See `conda-recipe/README.md` for
 build and test commands.
 
-Key parity checks:
-
-- `tests/cpp_parity_live/test_compare_cpp_python.py` compares Python outputs against C++ multi-case CSV harness results.
-- `tests/cpp_parity_live/test_cpp_comparison.py` compares Python against `reference/fofem_cpp/load.txt` and `emis.txt`.
-- `tests/cpp_parity_live/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` compare `Lay*` soil-heating outputs against C++ `reference/fofem_cpp/soil.tmp`.
+Reference-validation tooling and deterministic golden-data verification live
+under `tests/cpp_parity_live/`. See [CODEBASE.md](docs/CODEBASE.md) for the
+current test tiers and maintenance guidance.
 
 ## License
 
-MIT. See [LICENSE](LICENSE) when added to this repository.
+PyFOFEM source is licensed under the [MIT License](LICENSE).
+
+The pinned FOFEM reference snapshot and bundled reference materials may be
+subject to separate provenance and redistribution terms.
