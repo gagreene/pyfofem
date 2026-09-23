@@ -1,2 +1,0 @@
-case_id,mode,schema_version,outcome,prob,mort_equ,ret,err_text,input_sha256
-c1,mortality,2,ok,0.976129,20,1,,dea2862b5dc2f8348e9a35471138e4899b031a2540361a3887af26c437d35d78

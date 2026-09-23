@@ -157,7 +157,7 @@ PHASE2_CANONICAL_ROUTE_KEYS: Dict[str, Tuple[str, ...]] = {
 
 #: Subset of the canonical routes whose known divergence actually applies
 #: to the canonical Phase 2 input.  This separate, explicit mapping keeps
-#: conditional findings such as consume's Northeast case-6 F-23 and the
+#: conditional findings such as consume's Northeast case-6 duff-routing and the
 #: Pine-Flatwoods herb route from being falsely attributed to the canonical
 #: Interior-West rows merely because those findings share output columns.
 PHASE2_CANONICAL_DIVERGENCE_KEYS: Dict[str, Tuple[str, ...]] = {

@@ -221,8 +221,8 @@ def test_ensure_cpp_repo_refresh_path_succeeds_under_forced_ownership_mistrust(m
 
 def test_generator_driver_suite_passes_under_forced_ownership_mistrust():
     """
-    The REAL Phase 7 generator-driver suite
-    (``test_generate_phase7_goldens.py``, which exercises
+    The REAL burnup_extended (formerly Phase 7) cases of the consolidated
+    generator-driver suite (``test_generate_goldens.py``, which exercises
     ``generate_all()`` -> ``ensure_built()`` ->
     ``tests/prepare_cpp_reference.py`` as a real subprocess, then
     ``check_pinned_sha()``/``git_dirty_status()`` in
@@ -230,7 +230,11 @@ def test_generator_driver_suite_passes_under_forced_ownership_mistrust():
     mistrust - not a mocked helper test, the actual module, spawned as a
     real subprocess so the hostile environment propagates through the
     full ``ensure_built()`` -> ``prepare_cpp_reference.py`` -> git chain
-    exactly as it would in a genuinely untrusted checkout.
+    exactly as it would in a genuinely untrusted checkout. Filtered to the
+    ``burnup_extended`` dataset parametrization (not the whole, now
+    dataset-parametrized module) to keep this specifically about the
+    fail-closed-on-missing-toolchain path Phase 7 established, at the
+    original module's runtime cost.
     """
     with scratch_tempdir("prepare_cpp_reference_git_ownership", prefix="generator-suite") as base:
         blank_global, blank_system = _write_blank_configs(base)
@@ -238,7 +242,8 @@ def test_generator_driver_suite_passes_under_forced_ownership_mistrust():
         result = run_bounded(
             [
                 sys.executable, "-m", "pytest",
-                "tests/cpp_parity_live/test_generate_phase7_goldens.py", "-q",
+                "tests/cpp_parity_live/test_generate_goldens.py",
+                "-k", "burnup_extended", "-q",
             ],
             timeout=_GENERATOR_SUITE_TIMEOUT_S, cwd=PROJECT_ROOT, env=env,
         )

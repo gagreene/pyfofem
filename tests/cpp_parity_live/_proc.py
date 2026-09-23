@@ -10,7 +10,7 @@ leave live descendants (cl.exe, link.exe, worker processes) behind after
 the timeout fires, since Windows has no SIGKILL-to-process-group
 equivalent by default. Every Phase 2 subprocess call
 (``_harness_support.py``, ``_golden_manifest.py``,
-``generate_phase2_goldens.py``, ``test_cpp_harness_contract.py``) goes
+``generate_canonical_goldens.py``, ``test_cpp_harness_contract.py``) goes
 through :func:`run_bounded` instead, which enumerates the descendants that
 exist at timeout and attempts to kill that snapshot plus the parent via
 ``psutil``. A process can race by spawning another descendant between the

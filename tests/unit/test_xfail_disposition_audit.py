@@ -55,12 +55,12 @@ _COLLECTOR_PLUGIN = Path(__file__).with_name("_xfail_audit_collector_plugin.py")
 #: remain the ultimate authority on the total xfail count.
 _AUDITED_TEST_FILES = [
     "tests/cpp_parity_live/test_compare_cpp_python.py",
-    "tests/unit/test_phase4_consumption_parity.py",
-    "tests/unit/test_phase4_emissions_parity.py",
-    "tests/unit/test_phase4_mortality_parity.py",
-    "tests/unit/test_phase4_tree_structure_parity.py",
-    "tests/unit/test_phase7_run_burnup_parity.py",
-    "tests/unit/test_phase8_unit_system_contract.py",
+    "tests/unit/cpp/test_consumption_parity.py",
+    "tests/unit/cpp/test_emissions_parity.py",
+    "tests/unit/cpp/test_mortality_parity.py",
+    "tests/unit/cpp/test_tree_structure_parity.py",
+    "tests/unit/cpp/test_burnup_extended_parity.py",
+    "tests/unit/test_unit_system_contract.py",
 ]
 
 

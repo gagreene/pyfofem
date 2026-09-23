@@ -1798,7 +1798,7 @@ def _soil_duff_row_with_burn_inputs(case_id, load, consumed, moist, dep_pre="2")
     duff_load_tac/duff_consumed_pct/duff_moist_pct, for the schema-v2
     ``duff_burn_*`` self-tests below (Campbell duff-forcing correction
     pass). A local variant of :func:`_soil_duff_row` -- not
-    ``_phase5_contract.phase5_duff_row`` -- because ``_phase5_contract.py``
+    ``_soil_campbell_contract.soil_campbell_duff_row`` -- because ``_soil_campbell_contract.py``
     itself imports ``SOIL_CAMPBELL_HEADER`` from THIS module, so importing
     it back here would be circular.
 

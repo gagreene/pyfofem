@@ -1,8 +1,8 @@
-tests/test_data/test_golden_output/phase2/** -text
-tests/test_data/test_golden_output/phase4/** -text
-tests/test_data/test_golden_output/phase5/** -text
-tests/test_data/test_golden_output/phase6/** -text
-tests/test_data/test_golden_output/phase7/** -text
+tests/test_data/test_golden_output/canonical/** -text
+tests/test_data/test_golden_output/expanded_matrix/** -text
+tests/test_data/test_golden_output/soil_campbell/** -text
+tests/test_data/test_golden_output/emissions_equivalence/** -text
+tests/test_data/test_golden_output/burnup_extended/** -text
 src/pyfofem/supporting_data/fofem_bark_thickness.csv text eol=lf
 
 # Instrumented diagnostic copies preserve the original source formatting so

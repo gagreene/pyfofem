@@ -92,8 +92,8 @@ jobs:
         run: |
           .ci-wheel-venv\Scripts\python tests\run_unified_tests.py --suite core --installed-only
           .ci-wheel-venv\Scripts\python tests\run_unified_tests.py --suite full --installed-only
-      - run: python tests/cpp_parity_live/generate_phase2_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_phase4_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_phase5_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_phase6_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_phase7_goldens.py --verify-only
+      - run: python tests/cpp_parity_live/generate_canonical_goldens.py --verify-only
+      - run: python tests/cpp_parity_live/generate_expanded_matrix_goldens.py --verify-only
+      - run: python tests/cpp_parity_live/generate_soil_campbell_goldens.py --verify-only
+      - run: python tests/cpp_parity_live/generate_emissions_equivalence_goldens.py --verify-only
+      - run: python tests/cpp_parity_live/generate_burnup_extended_goldens.py --verify-only

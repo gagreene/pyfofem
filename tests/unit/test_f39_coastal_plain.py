@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-test_f39_coastal_plain.py - implementation of F-39's Coastal Plain
+test_f39_coastal_plain.py - implementation of the Coastal Plain
 sub-finding: ``consm_litter()``/``consm_duff()``/``consm_mineral_soil()``
 gained a real Coastal Plain (``cvr_grp`` ``'CP'``/``'CoastPlain'``, a
 SouthEast COVER GROUP, not a region) forest-floor route, matching the
@@ -23,12 +23,12 @@ Test classes (per this repo's established convention):
   Consumed=2.5 -> 50% litter, no duff").
 - **(c) manifested executable C++ parity**: the ``consume``-mode
   ``se-cp-entire-m050`` golden scenario (already committed under
-  ``tests/test_data/test_golden_output/phase4/consume/`` since the
+  ``tests/test_data/test_golden_output/expanded_matrix/consume/`` since the
   original Gate 0 executed-oracle pass -- no new golden generation was
   needed for this pass) already carries a real ``cvr_grp='CoastPlain'``
   row with nonzero litter/duff/depth/moisture, discriminating Coastal
   Plain from both Pocosin and ordinary SouthEast. See
-  ``test_phase4_consumption_parity.py::test_consume_coastal_plain_litter_matches_cpp``
+  ``test_consumption_parity.py (tests/unit/cpp/)::test_consume_coastal_plain_litter_matches_cpp``
   for the direct golden-row comparison this module does not duplicate;
   this module's own (c) tests re-derive the same golden row's inputs to
   additionally prove depth/MSE/equation-ID agreement in one place.
@@ -48,7 +48,7 @@ from pyfofem.components.consumption_calcs import (
     consm_mineral_soil,
 )
 from pyfofem.pyfofem import run_fofem_emissions
-from tests.cpp_parity_live._phase4_contract import (
+from tests.cpp_parity_live._expanded_matrix_contract import (
     CONSUME_INDEX,
     CONSUME_SCENARIOS,
     golden_rows_by_case,

@@ -64,10 +64,11 @@ CORE_TESTS: List[str] = [
     "tests/unit/test_tree_flame_source_relations.py",
     "tests/unit/test_utility_contracts.py",
     # Phase 4: Tier-2 consumption/mortality/tree-structure/emissions parity
-    # against the PRE-GENERATED, committed Phase 4 golden dataset. These
-    # read committed CSVs and never build or invoke C++, so they are CORE -
-    # the same rule that puts the other golden-CSV-driven modules here.
-    "tests/unit/test_phase4_consumption_parity.py",
+    # against the PRE-GENERATED, committed expanded_matrix golden dataset.
+    # These read committed CSVs and never build or invoke C++, so they are
+    # CORE - the same rule that puts the other golden-CSV-driven modules
+    # here.
+    "tests/unit/cpp/test_consumption_parity.py",
     "tests/unit/test_bark_thickness_contract.py",
     # CON-01/CON-02 post-suite correction: consm_shrub() Eq 16/234 four-term
     # f_WPRE fix and zero-load NaN fix. Reads the committed Phase 4 consume
@@ -80,56 +81,56 @@ CORE_TESTS: List[str] = [
     # no live C++ build needed at test-run time, same rule as the
     # golden-CSV-driven modules above.
     "tests/unit/test_f39_coastal_plain.py",
-    "tests/unit/test_phase4_emissions_parity.py",
+    "tests/unit/cpp/test_emissions_parity.py",
     # Phase 6 investigation A: default-emissions-equivalence full-pipeline
-    # comparison (F-54) against the committed Phase 6 consume golden. Reads
-    # committed CSVs only - no live C++ build needed at test-run time,
-    # exactly like the Phase 4/5 golden-driven modules above/below.
-    "tests/unit/test_phase6_default_emissions_equivalence.py",
+    # comparison (F-54) against the committed emissions_equivalence consume
+    # golden. Reads committed CSVs only - no live C++ build needed at
+    # test-run time, exactly like the other golden-driven modules
+    # above/below.
+    "tests/unit/cpp/test_default_emissions_equivalence.py",
     # Phase 7 item E: additional run_burnup()/burnup() scientific-parity
     # comparison (rotten/sound-mix, calm-wind, hot-ambient, long-residence
-    # -time) against the committed Phase 7 consume golden. Reads
+    # -time) against the committed burnup_extended consume golden. Reads
     # committed CSVs only - no live C++ build needed at test-run time,
-    # exactly like the Phase 4/6 golden-driven modules above.
-    "tests/unit/test_phase7_run_burnup_parity.py",
-    # Phase 7 item E: fail-closed golden-tree completeness plus
-    # git-trackability proof for the Phase 7 dataset, mirroring
-    # test_phase4/5/6_golden_tracking.py's state-independent contract.
-    # Filesystem/git-plumbing only - no live C++ build.
-    "tests/unit/test_phase7_golden_tracking.py",
+    # exactly like the other golden-driven modules above.
+    "tests/unit/cpp/test_burnup_extended_parity.py",
+    # Merged (test-suite renaming plan, Slice 3) from the four near-
+    # identical test_phase{4,5,6,7}_golden_tracking.py modules: fail-closed
+    # golden-tree completeness plus git-trackability proof, parametrized
+    # over every scenario-matrix dataset (expanded_matrix, soil_campbell,
+    # emissions_equivalence, burnup_extended). Filesystem/git-plumbing
+    # only - no live C++ build.
+    "tests/unit/cpp/test_golden_tracking.py",
     # Phase 7 correction pass item 4: repository-local scratch-directory
     # contract tests (_scratch.py) - filesystem-only, no live C++ build.
-    "tests/unit/test_phase7_scratch.py",
+    "tests/unit/cpp/test_repo_local_scratch.py",
     # Phase 7 correction pass item 6: AST-based meta-test proving the
-    # complete Phase 7 file surface contains no imperative pytest.skip()
-    # calls and no skip/skipif markers. Pure source-file static analysis.
-    "tests/unit/test_phase7_contract_hygiene.py",
-    "tests/unit/test_phase4_mortality_parity.py",
-    "tests/unit/test_phase4_tree_structure_parity.py",
-    # Phase 4 correction pass: AST-based meta-test that no Phase 4 test
-    # module contains an imperative pytest.xfail() call and every
+    # complete burnup_extended-era file surface contains no imperative
+    # pytest.skip() calls and no skip/skipif markers. Pure source-file
+    # static analysis.
+    "tests/unit/cpp/test_burnup_extended_skip_hygiene.py",
+    "tests/unit/cpp/test_mortality_parity.py",
+    "tests/unit/cpp/test_tree_structure_parity.py",
+    # Phase 4 correction pass: AST-based meta-test that no expanded_matrix
+    # test module contains an imperative pytest.xfail() call and every
     # pytest.mark.xfail(...) marker is strict=True. Pure source-file
     # static analysis - no live C++ build, no golden data read.
-    "tests/unit/test_phase4_contract_hygiene.py",
-    # Phase 4 correction pass: fail-closed golden-tree completeness plus
-    # git-trackability proof (check-ignore, dry-run add, stale/extra file
-    # audit). Filesystem/git-plumbing only - no live C++ build.
-    "tests/unit/test_phase4_golden_tracking.py",
-    # Phase 5: explicit dataset-mode-ownership guard proving Phase 2/Phase 4
-    # own exactly the six original modes and Phase 5 owns exactly
-    # soil_campbell. Static membership + source-scan only - no live C++
-    # build, no golden data read.
-    "tests/unit/test_phase5_dataset_ownership.py",
+    "tests/unit/cpp/test_expanded_matrix_xfail_hygiene.py",
+    # Phase 5: explicit dataset-mode-ownership guard proving canonical/
+    # expanded_matrix own exactly the six original modes and soil_campbell
+    # owns exactly soil_campbell. Static membership + source-scan only - no
+    # live C++ build, no golden data read.
+    "tests/unit/cpp/test_dataset_ownership.py",
     # Phase 5 Part 3: soil_heat_campbell Python contract + source-relation
     # coverage (class (a)/(b) only - class (c) lives in the sibling
     # characterization module below, per F-52). Pure Python/SciPy, no live
     # C++ build, no golden data read.
-    "tests/unit/test_phase5_soil_campbell_contract.py",
+    "tests/unit/cpp/test_soil_campbell_contract.py",
     # Phase 5 Part 3 scientific-triage pass (F-52): class (c)
     # cross-implementation CHARACTERIZATION (not parity) for
-    # soil_heat_campbell against the committed Phase 5 golden - reads
+    # soil_heat_campbell against the committed soil_campbell golden - reads
     # committed golden CSVs, no live C++ build.
-    "tests/unit/test_phase5_soil_campbell_characterization.py",
+    "tests/unit/cpp/test_soil_campbell_characterization.py",
     # Campbell duff-forcing correction pass (F-69/F-53): class (a) Python
     # contract/source-relation coverage for the new _duff_burn_rate/
     # _duff_heat_fraction/_duff_burn_profile helpers, plus one class (c)
@@ -137,22 +138,16 @@ CORE_TESTS: List[str] = [
     # directly, monkeypatch-reconstructed pre-correction comparison, no
     # C++ golden/tolerance touched). Pure Python/SciPy, no live C++ build.
     "tests/unit/test_duff_forcing_correction.py",
-    # Phase 5 Part 3: fail-closed completeness + git-trackability coverage
-    # for the committed Phase 5 golden tree, mirroring
-    # test_phase4_golden_tracking.py's state-independent contract.
-    # Filesystem/git-plumbing only - no live C++ build.
-    "tests/unit/test_phase5_golden_tracking.py",
-    # Phase 6 investigation A: completeness + git-trackability coverage for
-    # the committed Phase 6 golden tree, mirroring test_phase4/5_golden_
-    # tracking.py's state-independent contract. Filesystem/git-plumbing
-    # only - no live C++ build.
-    "tests/unit/test_phase6_golden_tracking.py",
+    # (soil_campbell's and emissions_equivalence's own fail-closed
+    # completeness + git-trackability coverage now live in the merged
+    # tests/unit/cpp/test_golden_tracking.py entry above - see the
+    # test-suite renaming plan, Slice 3.)
     # Phase 5 correction pass (item-3): AST-based guard preventing
-    # test_phase5_soil_campbell_characterization.py from regressing to a
+    # test_soil_campbell_characterization.py from regressing to a
     # raw hardcoded pytest.approx()/sanity-envelope tolerance literal
-    # instead of the two named constants in _phase5_contract.py. Pure
+    # instead of the two named constants in _soil_campbell_contract.py. Pure
     # source-file static analysis - no live C++ build, no golden data read.
-    "tests/unit/test_phase5_contract_hygiene.py",
+    "tests/unit/cpp/test_soil_campbell_tolerance_hygiene.py",
     # Phase 6 investigation B: comprehensive Python contract/source-relation
     # coverage for soil_heat_massman() (Massman HMV, simplified). No C++
     # build, no golden data here - the pinned FOF_DLL solver DOES build/
@@ -197,26 +192,26 @@ CORE_TESTS: List[str] = [
     # Phase 8 item A: mixed-validity array isolation (burnup per-cell
     # error isolation at the array level, plus mortality unsupported-
     # species non-contamination). Pure Python, no live C++ build.
-    "tests/unit/test_phase8_array_isolation.py",
+    "tests/unit/test_array_isolation.py",
     # Phase 8 item B: serial (num_workers=1) vs parallel (num_workers>1,
     # ProcessPoolExecutor) equivalence for run_fofem_emissions(). Pure
     # Python/multiprocessing, no live C++ build.
-    "tests/unit/test_phase8_serial_parallel_equivalence.py",
+    "tests/unit/test_serial_parallel_equivalence.py",
     # Phase 8 item C: run_fofem_mortality() facade integration coverage
     # (previously zero test coverage at any level). Pure Python, no live
     # C++ build.
-    "tests/unit/test_phase8_mortality_facade.py",
+    "tests/unit/test_mortality_facade.py",
     # Phase 8 item D: moisture-regime integration matrix through
     # run_fofem_emissions()/consm_duff(). Pure Python, no live C++ build.
-    "tests/unit/test_phase8_moisture_regime_integration.py",
+    "tests/unit/test_moisture_regime_integration.py",
     # Phase 8 item E: SI/Imperial unit-system contract matrix. Pure
     # Python, no live C++ build.
-    "tests/unit/test_phase8_unit_system_contract.py",
+    "tests/unit/test_unit_system_contract.py",
     # Phase 8 item F: runner/discovery completeness - proves every test
     # module is assigned to CORE or FULL exactly once and plain-pytest
     # discovery matches this file's own registration. Pure Python
     # introspection of this very module, no live C++ build.
-    "tests/unit/test_phase8_runner_completeness.py",
+    "tests/unit/test_runner_completeness.py",
     # Phase 8 item G: operational hardening (deterministic repeats,
     # warning behavior, bounded runtime, child-process/scratch/file-
     # handle cleanup, order independence, hostile-git-ownership support
@@ -227,7 +222,7 @@ CORE_TESTS: List[str] = [
     # (they need the live build, which would break CORE's no-toolchain
     # guarantee; the existing FULL_EXTRA_TESTS generator-driver modules
     # already cover them as pytest nodes).
-    "tests/unit/test_phase8_operational_hardening.py",
+    "tests/unit/test_operational_hardening.py",
     # 2026-09-18 xfail-disposition audit: meta-test guaranteeing
     # development/plans/gate0/08-xfail-disposition.csv exactly covers
     # the suite's currently-collected xfail nodes. Spawns its own bounded
@@ -250,30 +245,19 @@ FULL_EXTRA_TESTS: List[str] = [
     # Phase 2: builds and drives the live fofem_test C++ harness binary
     # directly (MSVC/CMake/Ninja required) — not a golden-CSV comparison.
     "tests/cpp_parity_live/test_cpp_harness_contract.py",
-    # Phase 2: driver tests for the golden generator/promoter (wrong SHA,
-    # qualification failure, harness failure, staleness, corruption,
-    # manifest mismatch, determinism) — also needs the live build.
-    "tests/cpp_parity_live/test_generate_phase2_goldens.py",
-    # Phase 4: driver tests for the Phase 4 golden generator (pinned-SHA
-    # gate, determinism, corrupted/missing/extra/mismatched committed files,
-    # dataset field, and proof the Phase 2 tree is never touched). Needs the
-    # live build.
-    "tests/cpp_parity_live/test_generate_phase4_goldens.py",
-    # Phase 5 Part 3: driver tests for the Phase 5 soil_campbell golden
-    # generator (pinned-SHA gate, determinism, corrupted/missing/extra/
-    # mismatched committed files, dataset field, and proof the Phase 2/
-    # Phase 4 trees are never touched). Needs the live build.
-    "tests/cpp_parity_live/test_generate_phase5_goldens.py",
-    # Phase 6 investigation A: driver tests for the default-emissions-
-    # equivalence consume golden generator (pinned-SHA gate, determinism,
-    # corrupted/missing/extra/mismatched committed files, dataset field, and
-    # proof the Phase 2/4/5 trees are never touched). Needs the live build.
-    "tests/cpp_parity_live/test_generate_phase6_goldens.py",
-    # Phase 7 item E: driver tests for the additional run_burnup golden
-    # generator (pinned-SHA gate, determinism, corrupted/missing/extra/
-    # mismatched committed files, dataset field, and proof the Phase 2/4/
-    # 5/6 trees are never touched). Needs the live build.
-    "tests/cpp_parity_live/test_generate_phase7_goldens.py",
+    # Canonical (Phase 2): driver tests for the golden generator/promoter
+    # (wrong SHA, qualification failure, harness failure, staleness,
+    # corruption, manifest mismatch, determinism) — also needs the live
+    # build.
+    "tests/cpp_parity_live/test_generate_canonical_goldens.py",
+    # Consolidated (test-suite renaming plan, Slice 1) driver tests for the
+    # four scenario-matrix golden generators (expanded_matrix, soil_campbell,
+    # emissions_equivalence, burnup_extended — formerly Phase 4/5/6/7):
+    # pinned-SHA gate, determinism, corrupted/missing/extra/mismatched
+    # committed files, dataset field, and proof each dataset never touches
+    # any sibling dataset's tree. Needs the live build; burnup_extended's
+    # own cases within it fail closed (never skip) on a missing toolchain.
+    "tests/cpp_parity_live/test_generate_goldens.py",
     # Phase 7 narrow correction pass item 1: proves every Git invocation in
     # tests/prepare_cpp_reference.py (clone, refresh fetch/checkout/reset,
     # _print_status()'s rev-parse) succeeds under Git's dubious-ownership
@@ -304,7 +288,7 @@ CI_SMOKE_TESTS: List[str] = [
     "tests/unit/test_utility_contracts.py",
     "tests/integration/test_run_fofem_emissions.py",
     "tests/unit/test_2d_input_regression.py",
-    "tests/unit/test_phase8_unit_system_contract.py",
+    "tests/unit/test_unit_system_contract.py",
 ]
 
 #: Environment variable set on the pytest subprocess when ``--installed-only``

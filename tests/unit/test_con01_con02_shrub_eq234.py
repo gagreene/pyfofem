@@ -37,7 +37,7 @@ Test classes (per this repo's established convention):
   harness without a harness schema change, which is out of scope for this
   pass. The zero-``dw10``/``dw1`` case (every existing golden row) IS
   harness-verified: see
-  ``test_phase4_consumption_parity.py::test_shrub_herb_shrub_percent_matches_cpp``,
+  ``test_consumption_parity.py (tests/unit/cpp/)::test_shrub_herb_shrub_percent_matches_cpp``,
   unchanged and still passing after this fix, since 0 + 0 added to the old
   2-term sum reproduces it exactly.
 - **(c) manifested executable C++ parity**: the ``consume``-mode
@@ -45,8 +45,8 @@ Test classes (per this repo's established convention):
   ``dw10_tac``/``dw1_tac`` (0.5 each, per the shared Phase 2 canonical base
   row this scenario inherits), so it genuinely discriminates the CON-02 fix
   through the real, compiled C++ pipeline. This is not routed through the
-  ``consume_p4`` tolerance-policy registry (``PHASE4_ROUTE_KEYS``/
-  ``phase4_policy_keys``): that registry's own pre-existing ``shrub`` route
+  ``consume_expanded_matrix`` tolerance-policy registry (``EXPANDED_MATRIX_ROUTE_KEYS``/
+  ``expanded_matrix_policy_keys``): that registry's own pre-existing ``shrub`` route
   is deliberately ``"status": "unverified"`` because the golden's ``ShrCon``
   is a LOAD while ``consm_shrub`` returns a PERCENT, and converting between
   them in general requires re-deriving C++'s own clamp order
@@ -55,7 +55,7 @@ Test classes (per this repo's established convention):
   specific check (this exact case's load never reaches that clamp, since
   ``ShrCon (0.910408) < ShrPre (1.0)``, confirmed by direct inspection of the
   golden row before writing the assertion) and does not generalize that
-  "unverified" status to a "verified" one - the ``consume_p4.shrub`` policy
+  "unverified" status to a "verified" one - the ``consume_expanded_matrix.shrub`` policy
   entry is intentionally left unchanged.
 """
 from __future__ import annotations
@@ -65,11 +65,11 @@ import pytest
 
 from pyfofem.components.consumption_calcs import consm_shrub
 from pyfofem.components.emission_pipeline import compute_pre_burnup_consumption
-from tests.cpp_parity_live._phase4_contract import (
+from tests.cpp_parity_live._expanded_matrix_contract import (
     CONSUME_INDEX,
     CONSUME_SCENARIOS,
     golden_rows_by_case,
-    phase4_tolerance,
+    expanded_matrix_tolerance,
     require_golden_tree,
 )
 from tests.cpp_parity_live.test_cpp_harness_contract import MODES
@@ -81,9 +81,9 @@ require_golden_tree()
 
 ATOL = 1e-9
 #: Reused, not fabricated: the same atol Phase 4's own
-#: ``shrub_herb_eq_p4.shrub`` route already applies to a Calc_Shrub-derived
+#: ``shrub_herb_eq_expanded_matrix.shrub`` route already applies to a Calc_Shrub-derived
 #: percent (test_phase4_consumption_parity.ATOL_SHRUB_PERCENT).
-ATOL_SHRUB_PERCENT = phase4_tolerance("shrub_herb_eq", "shrub")[0]
+ATOL_SHRUB_PERCENT = expanded_matrix_tolerance("shrub_herb_eq", "shrub")[0]
 
 
 def _consume_input_value(overrides, column):

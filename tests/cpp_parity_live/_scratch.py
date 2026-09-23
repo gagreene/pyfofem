@@ -20,14 +20,14 @@ is affected by this file's existence.
 **Phase 7 correction pass (2026-09-07), item 4**: :func:`scratch_tempdir`
 previously called ``shutil.rmtree(path, ignore_errors=True)``, silently
 accepting a cleanup failure (a real, reviewer-observed consequence: nine
-empty leftover directories were found under :data:`PHASE7_SCRATCH_ROOT`
+empty leftover directories were found under :data:`SCRATCH_ROOT`
 after a focused run). Cleanup is now fail-closed - a real deletion
 failure raises, chained (via ``raise ... from``, which also preserves
 any exception still propagating from the ``with`` block as
 ``__context__``) so BOTH causes remain visible, never one silently
 dropped - and successful cleanup now also prunes empty caller
 subdirectories and their ancestors, stopping strictly before (never
-removing) :data:`PHASE7_SCRATCH_ROOT` itself, using ``os.rmdir`` (which
+removing) :data:`SCRATCH_ROOT` itself, using ``os.rmdir`` (which
 only succeeds on a genuinely empty directory) so a directory another
 concurrent or nested scratch context still owns is left untouched - the
 OS's own atomicity is the single source of truth on "still in use",
@@ -62,7 +62,7 @@ from tests._support import PROJECT_ROOT, TESTS_DIR
 
 #: Root of every Phase 7 scratch directory - a single, gitignored
 #: directory tree under ``tests/``, never the system/user temp directory.
-PHASE7_SCRATCH_ROOT: str = os.path.join(TESTS_DIR, ".phase7_scratch")
+SCRATCH_ROOT: str = os.path.join(TESTS_DIR, ".test_scratch")
 
 
 def _is_link_like(entry: str) -> bool:
@@ -209,7 +209,7 @@ def _prune_empty_ancestors(start_dir: str) -> None:
     """
     Starting at *start_dir*, remove it and each successive empty parent
     directory, stopping strictly before (never removing)
-    :data:`PHASE7_SCRATCH_ROOT` itself.
+    :data:`SCRATCH_ROOT` itself.
 
     Best-effort and race-safe by construction: each removal uses
     ``os.rmdir``, which only succeeds on a genuinely empty directory, so
@@ -224,7 +224,7 @@ def _prune_empty_ancestors(start_dir: str) -> None:
     :param start_dir: Directory to start pruning from (ordinarily the
         parent of a just-removed :func:`tempfile.mkdtemp` directory).
     """
-    root_real = _resolved(PHASE7_SCRATCH_ROOT)
+    root_real = _resolved(SCRATCH_ROOT)
     current = _resolved(start_dir)
     while current != root_real and current.startswith(root_real + os.sep):
         verify_under_project_root(current)
@@ -248,15 +248,15 @@ def _resolved(path: str) -> str:
 def scratch_root(*subdirs: str) -> str:
     """
     Return (creating if needed) a Phase 7 scratch directory under
-    :data:`PHASE7_SCRATCH_ROOT`, verified to resolve under
+    :data:`SCRATCH_ROOT`, verified to resolve under
     :data:`~tests._support.PROJECT_ROOT` before creation.
 
-    :param subdirs: Path segments appended to :data:`PHASE7_SCRATCH_ROOT`.
+    :param subdirs: Path segments appended to :data:`SCRATCH_ROOT`.
     :return: The resolved, existing directory path.
     :raises RuntimeError: If the resolved path is not under
         :data:`~tests._support.PROJECT_ROOT`.
     """
-    path = os.path.join(PHASE7_SCRATCH_ROOT, *subdirs)
+    path = os.path.join(SCRATCH_ROOT, *subdirs)
     verify_under_project_root(path)
     os.makedirs(path, exist_ok=True)
     return path
@@ -286,10 +286,10 @@ def scratch_tempdir(*subdirs: str, prefix: str = "tmp") -> Iterator[str]:
     neither cause is silently dropped) instead of being swallowed. On a
     successful removal, empty caller subdirectories are also pruned via
     :func:`_prune_empty_ancestors`, stopping strictly before
-    :data:`PHASE7_SCRATCH_ROOT` itself, so a directory a concurrent or
+    :data:`SCRATCH_ROOT` itself, so a directory a concurrent or
     nested :func:`scratch_tempdir` call still owns is never touched.
 
-    :param subdirs: Path segments appended to :data:`PHASE7_SCRATCH_ROOT`
+    :param subdirs: Path segments appended to :data:`SCRATCH_ROOT`
         to select this caller's own scratch subtree (e.g.
         ``"generate"``, ``"pytest-tmp"``, ``"git-env"``).
     :param prefix: Prefix for the unique directory name

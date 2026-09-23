@@ -4,7 +4,7 @@
 test_burnup_duff_smolder_continuation.py - F-62 partial-resolution
 regression coverage (gate0/04-findings.md F-62; the ``hot-amb-duff``/
 ``SmoDur`` combination of
-``tests/unit/test_phase7_run_burnup_parity.py::
+``tests/unit/cpp/test_burnup_extended_parity.py::
 test_flame_smolder_split_should_match_cpp_for_the_affected_scenarios``).
 
 **Assertion class:** (b) source-relation regression. This is a

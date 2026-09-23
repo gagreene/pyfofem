@@ -4,14 +4,16 @@
 _golden_manifest.py - Provenance manifest builder/validator for the
 C++-oracle golden datasets.
 
-Two datasets exist (see :data:`VALID_DATASETS`): ``phase2``, the frozen
-canonical one-row-per-mode dataset, and ``phase4``, the Tier-2 scenario
-matrix. Both use the same six qualified harness modes, the same manifest
-schema, and the same fail-closed checks; they differ only in which
-tolerance-policy routes and generator-source files they cite. A manifest
-with no ``dataset`` field is a ``phase2`` manifest — that field was added by
-Phase 4 and is deliberately omitted for ``phase2`` so the already-committed
-Phase 2 manifests remain byte-identical.
+Five datasets exist (see :data:`VALID_DATASETS`): ``canonical``, the frozen
+one-row-per-mode dataset, ``expanded_matrix``, the Tier-2 scenario matrix,
+``soil_campbell``, ``emissions_equivalence``, and ``burnup_extended``.
+``canonical``/``expanded_matrix`` use the same six qualified harness modes,
+the same manifest schema, and the same fail-closed checks; they differ only
+in which tolerance-policy routes and generator-source files they cite. A
+manifest with no ``dataset`` field is a ``canonical`` manifest — that field
+was added by the ``expanded_matrix`` dataset (Phase 4) and is deliberately
+omitted for ``canonical`` so the already-committed canonical manifests
+remain byte-identical.
 
 Every accepted golden dataset carries a manifest recording: the pinned
 upstream C++ SHA (checked against a hardcoded constant, not merely
@@ -88,46 +90,55 @@ REQUIRED_OVERLAY_FILES = frozenset({
 })
 
 #: Dataset a manifest belongs to when it carries no ``dataset`` field. The
-#: committed Phase 2 manifests predate the field and must stay byte-identical,
-#: so their dataset is inferred rather than recorded (Phase 4 addition).
-DEFAULT_DATASET = "phase2"
+#: committed canonical manifests predate the field and must stay
+#: byte-identical, so their dataset is inferred rather than recorded
+#: (``expanded_matrix``/Phase 4 addition).
+DEFAULT_DATASET = "canonical"
 
 #: Every golden dataset this module knows how to build/validate a manifest
-#: for. ``phase2`` is the frozen canonical single-row-per-mode dataset;
-#: ``phase4`` is the Tier-2 scenario-matrix dataset (see
-#: ``_phase4_contract.py``), reusing the same six qualified harness modes;
-#: ``phase5`` is the ``soil_campbell`` scenario-matrix dataset (see
-#: ``_phase5_contract.py``) — the one dataset with its own harness mode
-#: rather than reusing the Phase 2 six; ``phase6`` is the Phase 6
-#: investigation-A default-emissions-equivalence dataset (see
-#: ``_phase6_contract.py``) — reuses the already-qualified ``consume`` mode
-#: unchanged, exactly like Phase 4; ``phase7`` is the Phase 7 item E
-#: additional-``run_burnup``-scenarios dataset (see ``_phase7_contract.py``)
+#: for. ``canonical`` is the frozen single-row-per-mode dataset;
+#: ``expanded_matrix`` is the Tier-2 scenario-matrix dataset (see
+#: ``_expanded_matrix_contract.py``), reusing the same six qualified harness
+#: modes; ``soil_campbell`` is the ``soil_campbell`` scenario-matrix dataset
+#: (see ``_soil_campbell_contract.py``) — the one dataset with its own
+#: harness mode rather than reusing the canonical six; ``emissions_
+#: equivalence`` is the Phase 6 investigation-A default-emissions-
+#: equivalence dataset (see ``_emissions_equivalence_contract.py``) — reuses
+#: the already-qualified ``consume`` mode unchanged, exactly like
+#: ``expanded_matrix``; ``burnup_extended`` is the Phase 7 item E
+#: additional-``run_burnup``-scenarios dataset (see
+#: ``_burnup_extended_contract.py``)
 #: — also reuses the already-qualified ``consume`` mode unchanged, exactly
-#: like Phase 4/6.
-VALID_DATASETS = frozenset({"phase2", "phase4", "phase5", "phase6", "phase7"})
+#: like ``expanded_matrix``/``emissions_equivalence``.
+VALID_DATASETS = frozenset({
+    "canonical", "expanded_matrix", "soil_campbell", "emissions_equivalence",
+    "burnup_extended",
+})
 
 #: Human-readable label per dataset, used in error text only. Kept
-#: separate from the dataset key so the Phase 2 wording that existing
-#: approved tests assert on ("canonical Phase 2 scenario contract")
-#: stays byte-stable while Phase 4/5/6/7 get their own labels.
+#: separate from the dataset key so the "Phase 2" wording that existing
+#: approved tests assert on ("canonical Phase 2 scenario contract" — the
+#: word "canonical" there comes from the surrounding message template, not
+#: this label) stays byte-stable regardless of the dataset key rename.
 DATASET_LABELS = {
-    "phase2": "Phase 2", "phase4": "Phase 4", "phase5": "Phase 5",
-    "phase6": "Phase 6", "phase7": "Phase 7",
+    "canonical": "Phase 2", "expanded_matrix": "Phase 4",
+    "soil_campbell": "Phase 5", "emissions_equivalence": "Phase 6",
+    "burnup_extended": "Phase 7",
 }
 
 #: This module's own generation-time dependencies. Hashed into a manifest
 #: whenever the parent repo is dirty (uncommitted), since a dirty-tree
 #: generation cannot point at a stable commit for its own generator logic.
-#: This list is the ``phase2`` dataset's list and is deliberately FROZEN:
-#: the committed Phase 2 manifests cite it verbatim. Phase 4 declares its
-#: own, larger list (see :func:`generator_source_files_for_dataset`).
+#: This list is the ``canonical`` dataset's list and is deliberately FROZEN:
+#: the committed canonical manifests cite it verbatim. ``expanded_matrix``
+#: declares its own, larger list (see
+#: :func:`generator_source_files_for_dataset`).
 GENERATOR_SOURCE_FILES = [
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "_golden_manifest.py"),
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "_harness_support.py"),
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "_output_contract.py"),
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "_proc.py"),
-    os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "generate_phase2_goldens.py"),
+    os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "generate_canonical_goldens.py"),
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "test_cpp_harness_contract.py"),
     os.path.join(PROJECT_ROOT, "tests", "cpp_parity_live", "tolerance_policy.json"),
 ]
@@ -188,7 +199,7 @@ VALID_SCHEMA_VERSIONS = frozenset(MODE_SCHEMA_VERSIONS.values())
 
 #: Exact required output-file suffixes per mode for the ONE canonical
 #: all-ok scenario Phase 2 actually generates (see
-#: ``generate_phase2_goldens.GOLDEN_TOLERANCE_KEYS`` for the matching
+#: ``generate_canonical_goldens.GOLDEN_TOLERANCE_KEYS`` for the matching
 #: scenario list). ``""`` means a single primary file named
 #: ``<mode>.csv``; multiple entries are primary + secondary-fan-out (or,
 #: for canopy_cover, primary + secondary-scientific-aggregate +
@@ -371,9 +382,9 @@ def build_manifest(
         so manifests stay reproducible/testable without wall-clock
         dependence); production callers pass a real timestamp.
     :param dataset: Which golden dataset this manifest belongs to — one of
-        :data:`VALID_DATASETS`. ``"phase2"`` (the default) reproduces the
+        :data:`VALID_DATASETS`. ``"canonical"`` (the default) reproduces the
         original, frozen behaviour exactly and writes NO ``dataset`` field,
-        so the committed Phase 2 manifests stay byte-identical; any other
+        so the committed canonical manifests stay byte-identical; any other
         dataset records the field explicitly.
     :return: A manifest dict with every field in :data:`REQUIRED_FIELDS`
         populated.
@@ -451,29 +462,30 @@ def canonical_divergence_keys(dataset: str, mode: str) -> List[str]:
     Return the dotted policy keys whose divergence status *dataset*'s
     manifest for *mode* must document.
 
-    :param dataset: ``"phase2"`` or ``"phase4"``.
+    :param dataset: ``"canonical"`` or ``"expanded_matrix"``.
     :param mode: Harness mode name.
     :returns: Dotted ``<policy-section>.<route>`` keys, deterministically
         ordered.
     :raises KeyError: If *dataset* or *mode* has no contract.
     """
-    if dataset == "phase2":
+    if dataset == "canonical":
         return phase2_canonical_divergence_keys(mode)
-    if dataset == "phase4":
-        # Imported lazily: _phase4_contract imports the harness-contract
-        # module, which imports _harness_support, which imports THIS module.
-        from tests.cpp_parity_live._phase4_contract import phase4_divergence_keys
-        return phase4_divergence_keys(mode)
-    if dataset == "phase5":
-        # Imported lazily for the same reason as phase4 above.
-        from tests.cpp_parity_live._phase5_contract import phase5_divergence_keys
-        return phase5_divergence_keys(mode)
-    if dataset == "phase6":
-        from tests.cpp_parity_live._phase6_contract import phase6_divergence_keys
-        return phase6_divergence_keys(mode)
-    if dataset == "phase7":
-        from tests.cpp_parity_live._phase7_contract import phase7_divergence_keys
-        return phase7_divergence_keys(mode)
+    if dataset == "expanded_matrix":
+        # Imported lazily: _expanded_matrix_contract imports the
+        # harness-contract module, which imports _harness_support, which
+        # imports THIS module.
+        from tests.cpp_parity_live._expanded_matrix_contract import expanded_matrix_divergence_keys
+        return expanded_matrix_divergence_keys(mode)
+    if dataset == "soil_campbell":
+        # Imported lazily for the same reason as expanded_matrix above.
+        from tests.cpp_parity_live._soil_campbell_contract import soil_campbell_divergence_keys
+        return soil_campbell_divergence_keys(mode)
+    if dataset == "emissions_equivalence":
+        from tests.cpp_parity_live._emissions_equivalence_contract import emissions_equivalence_divergence_keys
+        return emissions_equivalence_divergence_keys(mode)
+    if dataset == "burnup_extended":
+        from tests.cpp_parity_live._burnup_extended_contract import burnup_extended_divergence_keys
+        return burnup_extended_divergence_keys(mode)
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 
 
@@ -482,39 +494,39 @@ def canonical_policy_keys(dataset: str, mode: str, policy: dict) -> List[str]:
     Return every tolerance-policy key applicable to *dataset*'s golden for
     *mode*.
 
-    :param dataset: ``"phase2"`` or ``"phase4"``.
+    :param dataset: ``"canonical"`` or ``"expanded_matrix"``.
     :param mode: Harness mode name.
     :param policy: Loaded tolerance-policy object.
     :returns: Dotted ``<policy-section>.<route>`` keys, deterministically
         ordered.
     :raises KeyError: If *dataset*, *mode*, or a configured route is absent.
     """
-    if dataset == "phase2":
+    if dataset == "canonical":
         return phase2_canonical_policy_keys(mode, policy)
-    if dataset == "phase4":
-        from tests.cpp_parity_live._phase4_contract import phase4_policy_keys
-        keys = phase4_policy_keys(mode)
+    if dataset == "expanded_matrix":
+        from tests.cpp_parity_live._expanded_matrix_contract import expanded_matrix_policy_keys
+        keys = expanded_matrix_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
         return keys
-    if dataset == "phase5":
-        from tests.cpp_parity_live._phase5_contract import phase5_policy_keys
-        keys = phase5_policy_keys(mode)
+    if dataset == "soil_campbell":
+        from tests.cpp_parity_live._soil_campbell_contract import soil_campbell_policy_keys
+        keys = soil_campbell_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
         return keys
-    if dataset == "phase6":
-        from tests.cpp_parity_live._phase6_contract import phase6_policy_keys
-        keys = phase6_policy_keys(mode)
+    if dataset == "emissions_equivalence":
+        from tests.cpp_parity_live._emissions_equivalence_contract import emissions_equivalence_policy_keys
+        keys = emissions_equivalence_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
         return keys
-    if dataset == "phase7":
-        from tests.cpp_parity_live._phase7_contract import phase7_policy_keys
-        keys = phase7_policy_keys(mode)
+    if dataset == "burnup_extended":
+        from tests.cpp_parity_live._burnup_extended_contract import burnup_extended_policy_keys
+        keys = burnup_extended_policy_keys(mode)
         for key in keys:
             section, _, route = key.partition(".")
             policy[section][route]
@@ -639,43 +651,44 @@ def generator_source_files_for_dataset(dataset: str) -> List[str]:
     """
     Return the absolute paths whose bytes determine *dataset*'s goldens.
 
-    :param dataset: ``"phase2"``, ``"phase4"``, or ``"phase5"``.
+    :param dataset: ``"canonical"``, ``"expanded_matrix"``, or
+        ``"soil_campbell"``.
     :returns: Absolute paths, in the dataset's declared order.
     :raises KeyError: If *dataset* is unknown.
     """
-    if dataset == "phase2":
+    if dataset == "canonical":
         return list(GENERATOR_SOURCE_FILES)
-    if dataset == "phase4":
-        from tests.cpp_parity_live._phase4_contract import (
+    if dataset == "expanded_matrix":
+        from tests.cpp_parity_live._expanded_matrix_contract import (
             GENERATOR_SOURCE_FILES_RELATIVE,
         )
         return [
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
             for rel in GENERATOR_SOURCE_FILES_RELATIVE
         ]
-    if dataset == "phase5":
-        from tests.cpp_parity_live._phase5_contract import (
-            GENERATOR_SOURCE_FILES_RELATIVE as _P5_FILES,
+    if dataset == "soil_campbell":
+        from tests.cpp_parity_live._soil_campbell_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE as _SOIL_CAMPBELL_FILES,
         )
         return [
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
-            for rel in _P5_FILES
+            for rel in _SOIL_CAMPBELL_FILES
         ]
-    if dataset == "phase6":
-        from tests.cpp_parity_live._phase6_contract import (
-            GENERATOR_SOURCE_FILES_RELATIVE as _P6_FILES,
+    if dataset == "emissions_equivalence":
+        from tests.cpp_parity_live._emissions_equivalence_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE as _EMISSIONS_EQUIVALENCE_FILES,
         )
         return [
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
-            for rel in _P6_FILES
+            for rel in _EMISSIONS_EQUIVALENCE_FILES
         ]
-    if dataset == "phase7":
-        from tests.cpp_parity_live._phase7_contract import (
-            GENERATOR_SOURCE_FILES_RELATIVE as _P7_FILES,
+    if dataset == "burnup_extended":
+        from tests.cpp_parity_live._burnup_extended_contract import (
+            GENERATOR_SOURCE_FILES_RELATIVE as _BURNUP_EXTENDED_FILES,
         )
         return [
             os.path.join(PROJECT_ROOT, rel.replace("/", os.sep))
-            for rel in _P7_FILES
+            for rel in _BURNUP_EXTENDED_FILES
         ]
     raise KeyError(f"unknown golden dataset: {dataset!r}")
 
@@ -769,7 +782,7 @@ def sha256_files_by_basename(paths: List[str]) -> Dict[str, str]:
     stable, portable identity, whereas :func:`to_repo_relative` would
     record a path that reaches outside the repo entirely whenever
     generation happens in a temporary directory before promotion (the
-    normal case here; see ``generate_phase2_goldens.py``).
+    normal case here; see ``generate_canonical_goldens.py``).
 
     :raises ValueError: If two of *paths* share a basename (the identity
         would be ambiguous).
@@ -822,7 +835,7 @@ def validate_manifest(
         :data:`~tests._support.PROJECT_ROOT` regardless of *golden_dir*).
 
     The dataset a manifest belongs to is read from its own ``dataset``
-    field (absent means ``"phase2"``), and every dataset-scoped contract —
+    field (absent means ``"canonical"``), and every dataset-scoped contract —
     the exact tolerance-policy key set, the derived expected-divergence
     list, and the exact ``generator_source_sha256`` key set — is resolved
     against THAT dataset. A manifest naming an unknown dataset is rejected

@@ -55,7 +55,7 @@ _EXPECTED_GENERATOR_SOURCE_REPO_RELATIVE = frozenset({
     "tests/cpp_parity_live/_harness_support.py",
     "tests/cpp_parity_live/_output_contract.py",
     "tests/cpp_parity_live/_proc.py",
-    "tests/cpp_parity_live/generate_phase2_goldens.py",
+    "tests/cpp_parity_live/generate_canonical_goldens.py",
     "tests/cpp_parity_live/test_cpp_harness_contract.py",
     "tests/cpp_parity_live/tolerance_policy.json",
 })
