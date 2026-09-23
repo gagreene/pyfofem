@@ -855,13 +855,12 @@ def burnup(
     dfi, tdf, duff_smolder_rate = _duff_burn(wdf, dfm, duff_pct_consumed)
     smoldering[number] = duff_smolder_rate
 
-    # F-62 completion/acceptance-recovery pass (2026-09-21, second pass):
-    # C++ tracks a running remaining-duff-MASS pool (`d_Duf_Tot`,
-    # initialised to `d_Duf_Sec * d_tdf` -- bur_brn.cpp:299 -- decremented
-    # every call to `Duff_CPTS()`, bur_brn.cpp:2017-2034, which subtracts
-    # `rate * elapsed` and CLAMPS at exactly zero, never negative) -- this
-    # is a DISCRETE, clamped depletion process, not a continuous
-    # time-vs-duration comparison. `duf_tot_mass` mirrors it exactly.
+    # C++ tracks a discrete remaining-duff-mass pool (`d_Duf_Tot`). It is
+    # initialized to `d_Duf_Sec * d_tdf` (bur_brn.cpp:299), then each
+    # `Duff_CPTS()` call subtracts `rate * elapsed` and clamps the pool at
+    # exactly zero (bur_brn.cpp:2017-2034). `duf_tot_mass` mirrors that
+    # clamped depletion process rather than comparing elapsed time to a
+    # continuous burn duration.
     duf_tot_mass = duff_smolder_rate * tdf
 
     # ------------------------------------------------------------------
@@ -942,31 +941,16 @@ def burnup(
     mask = tign < _RINDEF
     tign[mask] -= trt_min
 
-    # F-62 completion/acceptance-recovery pass (2026-09-21): C++'s own
-    # gd_Fudge1/gd_Fudge2 (bur_brn.cpp Start(), ~line 553-560) are a
-    # SINGLE pair of scratch slots, not one per fuel class: gd_Fudge1 is
-    # set only when kl==0 (always the litter/duff pair, unique), but
-    # gd_Fudge2 is set by the `else` branch on EVERY kl!=0 whose diameter
-    # reaches zero during the ignition pulse -- so by the time Start()
-    # finishes, gd_Fudge2 holds whichever kl (in increasing k,l order)
-    # was the LAST to fully consume, which is frequently a DIFFERENT
-    # fuel class than litter's own self-pair (kl==1). FireIntensity()'s
-    # own restoration (`if (gd_Fudge1!=0) wodot[0]=gd_Fudge1; ... if
-    # (gd_Fudge2!=0) wodot[1]=gd_Fudge2;`) then unconditionally writes
-    # that possibly-unrelated rate into litter's kl==1 slot specifically,
-    # once, on the first post-Start() call only (both fudges reset to 0
-    # immediately after use, matching C++ exactly). This is a real,
-    # C++-evidenced quirk of the pinned oracle -- verified directly via
-    # a dedicated live diagnostic build (bur_brn_instr.cpp) that dumped
-    # Start()'s own per-(k,l) wodot values and FireIntensity()'s
-    # first-call wdotk side by side. Previously (see the removed comment
-    # this replaces) Python instead left EVERY fully-consumed particle's
-    # OWN wodot non-zero at its OWN index, which is NOT the same effect:
-    # it credits litter's classification with its own full frontal-burn
-    # rate every time (rather than at most one, possibly-unrelated,
-    # carried-over rate), inflating wdotk/term for the very first
-    # FireIntensity() call and misclassifying litter (and sometimes
-    # other classes) as flaming when the pinned C++ classifies smolder.
+    # C++'s gd_Fudge1/gd_Fudge2 (bur_brn.cpp Start(), ~lines 553-560) are
+    # one pair of scratch slots, not per-fuel-class state. gd_Fudge1 is set
+    # only for kl==0 (the unique litter/duff pair). Every kl!=0 particle
+    # consumed during the ignition pulse may overwrite gd_Fudge2, leaving
+    # the last such particle's rate when Start() returns. FireIntensity()
+    # restores these values specifically into litter slots 0 and 1 for its
+    # first post-Start() call, then clears both scratch values. Thus slot 1
+    # may receive a rate carried from another fuel class. The overlay
+    # diagnostic in bur_brn_instr.cpp verifies this upstream behavior and
+    # its effect on the initial flame/smolder classification.
     fudge1 = 0.0
     fudge2 = 0.0
 
@@ -1465,25 +1449,12 @@ def burnup(
             # duff remains it `continue`s (does not break) even though
             # wood/litter/herb-shrub intensity has already fallen below
             # fimin.
-            #
-            # F-62 completion/acceptance-recovery pass (2026-09-21,
-            # second pass): the PRIOR continuous check here (`tis < tdf`)
-            # is NOT bit-for-bit equivalent to C++'s actual discrete,
-            # CLAMPED mass-pool depletion -- it only coincidentally
-            # matched for scenarios whose ignition/residence time `ti`
-            # equals the hardcoded 60.0 C++ uses for the FIRST duff
-            # decrement (bur_brn.cpp:322; see the `duf_tot_mass`
-            # initialisation above). For any `ti != 60` (e.g. a long
-            # ignition time), the continuous `tis < tdf` check diverges
-            # from C++'s real termination instant by however much extra
-            # (or less) duff mass that first hardcoded-60 decrement left
-            # behind relative to a `ti`-sized first decrement -- verified
-            # directly via a live C++ diagnostic build (bur_brn_instr.cpp)
-            # dumping `DuffBurn()`'s own `d_tdf`/`d_Duf_Sec`/`d_Duf_Tot`
-            # and the per-timestep `FireIntensity()` trace side by side.
-            # `duf_tot_mass` now replicates C++'s exact discrete,
-            # clamped-at-zero decrement (`_duff_cpts()`, using `dt` here
-            # to match `Duff_CPTS(..., 15.0)`'s in-loop calls) instead.
+            # The first C++ duff decrement uses a hardcoded 60 seconds
+            # (bur_brn.cpp:322); subsequent in-loop `Duff_CPTS()` calls use
+            # the fixed `dt`. Updating the clamped mass pool reproduces that
+            # discrete schedule for any ignition/residence time, as verified
+            # by bur_brn_instr.cpp traces of `DuffBurn()`, `d_Duf_Tot`, and
+            # `FireIntensity()`.
             duf_tot_mass = _duff_cpts(duf_tot_mass, duff_smolder_rate, dt)
             duff_still_smoldering = duf_tot_mass > 0.0
             if (fi_cur <= fimin and not duff_still_smoldering) or ncalls >= ntimes:

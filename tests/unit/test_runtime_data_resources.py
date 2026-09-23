@@ -63,11 +63,12 @@ CORE-registered module).
 **Emission-factor provenance, verified directly this phase.** At C++ SHA
 ``78f97f093ee7d1c77b3cd2622b2bd7248036c1e4`` the pinned
 ``reference/fofem_cpp/FOF_UNIX/Emission_Factors.csv`` (the table
-``NES_Read`` loads) hashes to SHA-256
-``4DEC3F4D0AFBA3859F7D5AEF8A3E3E27794C2E5BDD8799A9D94071D3C6B1A640``,
-byte-identical to the packaged ``emissions_factors.csv`` and to the
-bundled ``supporting_data/FOFEM6.7/Emission_Factors.csv``. This
-reproduces the byte-identity Gate 0 recorded in
+``NES_Read`` loads) has canonical-LF SHA-256
+``E1F43C44866AF339840BB201BB61DC081526A8ABA67032A77B7D70595AF711AD``,
+byte-identical to the canonical-LF packaged ``emissions_factors.csv`` and
+bundled ``supporting_data/FOFEM6.7/Emission_Factors.csv``. Explicit
+``eol=lf`` attributes make that provenance identity independent of checkout
+platform. This reproduces the byte-identity Gate 0 recorded in
 ``06-runtime-tables.md`` §1a. The digest is asserted here as a
 self-contained constant rather than by re-reading the C++ submodule, so
 the check stays valid in an installed-only run and in a checkout whose
@@ -104,11 +105,11 @@ from pyfofem.components import emission_calcs, mortality_calcs, tree_flame_calcs
 from tests._support import PROJECT_ROOT
 from tests.cpp_parity_live._proc import run_bounded
 
-#: SHA-256 of the packaged ``emissions_factors.csv``. Identical to the
-#: pinned C++ ``FOF_UNIX/Emission_Factors.csv`` at SHA
-#: ``78f97f093ee7d1c77b3cd2622b2bd7248036c1e4`` - see the module
-#: docstring.
-_EF_CSV_SHA256 = "4DEC3F4D0AFBA3859F7D5AEF8A3E3E27794C2E5BDD8799A9D94071D3C6B1A640"
+#: SHA-256 of the packaged ``emissions_factors.csv`` in its canonical LF
+#: representation. Identical to the pinned C++ ``FOF_UNIX/Emission_Factors.csv``
+#: Git blob at SHA ``78f97f093ee7d1c77b3cd2622b2bd7248036c1e4`` - see the
+#: module docstring.
+_EF_CSV_SHA256 = "E1F43C44866AF339840BB201BB61DC081526A8ABA67032A77B7D70595AF711AD"
 
 #: The eight real emission-factor groups: ``Group # -> (cover type,
 #: Type)``. Verified against the shipped file and recorded in
@@ -144,11 +145,11 @@ _RESOURCE_PROBE_TIMEOUT_S = 180.0
 #: committed file. No C++ counterpart is claimed: Gate 0
 #: ``06-runtime-tables.md`` §4 records the ``SPP_CODES`` vs C++
 #: ``sr_MSMT[]`` comparison as an open Phase 4 item.
-_SPP_CSV_SHA256 = "6C21C4AB9097CDFBD0013B9C3414C81FF226F1846F9AA3738C296264BCBCA02E"
+_SPP_CSV_SHA256 = "07058216CDC91C180A2B3445D94C9E40DF9BA2FC22B200AF98BA8F00153B3BA6"
 
 #: Exact byte length of the committed species table, pinned alongside
 #: the digest so a provenance failure reports a useful difference.
-_SPP_CSV_BYTES = 2699
+_SPP_CSV_BYTES = 2577
 
 #: The two ``SPP_CODES`` rows that ship with a blank ``fofem_cd``.
 #: Gate 0 records that the table has no documented missing-value policy;
@@ -157,16 +158,16 @@ _SPP_CSV_BYTES = 2699
 _SPP_MISSING_FOFEM_CD = {"JD", "JH"}
 
 #: Exact provenance of the wheel-packaged C++ Equation-1 bark extraction.
-_EQ1_BARK_CSV_SHA256 = "8E432FEF13026A9F7E89AE5518C88435E536A25BC209EAC2599E81A87041EFA0"
-_EQ1_BARK_CSV_BYTES = 7582
+_EQ1_BARK_CSV_SHA256 = "1DA7BD64DB97BA473D95ED31BA734AE9F8ED8CC7235F25C093CF1134DCB85246"
+_EQ1_BARK_CSV_BYTES = 7138
 _EQ1_BARK_ROWS = 443
 
 #: Exact provenance of the wheel-packaged complete ``SMT_CalcBarkThick``
 #: extraction. The table has one first-occurrence row for each of the 525
 #: FOFEM species codes; its equation/slope relation is independently checked
 #: against the pinned C++ source by ``test_bark_thickness_contract.py``.
-_BARK_THICKNESS_CSV_SHA256 = "C18FBB2F75658A3E7D83D43528DEB75E1608DB9376B27517254B0DD36F5126FC"
-_BARK_THICKNESS_CSV_BYTES = 8256
+_BARK_THICKNESS_CSV_SHA256 = "A0BE2675109229B135B90E951C2683B770DE52E33FE2D8EA29DCE27A42F16CB9"
+_BARK_THICKNESS_CSV_BYTES = 7730
 _BARK_THICKNESS_ROWS = 525
 
 
@@ -400,12 +401,13 @@ def test_emissions_factors_provenance_digest_is_exact():
     """
     Category (b). Pin the packaged emission-factor table's exact bytes.
 
-    The digest is the same SHA-256 as the pinned C++
-    ``FOF_UNIX/Emission_Factors.csv``, so this assertion pins
-    byte-identity with the C++ table that ``NES_Read`` loads (module
-    docstring; Gate 0 ``06-runtime-tables.md`` §1a). Any edit to the
-    Python copy breaks the identity and must be re-justified against the
-    pinned reference.
+    The digest is the same SHA-256 as the canonical-LF Git blob for the
+    pinned C++ ``FOF_UNIX/Emission_Factors.csv``, so this assertion pins
+    byte-identity with the C++ table that ``NES_Read`` loads without making
+    the result depend on checkout-platform newline conversion (module
+    docstring; Gate 0 ``06-runtime-tables.md`` §1a). Any edit to the Python
+    copy breaks the identity and must be re-justified against the pinned
+    reference.
 
     :return: None. Raises via ``assert`` on mismatch.
     """

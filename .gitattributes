@@ -3,7 +3,11 @@ tests/test_data/test_golden_output/expanded_matrix/** -text
 tests/test_data/test_golden_output/soil_campbell/** -text
 tests/test_data/test_golden_output/emissions_equivalence/** -text
 tests/test_data/test_golden_output/burnup_extended/** -text
+src/pyfofem/supporting_data/FOFEM6.7/Emission_Factors.csv text eol=lf
+src/pyfofem/supporting_data/emissions_factors.csv text eol=lf
+src/pyfofem/supporting_data/fofem_crnsch_eq1_bark.csv text eol=lf
 src/pyfofem/supporting_data/fofem_bark_thickness.csv text eol=lf
+src/pyfofem/supporting_data/species_codes_lut.csv text eol=lf
 
 # Instrumented diagnostic copies preserve the original source formatting so
 # their provenance comparison remains meaningful.

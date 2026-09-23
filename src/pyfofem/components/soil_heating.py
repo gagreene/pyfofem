@@ -521,7 +521,7 @@ def _campbell_newton_boundary_init(state: dict) -> tuple:
     One Newton sub-iteration's boundary/node-1 preparation: derive node 0
     (ambient air)/node 1 (surface) quantities needed before the per-node
     residual/Jacobian sweep, and snapshot node 1's pre-update state for
-    the F-70 surface-update diagnostic hook. A direct extraction of
+    the surface-update diagnostic hook. A direct extraction of
     ``soiltemp_step()``'s own per-sub-iteration boundary setup
     (``fof_soi.cpp:96-108``), moved verbatim (same statements, same
     order) out of :func:`_soiltemp_step` -- not re-derived.
@@ -558,10 +558,9 @@ def _campbell_newton_boundary_init(state: dict) -> tuple:
     air_por[1] = xws - r_wav
     kv[1] = enh[1] * air_por[1] * _CAMPBELL_SOIL_TORTUOSITY * _campbell_vapor_conductivity(t[1], psat[1] * h[1])
 
-    # F-70 surface-update crosswalk pass: node 1's state as it stands
-    # BEFORE this sub-iteration's own update -- mirrors the C++
-    # overlay's SoiSurfaceUpdateDiag snapshot exactly (fof_soi_instr.cpp,
-    # "diag_old_tn1" et al.). Nothing above this point writes
+    # Snapshot node 1 before this sub-iteration's update, matching the C++
+    # overlay's SoiSurfaceUpdateDiag fields (fof_soi_instr.cpp,
+    # `diag_old_tn1` et al.). Nothing above this point writes
     # tn[1]/p[1]/wn[1]/h[1], so this is a pure read.
     return float(tn[1]), float(p[1]), float(wn[1]), float(h[1])
 
@@ -598,7 +597,7 @@ def _campbell_newton_node_update(
     :param n_bug: Sub-iteration count BEFORE this sub-iteration completes
         (0-based) -- forwarded to *on_surface_update* as ``n_bug + 1``,
         matching :func:`_soiltemp_step`'s own convention.
-    :param on_surface_update: F-70 diagnostic-only hook (see
+    :param on_surface_update: Diagnostic-only observer (see
         :func:`_soiltemp_step`'s docstring); called only when ``i == 1``
         and not ``None``.
     :param surf_old: ``(surf_old_tn1, surf_old_p1, surf_old_wn1,
@@ -657,9 +656,8 @@ def _campbell_newton_node_update(
     d_vdt = d_jvdt
     d_cdt = ke[i] + ke[i - 1] + cp[i]
 
-    # F-70 surface-update crosswalk pass: snapshot the residual/
-    # Jacobian pair BEFORE the boundary correction, mirroring
-    # the C++ overlay's diag_dC_before/diag_dCdt_before exactly.
+    # Snapshot the residual/Jacobian pair before the boundary correction,
+    # matching the C++ overlay's diag_dC_before/diag_dCdt_before exactly.
     surf_dC_before = d_c
     surf_dCdt_before = d_cdt
     surf_stefan_term = 0.0
@@ -676,8 +674,8 @@ def _campbell_newton_node_update(
     d_c_abs = abs(d_c)
 
     d_tn = (d_v * d_cdp - d_c * d_vdp) / (d_cdp * d_vdt - d_cdt * d_vdp)
-    # F-70: raw Newton temperature increment, before the
-    # <-100 clamp -- mirrors diag_dtn_temp_raw/_clamped.
+    # Preserve the raw Newton temperature increment before the <-100 clamp,
+    # matching diag_dtn_temp_raw/_clamped.
     surf_dtn_temp_raw = d_tn
     surf_dtn_temp_clamped = 1.0 if d_tn < -100.0 else 0.0
     if d_tn < -100.0:
@@ -698,8 +696,7 @@ def _campbell_newton_node_update(
     h[i], dhdp[i] = _campbell_humidity(p[i], tn[i])
 
     if i == 1 and on_surface_update is not None:
-        # F-70 surface-update crosswalk pass: fires once per
-        # Newton sub-iteration, mirroring the C++ overlay's
+        # Fire once per Newton sub-iteration, matching the C++ overlay's
         # SoiDiagRecordSurfaceUpdate hook (fof_soi_instr.cpp)
         # field-for-field -- keys match its CSV column names
         # exactly (SOIL_SURFUP_DIAG_COLUMNS in test_harness.cpp).
@@ -1051,7 +1048,7 @@ def _duff_burn_profile(duff_params: dict) -> dict:
     efficiency_duff = duff_params.get("efficiency_duff", 1.0)
 
     wdf_kgm2 = duff_load_tac * _TONS_ACRE_TO_KG_M2
-    dfm_ratio = duff_moisture_pct / 100.0  # F-53 fix: percent -> ratio, once, here.
+    dfm_ratio = duff_moisture_pct / 100.0  # Convert percent to ratio once at this boundary.
 
     intensity_kw, duration_s, consumed_rate = _duff_burn_rate(
         wdf_kgm2, dfm_ratio, pct_consumed,
@@ -1290,8 +1287,8 @@ def _run_coupled_soil_sim(state: dict, dt: float, forcing_fn, done_fn, start_tem
     :func:`_soiltemp_step`, record every real soil node's temperature,
     and repeat until *done_fn* signals completion.
 
-    C++'s own per-step timestep-halving retry branch is verified DEAD
-    CODE (finding F-71): ``soiltemp_step()``'s own ``*ai_success`` output
+    C++'s own per-step timestep-halving retry branch is unreachable:
+    ``soiltemp_step()``'s own ``*ai_success`` output
     is unconditionally 1 on every non-hard-failure return, because the
     ``i_its`` variable that would trigger the ``0`` branch is never
     incremented anywhere in the function. So a hard failure (the Newton
@@ -1449,7 +1446,7 @@ def _soiltemp_initprofile(state: dict, w_init: float, t_init: float) -> None:
     temperature. Mutates *state* in place — this is also called to RESET
     the profile after any state mutation the caller wants to discard
     (C++'s own usage pattern, though the retry path that would trigger
-    this is verified dead — see F-71).
+    this is unreachable because its iteration counter is never incremented).
 
     :param state: State dict from :func:`_soiltemp_initconsts`.
     :param w_init: Starting volumetric water content (m^3/m^3), uniform
@@ -1486,17 +1483,14 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
     :data:`_CAMPBELL_ENERGY_ERROR_LIMIT`/:data:`_CAMPBELL_WATER_ERROR_LIMIT`,
     or fail after :data:`_CAMPBELL_MAX_NEWTON_ITERATIONS` sub-iterations.
 
-    This function is the coupled-timestep ORCHESTRATOR: each Newton
-    sub-iteration delegates its boundary setup to
+    This function coordinates one coupled timestep. Each Newton
+    sub-iteration delegates boundary setup to
     :func:`_campbell_newton_boundary_init`, its per-node residual/
     Jacobian/Newton update to :func:`_campbell_newton_node_update`, and
-    the post-convergence state advance to :func:`_campbell_commit_timestep`
-    -- a structural extraction only (matches the target architecture's
-    "residual and Jacobian construction" / "one Newton update/
-    subiteration" / "one coupled timestep" responsibility split); every
-    statement these three helpers execute is byte-for-byte the same
-    statement this function itself used to execute directly, in the same
-    order, so the Newton iteration's numerical behavior is unchanged.
+    the post-convergence state advance to
+    :func:`_campbell_commit_timestep`. The helpers preserve C++'s operation
+    order across boundary preparation, residual/Jacobian construction,
+    Newton updates, and the final state commit.
 
     Mutates *state* in place — on success, ``state['t']``/``state['tn']``
     and ``state['w']``/``state['wn']`` are both updated to the newly
@@ -1516,7 +1510,7 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
     :param r_rabs: Total absorbed surface radiation (W/m^2) for this
         timestep.
     :param dt: Timestep (s).
-    :param on_subiter: F-70 diagnostic-only hook, mirroring the overlay
+    :param on_subiter: Diagnostic-only observer mirroring the overlay
         C++ diagnostic build's ``SoiDiagRecordSubIteration`` (see
         ``reference/fofem_cpp_overlay/source/FOF_UNIX/fof_soi_instr.cpp``)
         exactly: if given, called once per Newton sub-iteration as
@@ -1526,7 +1520,7 @@ def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
         values only. ``None`` by default: zero behavior/performance
         change for every existing caller. Never used for control flow —
         purely an observer.
-    :param on_surface_update: F-70 diagnostic-only hook, mirroring the
+    :param on_surface_update: Diagnostic-only observer mirroring the
         overlay C++ diagnostic build's ``SoiDiagRecordSurfaceUpdate``
         exactly: if given, called once per Newton sub-iteration as
         ``on_surface_update(n_subiter, fields_dict)``, where
@@ -1601,18 +1595,13 @@ def soil_heat_campbell(
     duff route and ``fof_se.cpp``'s ``SE_Mngr_Array`` for the non-duff
     route — collectively C++'s ``SH_Mngr``).
 
-    This REPLACES the former heat-only de Vries/Campbell ODE
-    (``_campbell_rhs``/``solve_ivp``): per an explicit user decision, F-52
-    ("materially different implementations, characterization only") is no
-    longer an acceptable permanent outcome, so this function now solves
-    the SAME coupled temperature/matric-potential/vapor system C++ does,
-    with the same per-timestep Newton iteration, the same fixed
-    per-route timestep (never user-configurable, matching C++ exactly),
-    and the same termination logic. See ``gate0/04-findings.md`` F-70 (the
-    full equation/state crosswalk) and F-71 (C++'s own per-step
-    timestep-halving retry branch is verified dead code — the real
-    failure mode is a single hard failure, :class:`SoilSimulationError`,
-    matching C++'s ``e_SoiSimFail``).
+    The function solves the same coupled temperature/matric-potential/vapor
+    system as C++, with the same per-timestep Newton iteration, fixed
+    per-route timestep, and termination logic. C++'s nominal timestep-
+    halving retry branch is unreachable because its iteration counter is
+    never incremented; a failed Newton solve therefore raises
+    :class:`SoilSimulationError`, matching C++'s fatal ``e_SoiSimFail``
+    path.
 
     Exact bit-for-bit parity is NOT expected or claimed: the pinned C++
     computes entirely in 32-bit ``float``, this port in 64-bit Python
@@ -1658,10 +1647,9 @@ def soil_heat_campbell(
     :param soil_params: Soil properties: 'soil_family' (one of
         'loamy-skeletal', 'fine-silty', 'fine', 'coarse-silty',
         'coarse-loamy'), 'start_water' (m³/m³), 'start_temp' (°C), plus
-        optional overrides for any soil-family default key, including the
-        new 'recirc_water' key (C++ ``xwo``) this pass added. Every
-        family's constants now match the pinned C++ ``sr_SD``/``sr_SE``
-        tables bit-for-bit (F-51 resolved).
+        optional overrides for any soil-family default key, including
+        'recirc_water' (C++ ``xwo``). Every family's constants match the
+        pinned C++ ``sr_SD``/``sr_SE`` tables bit-for-bit.
     :param depth_layers: Exactly 13 depths (cm) at which to predict
         temperature. For a true C++-equivalent comparison, this MUST be
         ``[1, 2, ..., 13]`` — the only depth scheme the pinned C++ harness
@@ -1698,11 +1686,11 @@ def soil_heat_campbell(
         (``time_min == 0``) is the state after the FIRST Newton-converged
         timestep, not the raw pre-simulation initial condition — this
         matches the pinned C++ harness's own ``time_index == 0`` output
-        convention exactly (verified directly against the live C++ oracle:
-        e.g. Phase 5 scenario ``SOI-NOD-01``'s golden ``time_index=0`` row
-        already reads 38.849651 degC against a 21.0 degC harness ambient
-        start temperature, not the ambient value itself). A column may
-        therefore differ from ``soil_params['start_temp']`` at
+        convention exactly. In a representative non-duff reference output,
+        the golden ``time_index=0`` row reads 38.849651 degC against a
+        21.0 degC harness ambient start temperature, not the ambient value
+        itself. A column may therefore differ from
+        ``soil_params['start_temp']`` at
         ``time_min == 0`` — most visibly at the surface, which has already
         received one timestep of forcing; deeper layers converge back to
         ``start_temp`` within that same first step because diffusion has
