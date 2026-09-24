@@ -584,13 +584,23 @@ def verify_regeneration(committed_root: str, fresh_root: str, modes) -> List[str
     Every CSV is compared by SHA-256 (not ``filecmp.dircmp``'s shallow
     stat-based shortcut, which can pass on a changed file with an
     unchanged size/mtime). Every manifest field is compared directly
-    except the two genuinely run-location-dependent fields
-    (``generated_utc``, ``generating_command``) and
-    ``pyfofem_dirty.porcelain`` (the one real, reproduced nondeterminism:
-    generating into a fresh temp dir changes ``git status`` output itself,
-    since ``tests/test_data/test_golden_output/canonical/`` is untracked —
-    this is correct, real provenance per run, not a fair determinism
-    target). Input/output CSV hash-map keys are basenames (stable by
+    except the run-location-dependent ones: ``generated_utc``,
+    ``generating_command``, ``pyfofem_commit``, and the entire
+    ``pyfofem_dirty`` object (``dirty``/``staged``/``unstaged``/
+    ``untracked``/``porcelain``). These are real, correctly-recorded
+    provenance for the environment a given regeneration ran in — not a
+    fair determinism target: the committed tree's manifest was generated
+    from whatever commit/working-tree state the developer's checkout was
+    in at the time (almost always dirty, and at a commit that predates
+    whatever HEAD is by the time this runs again), while ``--verify-only``
+    or a CI job regenerating from a clean checkout will legitimately
+    report a different commit and a clean (or differently dirty) working
+    tree. Comparing these fields directly caused every ``--verify-only``
+    gate to spuriously fail on any checkout other than the one that
+    generated the committed manifest -- confirmed via a GitHub Copilot PR
+    review finding, reproduced directly against the committed
+    ``soil_campbell`` manifest before this fix (see PR #2 review
+    discussion). Input/output CSV hash-map keys are basenames (stable by
     construction — see :func:`sha256_files_by_basename`) and are compared
     directly, not discarded or reduced to sorted values.
 
@@ -647,16 +657,15 @@ def verify_regeneration(committed_root: str, fresh_root: str, modes) -> List[str
             d = dict(manifest)
             d.pop("generated_utc", None)
             d.pop("generating_command", None)
-            dirty = dict(d.get("pyfofem_dirty", {}))
-            dirty.pop("porcelain", None)
-            d["pyfofem_dirty"] = dirty
+            d.pop("pyfofem_commit", None)
+            d.pop("pyfofem_dirty", None)
             return d
 
         if _normalize(committed_manifest) != _normalize(fresh_manifest):
             mismatches.append(
                 f"{mode}: manifest content differs (fields excluded from "
                 "this comparison: generated_utc, generating_command, "
-                "pyfofem_dirty.porcelain)"
+                "pyfofem_commit, pyfofem_dirty)"
             )
     return mismatches
 
@@ -682,7 +691,7 @@ def main() -> int:
                 "(SHA-256 compared) to the committed goldens for every "
                 "input/output CSV — no missing/extra files either — and "
                 "every manifest field matches except generated_utc, "
-                "generating_command, and pyfofem_dirty.porcelain."
+                "generating_command, pyfofem_commit, and pyfofem_dirty."
             )
             return 0
 

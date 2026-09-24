@@ -97,7 +97,7 @@ def test_deterministic_successful_generation(tmp_path):
     from qualification-gate timing) produce a clean pass through the
     PRODUCTION comparison function — byte-identical scientific CSVs and
     field-identical manifests (excluding the fields that legitimately
-    vary by run: timestamp, command, and pyfofem_dirty.porcelain)."""
+    vary by run: timestamp, command, commit, and dirty-tree state)."""
     run_a = str(tmp_path / "a")
     run_b = str(tmp_path / "b")
     gpg.generate_all(run_a, qualify=False)

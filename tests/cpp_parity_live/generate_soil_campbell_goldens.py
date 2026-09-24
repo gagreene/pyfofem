@@ -318,8 +318,8 @@ def main() -> int:
                 "byte-identical (SHA-256 compared) to the committed soil_campbell "
                 "goldens for every input/output CSV - no missing/extra files "
                 "either - and every manifest field matches except "
-                "generated_utc, generating_command, and "
-                "pyfofem_dirty.porcelain."
+                "generated_utc, generating_command, pyfofem_commit, "
+                "and pyfofem_dirty."
             )
             return 0
 

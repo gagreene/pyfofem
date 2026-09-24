@@ -5,16 +5,16 @@
   "compiler_identity": "Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35728 for x64",
   "dataset": "expanded_matrix",
   "documented_expected_divergences": [],
-  "generated_utc": "2026-09-23T22:56:05.118221+00:00",
-  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpy542nix1\\shrub_herb_eq\\shrub_herb_eq_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpy542nix1\\shrub_herb_eq\\shrub_herb_eq",
+  "generated_utc": "2026-09-24T19:44:29.798021+00:00",
+  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpd4v4h39b\\shrub_herb_eq\\shrub_herb_eq_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpd4v4h39b\\shrub_herb_eq\\shrub_herb_eq",
   "generator_source_sha256": {
     "tests/cpp_parity_live/_expanded_matrix_contract.py": "f8d639bbe3030d823d7257ea0843e334e5ef50bfc9cdbc1f97d7da2f79c2187e",
     "tests/cpp_parity_live/_golden_manifest.py": "00c960ce86cf1e2a3cd3a45a8bb848cd40769ca743e80e3b558a1db388bbbfd1",
     "tests/cpp_parity_live/_harness_support.py": "6777edce78a72e6cc12728ed505c05205664a8ad3425e97fa20b58be6ac7c4dd",
     "tests/cpp_parity_live/_output_contract.py": "2026e6b3f6816b8a5ca387de74f41baf89527cf8b0997d34477e003b5985d2eb",
     "tests/cpp_parity_live/_proc.py": "985d556439245cc1c9c2a2c487abff0b7b7ce3d972c9d86427c24ec7f3223c80",
-    "tests/cpp_parity_live/generate_canonical_goldens.py": "81dd8d6dfdc863a43116693fe735aeacdc86810d6ca9e5415017d89272d92c4d",
-    "tests/cpp_parity_live/generate_expanded_matrix_goldens.py": "979e46328e8062d84206f728ebe66bb2b66f8f9d7c694a266b22b56908c1a4c3",
+    "tests/cpp_parity_live/generate_canonical_goldens.py": "d156910cc9251507029896479db4a2ad1bfbe23ce511b19bd67ff0f48ba38b51",
+    "tests/cpp_parity_live/generate_expanded_matrix_goldens.py": "7ae02f7a5e35fe7d5afc79f652775bb6c0434ae40c0145fc2c5bbe9a75ef433d",
     "tests/cpp_parity_live/test_cpp_harness_contract.py": "8fd76da623b7a3a485ac6c3b04187f4d859044178118f7a347d2bf0de150ecd7",
     "tests/cpp_parity_live/tolerance_policy.json": "a7e15b1638091c5ffa6a0852587f31dfc8ad61ca6336496641397da59bb49014"
   },
@@ -38,10 +38,10 @@
     "source/compile_test.bat": "306e5b262d297f70ad4931b887f98050eafcbe8c3df5b7ee503235880f38b7e3"
   },
   "platform": "Windows-10-10.0.19044-SP0",
-  "pyfofem_commit": "c4acbaccd47b342197e9b6f02c4649914bb1d16a",
+  "pyfofem_commit": "2f1f32d3209538122a966430526c7d966e5b24ba",
   "pyfofem_dirty": {
     "dirty": true,
-    "porcelain": " M reference/fofem_cpp\n M reference/fofem_cpp_overlay/source/FOF_UNIX/bur_brn_instr.cpp\n M src/pyfofem/components/burnup.py\n M src/pyfofem/components/burnup_calcs.py\n M src/pyfofem/components/consumption_calcs.py\n M src/pyfofem/components/emission_pipeline.py\n M src/pyfofem/pyfofem.py\n M tests/cpp_parity_live/tolerance_policy.json\n M tests/test_data/test_golden_output/burnup_extended/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/canonical/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/canonical/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/canonical/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/canonical/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/test_data/test_golden_output/emissions_equivalence/consume/consume.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/consume/consume.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/test_data/test_golden_output/soil_campbell/soil_campbell/soil_campbell.manifest.json\n?? AGENTS.md\n?? CLAUDE-Archive.md\n?? compress-skill.md\n?? preserve-skill.md\n?? resume-skill.md\n",
+    "porcelain": " M reference/fofem_cpp\n M tests/cpp_parity_live/generate_burnup_extended_goldens.py\n M tests/cpp_parity_live/generate_canonical_goldens.py\n M tests/cpp_parity_live/generate_emissions_equivalence_goldens.py\n M tests/cpp_parity_live/generate_expanded_matrix_goldens.py\n M tests/cpp_parity_live/generate_soil_campbell_goldens.py\n M tests/cpp_parity_live/test_generate_canonical_goldens.py\n M tests/test_data/test_golden_output/burnup_extended/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/canonical/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/canonical/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/canonical/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/canonical/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/test_data/test_golden_output/emissions_equivalence/consume/consume.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/consume/consume.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/test_data/test_golden_output/soil_campbell/soil_campbell/soil_campbell.manifest.json\n?? AGENTS.md\n?? CLAUDE-Archive.md\n?? compress-skill.md\n?? preserve-skill.md\n?? resume-skill.md\n",
     "staged": false,
     "unstaged": true,
     "untracked": true
