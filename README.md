@@ -354,6 +354,3 @@ current test tiers and maintenance guidance.
 ## License
 
 PyFOFEM source is licensed under the [MIT License](LICENSE).
-
-The pinned FOFEM reference snapshot and bundled reference materials may be
-subject to separate provenance and redistribution terms.
