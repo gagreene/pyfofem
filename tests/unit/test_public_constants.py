@@ -200,8 +200,9 @@ def test_all_eleven_constants_are_exported_and_declared():
     """
     All 11 non-function exports must be importable from the top-level
     ``pyfofem`` namespace and declared in its ``__all__``, and
-    ``__all__`` must contain exactly 23 functions plus these 11 entries
-    (the 24/11 split Gate 0 confirmed; now 23/11 -- see below).
+    ``__all__`` must contain exactly 24 functions plus these 11 entries
+    (the 24/11 split Gate 0 confirmed; then 23/11 after the Massman
+    removal below; now 24/11 again -- see below).
 
     CORRECTED 2026-09-18 (F-70 comprehensive-suite reconciliation pass):
     ``soil_heat_massman`` was intentionally removed from ``__all__`` (and
@@ -210,14 +211,19 @@ def test_all_eleven_constants_are_exported_and_declared():
     ``NotImplementedError`` unconditionally; ``soil_heat_campbell`` is the
     sole supported soil-heating model (see the project's own CLAUDE.md
     "Current Session" notes). That drops the function count Gate 0
-    originally confirmed (24) to 23, for a new total of 34. The counts
-    below were updated to match; the removal itself was already correct
-    production behavior, not something this pass changed.
+    originally confirmed (24) to 23, for a total of 34 at that time.
+
+    CORRECTED 2026-09-24 (stale count from a concurrent session): commit
+    ``2db1ebd`` ("Add guide-based non-duff soil forcing") added a new
+    public function, ``soil_heat_from_consumption``, without updating this
+    assertion -- a real, intentional 24th function (confirmed via direct
+    inspection of ``pyfofem.__all__``, not a regression), bringing the
+    total back to 35.
 
     :return: None. Raises via ``assert`` on mismatch.
     """
     declared = set(pyfofem.__all__)
-    assert len(pyfofem.__all__) == len(declared) == 34
+    assert len(pyfofem.__all__) == len(declared) == 35
     assert "soil_heat_massman" not in declared, (
         "soil_heat_massman is deliberately unavailable/non-functional and "
         "must not be re-added to the public export surface"
@@ -232,7 +238,7 @@ def test_all_eleven_constants_are_exported_and_declared():
         name for name in declared if not callable(getattr(pyfofem, name))
     }
     assert non_functions == set(_CONSTANT_EXPORT_NAMES)
-    assert len(declared - non_functions) == 23
+    assert len(declared - non_functions) == 24
 
 
 @pytest.mark.parametrize("name", sorted(_EXPECTED_MAPS))
