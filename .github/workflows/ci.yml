@@ -6,7 +6,7 @@ on:
       - "docs/**"
       - "**.md"
   push:
-    branches: [main]
+    branches: [master]
     tags: ["v*"]
     paths-ignore:
       - "docs/**"
@@ -43,7 +43,7 @@ jobs:
       - run: python tests/run_unified_tests.py --suite ci-smoke
 
   core:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

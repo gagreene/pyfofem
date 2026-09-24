@@ -169,7 +169,7 @@ not drift unless a deliberately validated reference update requires it.
 Run the unified suite from the repository root:
 
 ```powershell
-python tests/run_unified_tests.py --suite smoke
+python tests/run_unified_tests.py --suite ci-smoke
 python tests/run_unified_tests.py --suite core
 python tests/run_unified_tests.py --suite full
 ```
@@ -199,7 +199,7 @@ Continuous integration uses three progressively broader tiers:
 | Tier | Trigger | Purpose |
 |---|---|---|
 | Smoke | Pull requests | Fast cross-platform feedback |
-| Core | Pushes to the main development branch | Broad library regression coverage |
+| Core | Pushes to `master` | Broad library regression coverage |
 | Full | Scheduled, tagged, or explicitly requested runs | Reference harness, installed-wheel, and golden verification coverage |
 
 Keep smoke tests a subset of core tests. Full coverage is intentionally less

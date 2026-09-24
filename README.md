@@ -288,12 +288,20 @@ python -m pytest
 Run the unified publish-oriented suite (recommended for CI/package checks):
 
 ```bash
+# Fastest, representative pull-request checks
+python tests/run_unified_tests.py --suite ci-smoke
+
 # Fast publish-safe suite
 python tests/run_unified_tests.py --suite core
 
 # Extended suite with parity/comparison tests
 python tests/run_unified_tests.py --suite full
 ```
+
+`.github/workflows/ci.yml` runs these in three tiers: `ci-smoke` on every
+pull request, `core` on pushes to `master`, and `full` (live C++ harness,
+installed-wheel, and golden verification) on a weekly schedule, tagged
+releases, or manual dispatch.
 
 ### Experimental prototype: `development/burnup_array`
 
