@@ -2142,6 +2142,29 @@ double  d_FlaCon, d_SmoCon;
 
 float f,g, s, f_SmoWL, f_FlaWL, f_Smo1k, f_Fla1k;
 
+// Investigation pass (2026-09-23), same opt-in env var/append-only-CSV
+// pattern as every other hook in this file. Dumps ES_Calc's raw ENTRY
+// arguments on EVERY call, including calls that immediately hit the
+// d_pcSmo out-of-[0,1]-range guard below and return 0 before any
+// duration/emission bookkeeping runs -- this is the ONLY way to observe
+// what d_pcSmo actually is on a guard-triggering call, since every other
+// hook in this file (including the ES_Calc-exit one added earlier this
+// same pass) sits after this guard and is skipped when it fires. Purely
+// observational -- reads only, changes nothing.
+if ( getenv("FOFEM_TEST_BURN_DIAG") != NULL ) {
+  FILE *fhEE = fopen ("_ESCalcEntryDump.csv", "a");
+  if ( fhEE != NULL ) {
+    static bool wroteEEHeader = false;
+    if ( !wroteEEHeader ) {
+      fprintf (fhEE, "time,d_WooLit,d_Duff,d_HSFB,d_pcSmo,guard_tripped\n");
+      wroteEEHeader = true;
+    }
+    fprintf (fhEE, "%.10f,%.10f,%.10f,%.10f,%.10f,%d\n",
+             d_time, d_WooLit, d_Duff, d_HSFB, d_pcSmo,
+             (d_pcSmo < 0 || d_pcSmo > 1.0) ? 1 : 0);
+    fclose (fhEE);
+  }
+}
 
    if ( d_pcSmo < 0 || d_pcSmo > 1.0 ) {
      return 0; }
@@ -2241,7 +2264,30 @@ float  f_ConTPA;
    a_ES->dN_NOXS_Duff    +=   a_ES->d_NOXS_Duff;  
    a_ES->dN_SO2S_Duff    +=   a_ES->d_SO2S_Duff;  
 
-   a_ES->dN_Cnt++; 
+   a_ES->dN_Cnt++;
+
+// Investigation pass (2026-09-23), same opt-in env var and append-only
+// CSV-dump pattern as every other hook in this file. Dumps the EXACT
+// quantities ES_Calc's own duration bookkeeping compares against its
+// 0.00001 cutoff, on every call -- purely observational, no arithmetic
+// or control flow changed. Added specifically to cross-reference against
+// Python's own step_fla/step_smo trace at matching timestamps, since the
+// pre-existing _CompDump()/FireIntensity()-level hooks report a
+// different (upstream, per-fuel-class) aggregation than the d_FlaCon/
+// d_SmoCon values actually gated here.
+if ( getenv("FOFEM_TEST_BURN_DIAG") != NULL ) {
+  FILE *fhEC = fopen ("_ESCalcDump.csv", "a");
+  if ( fhEC != NULL ) {
+    static bool wroteESHeader = false;
+    if ( !wroteESHeader ) {
+      fprintf (fhEC, "time,d_FlaCon,d_SmoCon,d_FlaDur_before,d_SmoDur_before\n");
+      wroteESHeader = true;
+    }
+    fprintf (fhEC, "%.10f,%.10f,%.10f,%.10f,%.10f\n",
+             d_time, a_ES->d_FlaCon, a_ES->d_SmoCon, a_ES->d_FlaDur, a_ES->d_SmoDur);
+    fclose (fhEC);
+  }
+}
 
    if ( a_ES->d_FlaCon > 0.00001 )           /* Save last time step that we  */
      a_ES->d_FlaDur = d_time;                /* have a consumed amount       */

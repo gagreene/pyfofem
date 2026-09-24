@@ -34,7 +34,13 @@ from .burnup import (
     _BURNUP_LIMIT_ADJUST,
     _BURNUP_LIMIT_ERROR,
 )
-from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
+from ._component_helpers import (
+    _is_scalar,
+    _maybe_scalar,
+    _to_str_arr,
+    _TPAC_TO_KGPM2,
+    _KGPM2_TO_TPAC,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +167,45 @@ def _is_coastal_plain(cvr_grp: Optional[str]) -> bool:
     if not isinstance(cvr_grp, str):
         return False
     return cvr_grp.strip().lower() in _COASTPLAIN_ALIASES
+
+
+def _litter_shortcut_mask(
+        cvr_grp: Union[str, int, np.ndarray, None],
+        reg: Union[str, int, np.ndarray, None],
+        n: int,
+) -> np.ndarray:
+    """
+    ``True`` per cell where :func:`consm_litter` computes litter
+    consumption via a region/cover-group shortcut equation (Flatwoods
+    Eq 997, Coastal Plain Eq 30, or SouthEast Eq 998) rather than
+    deferring to Burnup's own consumption.
+
+    Mirrors :func:`consm_litter`'s own routing exactly (kept in sync by
+    hand -- update both if either changes) and matches pinned C++'s
+    ``BCM_SetInputs`` (``fof_bcm.cpp:379-402``): C++ feeds Burnup the
+    already-computed consumed amount for these cells instead of the raw
+    pre-fire load ("burnup always consumes all of the litter, so we send
+    in consumed amount from the ... litter eq"). ``F-70``'s case-4 burnup
+    duration divergence traced to this substitution being entirely absent
+    from the Python port -- see
+    ``development/plans/2026-09-23-burnup-duration-divergence-case4.md``.
+
+    :param cvr_grp: Cover group name/code/array, or ``None``.
+    :param reg: Region name/code/array, or ``None``.
+    :param n: Broadcast length.
+    :return: Boolean ``np.ndarray``, shape ``(n,)``.
+    """
+    cvr_arr = _to_str_arr(cvr_grp if cvr_grp is not None else '', CVR_GRP_CODES)
+    reg_arr = _to_str_arr(reg if reg is not None else '', REGION_CODES)
+    cvr_arr = np.broadcast_to(cvr_arr, (n,)) if cvr_arr.size == 1 else cvr_arr
+    reg_arr = np.broadcast_to(reg_arr, (n,)) if reg_arr.size == 1 else reg_arr
+
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
+    is_flatwood = np.isin(cvr_arr, _flatwood_vals)
+    is_southeast = reg_arr == 'SouthEast'
+    cvr_lower = np.array([str(v).strip().lower() for v in cvr_arr], dtype=object)
+    is_coastplain = np.isin(cvr_lower, tuple(_COASTPLAIN_ALIASES))
+    return is_flatwood | is_coastplain | is_southeast
 
 
 # ---------------------------------------------------------------------------
@@ -321,15 +366,15 @@ def consm_canopy(
     pre_bl = np.ravel(np.asarray(pre_bl, dtype=float))
 
     if units.upper() == 'SI':
-        pre_fl = pre_fl * 4.4609  # kg/m² → T/acre
-        pre_bl = pre_bl * 4.4609
+        pre_fl = pre_fl * _KGPM2_TO_TPAC  # kg/m² → T/acre
+        pre_bl = pre_bl * _KGPM2_TO_TPAC
 
     flc = (crown_burn / 100) * pre_fl
     blc = (crown_burn / 100) * pre_bl * 0.5
 
     if units.upper() == 'SI':
-        flc = flc / 4.4609  # T/acre → kg/m²
-        blc = blc / 4.4609
+        flc = flc * _TPAC_TO_KGPM2  # T/acre → kg/m²
+        blc = blc * _TPAC_TO_KGPM2
 
     return {
         'flc': _maybe_scalar(flc, scalar_input),
@@ -509,15 +554,15 @@ def consm_duff(
         dw1k = duff_moist
 
     if units.upper() == 'SI':
-        pre_dl = pre_dl * 4.4609                 # Mg/ha → T/acre
+        pre_dl = pre_dl * _KGPM2_TO_TPAC                 # Mg/ha → T/acre
         if d_pre is not None:
             d_pre = d_pre / 2.54                 # cm → in
         if pre_dl110 is not None:
-            pre_dl110 = pre_dl110 * 4.4609
+            pre_dl110 = pre_dl110 * _KGPM2_TO_TPAC
         if pre_l110 is not None:
-            pre_l110  = pre_l110  * 4.4609
+            pre_l110  = pre_l110  * _KGPM2_TO_TPAC
         if pre_ll is not None:
-            pre_ll = pre_ll * 4.4609
+            pre_ll = pre_ll * _KGPM2_TO_TPAC
 
     # ------------------------------------------------------------------
     # Convenience flag sets (matching C++ CI_is* predicates)
@@ -830,8 +875,8 @@ def consm_herb(
     n = max(len(pre_ll), len(pre_hl))
 
     if units.upper() == 'SI':
-        pre_ll = pre_ll * 4.4609
-        pre_hl = pre_hl * 4.4609
+        pre_ll = pre_ll * _KGPM2_TO_TPAC
+        pre_hl = pre_hl * _KGPM2_TO_TPAC
 
     reg_arr  = _to_str_arr(reg, REGION_CODES)
     cvr_arr  = _to_str_arr(cvr_grp, CVR_GRP_CODES)
@@ -863,7 +908,7 @@ def consm_herb(
     hlc = np.clip(hlc, 0.0, pre_hl)
 
     if units.upper() == 'SI':
-        hlc = hlc / 4.4609
+        hlc = hlc * _TPAC_TO_KGPM2
 
     return float(hlc[0]) if scalar_input else hlc
 
@@ -937,9 +982,9 @@ def consm_litter(
     l_moist = np.broadcast_to(l_moist, (n,)) if l_moist.size == 1 else l_moist
 
     if units.upper() == 'SI':
-        pre_ll = pre_ll * 4.4609  # kg/m² → T/acre
+        pre_ll = pre_ll * _KGPM2_TO_TPAC  # kg/m² → T/acre
         if pre_dl is not None:
-            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * 4.4609
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * _KGPM2_TO_TPAC
     elif pre_dl is not None:
         pre_dl = np.ravel(np.asarray(pre_dl, dtype=float))
 
@@ -999,7 +1044,7 @@ def consm_litter(
     )
 
     if units.upper() == 'SI':
-        llc = llc / 4.4609  # T/acre → kg/m²
+        llc = llc * _TPAC_TO_KGPM2  # T/acre → kg/m²
 
     return float(llc[0]) if scalar_input else llc
 
@@ -1207,17 +1252,17 @@ def consm_shrub(
     n = len(pre_sl)
 
     if units.upper() == 'SI':
-        pre_sl = pre_sl * 4.4609
+        pre_sl = pre_sl * _KGPM2_TO_TPAC
         if pre_ll is not None:
-            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float)) * 4.4609
+            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float)) * _KGPM2_TO_TPAC
         if pre_dl is not None:
-            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * 4.4609
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * _KGPM2_TO_TPAC
         if pre_rl is not None:
-            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float)) * 4.4609
+            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float)) * _KGPM2_TO_TPAC
         if pre_dw1 is not None:
-            pre_dw1 = np.ravel(np.asarray(pre_dw1, dtype=float)) * 4.4609
+            pre_dw1 = np.ravel(np.asarray(pre_dw1, dtype=float)) * _KGPM2_TO_TPAC
         if pre_dw10 is not None:
-            pre_dw10 = np.ravel(np.asarray(pre_dw10, dtype=float)) * 4.4609
+            pre_dw10 = np.ravel(np.asarray(pre_dw10, dtype=float)) * _KGPM2_TO_TPAC
     else:
         if pre_ll is not None:
             pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))

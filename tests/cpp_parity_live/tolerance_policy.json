@@ -57,11 +57,11 @@
   },
   "consume": {
     "BraCon": {
-      "atol": 0.01,
+      "atol": 1e-05,
       "covers_columns": [
         "BraCon"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01.",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.01 (never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict). Re-measured (n=8, full precision): max |diff|=0.000000. atol=1e-05 matches the golden's six-decimal output resolution, the same convention consume_expanded_matrix.litter_cp/herb use for identical columns -- not a re-derivation of the underlying comparison, only a tighter, evidence-matched bound.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -198,11 +198,11 @@
       "unit": "lb/ac"
     },
     "DW100Con": {
-      "atol": 0.05,
+      "atol": 0.001,
       "covers_columns": [
         "DW100Con"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.007246, within tol=0.05 (margin 0.0428).",
+      "justification": "TIGHTENED 2026-09-23 after the F-70 case-4 burnup-duration-divergence fix (litter mass fed to Burnup, plus _burnup_durations()'s threshold-units correction -- see development/plans/2026-09-23-burnup-duration-divergence-case4.md). Case 4 was this field's argmax and was driven by the same root causes now fixed. Re-measured post-fix (n=8, full precision): max |diff|=0.000473 (case 4). atol=0.001 gives a >2x margin. HISTORICAL: pre-fix max |diff| was 0.007246 against the then-current atol=0.05 (legacy, same source as LitCon, never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict).",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -240,11 +240,11 @@
       "unit": "T/ac"
     },
     "DW10Con": {
-      "atol": 0.05,
+      "atol": 0.001,
       "covers_columns": [
         "DW10Con"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000103, within tol=0.05 (margin 0.0499).",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.05 (never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict). Re-measured (n=8, full precision): max |diff|=0.000103 (case 3). atol=0.001 keeps a real ~10x margin over the measured maximum, evidence-matched rather than a legacy carry-over; not contradicted by any other route in this policy that also covers DW10Con.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -282,11 +282,11 @@
       "unit": "T/ac"
     },
     "DW1Con": {
-      "atol": 0.01,
+      "atol": 1e-05,
       "covers_columns": [
         "DW1Con"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, well within tol=0.01.",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.01 (never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict). Re-measured (n=8, full precision): max |diff|=3.79e-07 (case 8). atol=1e-05 matches the golden's six-decimal output resolution, the same convention consume_burnup_extended.woody_small already uses for this exact column (at 1e-06) -- not a re-derivation of the underlying comparison, only a tighter, evidence-matched bound.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -324,11 +324,11 @@
       "unit": "T/ac"
     },
     "DufCon": {
-      "atol": 0.05,
+      "atol": 1e-05,
       "covers_columns": [
         "DufCon"
       ],
-      "justification": "RESOLVED 2026-09-21 (F-23 fix pass): the Northeast case-6 duff-routing defect (consm_duff() derived NorthEast generic percent-consumed through the Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth reduction diverged from fof_duf.cpp's percent-derived override) is fixed. Gate 0's F-23 \"Consequences\" paragraph named DufCon, RotDW1kCon, SmoDur, and TotCon TOGETHER as the four fields affected in case 6 of the 8-case comparison dataset (gate0/04-findings.md); all four now agree. HISTORICAL: measured (n=8, case 6 only) |diff|=0.1696, exceeding tol=0.05 -- see test_case6_is_the_only_expected_divergent_case, whose expected-divergence set is now empty.",
+      "justification": "RESOLVED 2026-09-21 (F-23 fix pass): the Northeast case-6 duff-routing defect (consm_duff() derived NorthEast generic percent-consumed through the Eq-15 relation instead of C++ Duf_Default's Equ_2_Per, and duff-depth reduction diverged from fof_duf.cpp's percent-derived override) is fixed. Gate 0's F-23 \"Consequences\" paragraph named DufCon, RotDW1kCon, SmoDur, and TotCon TOGETHER as the four fields affected in case 6 of the 8-case comparison dataset (gate0/04-findings.md); all four now agree. HISTORICAL: measured (n=8, case 6 only) |diff|=0.1696, exceeding the former tol=0.05 -- see test_case6_is_the_only_expected_divergent_case, whose expected-divergence set is now empty. TIGHTENED 2026-09-23: with F-23 fixed, re-measured (n=8, full precision) max |diff|=4.44e-16, effectively exact. atol=1e-05 matches the golden's six-decimal output resolution, the same convention used elsewhere in this file for identical-precision columns.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "gate0/04-findings.md:F-23 (resolved; Consequences paragraph named DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -412,22 +412,22 @@
       "unit": "T/ac"
     },
     "FlaDur": {
-      "atol": 30.0,
+      "atol": 1.0,
       "covers_columns": [
         "FlaDur"
       ],
-      "justification": "Legacy tolerance retained unchanged. Measured (n=8): max |diff|=15.0, within tol=30.0 (margin 15.0).",
+      "justification": "TIGHTENED 2026-09-23 after the F-70 case-4 burnup-duration-divergence fix (see development/plans/2026-09-23-burnup-duration-divergence-case4.md): (1) Burnup now receives the region-consumed litter mass (Eq 997/998/30), not the raw pre-fire load, for SouthEast/Flatwoods/Coastal-Plain cells, matching pinned C++'s BCM_SetInputs; (2) _burnup_durations() now compares a per-TIMESTEP mass against the 1e-05 epsilon (matching C++ ES_Calc's own d_FlaCon/d_SmoCon literal comparisons) instead of a per-second rate, which had made Python's threshold effectively dt(=15s)-times too strict. Re-measured post-fix (n=8, full precision): max |diff|=0.0 (EXACT match on every case, including case 4's own 105.0==105.0). atol=1.0 keeps a real margin above exact equality for future floating-point noise on a value that is otherwise always an exact multiple of the 15s simulation timestep. HISTORICAL: pre-fix max |diff| was 15.0 (case 4, Python 120.0 vs C++ 105.0) against the then-current atol=30.0 (legacy, never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict).",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
       "unit": "s"
     },
     "FolCon": {
-      "atol": 0.01,
+      "atol": 1e-05,
       "covers_columns": [
         "FolCon"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01.",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.01 (never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict). Re-measured (n=8, full precision): max |diff|=0.000000. atol=1e-05 matches the golden's six-decimal output resolution, the same convention consume_expanded_matrix.litter_cp/herb use for identical-precision columns -- not a re-derivation of the underlying comparison, only a tighter, evidence-matched bound.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -465,11 +465,11 @@
       "unit": "T/ac"
     },
     "HerCon": {
-      "atol": 0.01,
+      "atol": 1e-05,
       "covers_columns": [
         "HerCon"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01. NOTE consm_herb has a known routing-precedence defect (F-11) for the Pine Flatwoods cover group specifically, not exercised by this sample \u2014 do not apply this 'verified' status to a Pine Flatwoods scenario without re-verifying against F-11.",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.01 (never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict). Re-measured (n=8, full precision): max |diff|=0.000000. atol=1e-05 matches the golden's six-decimal output resolution, the same convention consume_expanded_matrix.herb already uses for this exact column -- not a re-derivation of the underlying comparison, only a tighter, evidence-matched bound. NOTE consm_herb has a known routing-precedence defect (F-11) for the Pine Flatwoods cover group specifically, not exercised by this sample \u2014 do not apply this 'verified' status to a Pine Flatwoods scenario without re-verifying against F-11.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "gate0/04-findings.md:F-11; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -507,11 +507,11 @@
       "unit": "T/ac"
     },
     "LitCon": {
-      "atol": 0.01,
+      "atol": 1e-05,
       "covers_columns": [
         "LitCon"
       ],
-      "justification": "Legacy tolerance retained unchanged from the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict (this file now the sole source \u2014 see NOTE). Measured evidence (Phase 2 correction pass, n=8 cases from tests/test_data/test_inputs/cpp_comparison_cases.csv): max |diff|=0.000000, well within tol=0.01.",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.01 (retained unchanged from the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict since the file's pre-manifest era). Re-measured evidence (n=8 cases from tests/test_data/test_inputs/cpp_comparison_cases.csv, full precision): max |diff|=2.22e-16, effectively exact. atol=1e-05 matches the golden's six-decimal output resolution, the same convention consume_expanded_matrix.litter_cp uses for this exact column -- not a re-derivation of the underlying comparison, only a tighter, evidence-matched bound.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -659,14 +659,14 @@
       "unit": "lb/ac"
     },
     "RotDW1kCon": {
-      "atol": 0.02,
+      "atol": 0.0001,
       "covers_columns": [
         "RotDW1kCon"
       ],
-      "justification": "RESOLVED 2026-09-21 (F-23 fix pass): downstream consequence of the SAME Northeast case-6 duff-routing defect as DufCon (F-23), now fixed -- Gate 0's F-23 \"Consequences\" paragraph named RotDW1kCon (alongside DufCon/SmoDur/TotCon) as a field affected by the wrong duff percent propagating into Burnup's duff coupling for rotten-1000-hr fuels (gate0/04-findings.md). HISTORICAL: measured (n=8, case 6 only) |diff|=0.0250, exceeding tol=0.02 -- see test_case6_is_the_only_expected_divergent_case, whose expected-divergence set is now empty.",
+      "justification": "TIGHTENED 2026-09-23 after the F-70 case-4 burnup-duration-divergence fix (litter mass fed to Burnup, plus _burnup_durations()'s threshold-units correction -- see development/plans/2026-09-23-burnup-duration-divergence-case4.md). Case 4 was this field's argmax and was driven by the same root causes now fixed. Re-measured post-fix (n=8, full precision): max |diff|=0.000034 (case 4). atol=0.0001 gives a ~2.9x margin. HISTORICAL: RESOLVED 2026-09-21 (F-23 fix pass) as a downstream consequence of the Northeast case-6 duff-routing defect (gate0/04-findings.md), with the then-current atol=0.02 (legacy, never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict) left unchanged at that time.",
       "rtol": 0.0,
       "status": "verified",
-      "traceability": "gate0/04-findings.md:F-23 (resolved; Consequences paragraph named DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "traceability": "gate0/04-findings.md:F-23 (resolved; Consequences paragraph named DufCon, RotDW1kCon, SmoDur, TotCon together); development/plans/2026-09-23-burnup-duration-divergence-case4.md; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
       "unit": "T/ac"
     },
     "RotDW1kPer": {
@@ -734,11 +734,11 @@
       "unit": "lb/ac"
     },
     "ShrCon": {
-      "atol": 0.01,
+      "atol": 1e-05,
       "covers_columns": [
         "ShrCon"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000000, within tol=0.01. NOTE consm_shrub has THREE known defects (F-13/F-14/F-15/F-16) for specific cover groups/equations not exercised by this sample \u2014 do not apply this 'verified' status to those scenarios.",
+      "justification": "TIGHTENED 2026-09-23 from the legacy atol=0.01 (never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict). Re-measured (n=8, full precision): max |diff|=1.82e-07 (case 4). atol=1e-05 matches the golden's six-decimal output resolution, the same convention used elsewhere in this file for identical-precision columns -- not a re-derivation of the underlying comparison, only a tighter, evidence-matched bound. NOTE consm_shrub has THREE known defects (F-13/F-14/F-15/F-16) for specific cover groups/equations not exercised by this sample \u2014 do not apply this 'verified' status to those scenarios.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "gate0/04-findings.md:F-13,F-14,F-15,F-16; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -787,22 +787,22 @@
       "unit": "T/ac"
     },
     "SmoDur": {
-      "atol": 60.0,
+      "atol": 1.0,
       "covers_columns": [
         "SmoDur"
       ],
-      "justification": "RESOLVED 2026-09-21 (F-23 fix pass): downstream consequence of the SAME Northeast case-6 duff-routing defect as DufCon (F-23), now fixed -- Gate 0's F-23 \"Consequences\" paragraph named SmoDur (alongside DufCon/RotDW1kCon/TotCon) as a field affected by the wrong duff percent propagating into Burnup's smouldering-duration coupling (gate0/04-findings.md). HISTORICAL: measured (n=8, case 6 only) |diff|=90.0, exceeding tol=60.0 -- see test_case6_is_the_only_expected_divergent_case, whose expected-divergence set is now empty.",
+      "justification": "TIGHTENED 2026-09-23 (same day, second pass): both of the two residuals that blocked tightening earlier today are now found and fixed, each a real, distinct, precisely-located defect (never a re-derivation of one already-attempted number): (1) case 8 (duff-only, diff was 6.201487) -- Python's duff-only SmoDur fallback (pyfofem.py) computed the raw continuous DuffBurn tdf value, but C++ genuinely runs the discrete 15s-step loop even for duff-only cells (the injected 1e-7 kg/m^2 DW1 guard keeps `number>=1`) and its mass-pool depletion (Duff_CPTS) rounds UP to the next grid step; fixed by ceiling `smo_dur_arr[i]` to `ig_time + dt*ceil((tdf_raw-ig_time)/dt)`, confirmed exact (1170.0) via a live C++ ES_Calc diagnostic trace. (2) case 6 (rotten-1000hr/duff, diff was 15.0) -- `burnup.py`'s `smoldering[number]` (duff's own slot in `comp_smoldering`, which `_burnup_durations()` sums into the SmoDur threshold check) was set ONCE from the constant nominal `duff_smolder_rate` at initialization and NEVER updated as the duff mass pool (`duf_tot_mass`) depleted -- unlike every other tracked quantity, it never reached zero, so duff alone held the aggregate smoldering-rate sum comfortably above the 1e-5 epsilon for the entire simulation, one timestep past C++'s own genuine crossing. Fixed by computing the consumed-this-step amount from the SAME transaction that updates `duf_tot_mass` (mirroring C++'s Duff_CPTS()->ES_Calc(d_Duff) ordering) and assigning it to `smoldering[number]` before each `_record()` call. Re-measured post-both-fixes (n=8, full precision): max |diff|=0.0 -- EXACT match on every one of the 8 cases (matching FlaDur, which was already exact). atol=1.0 mirrors FlaDur's own post-fix tightening (same reasoning: a value that is otherwise always an exact multiple of the 15s simulation timestep, with real margin kept above exact equality for future floating-point noise). See development/plans/2026-09-23-burnup-duration-divergence-case4.md for the full evidence trail (both today's F-70 case-4 fixes and this same-day follow-up). HISTORICAL: RESOLVED 2026-09-21 (F-23 fix pass) as a downstream consequence of the Northeast case-6 duff-routing defect (gate0/04-findings.md); NOT tightened earlier today pending this investigation (case 6 diff=15.0, case 8 diff=6.201487, atol left at 60.0).",
       "rtol": 0.0,
       "status": "verified",
-      "traceability": "gate0/04-findings.md:F-23 (resolved; Consequences paragraph named DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
+      "traceability": "gate0/04-findings.md:F-23 (resolved; Consequences paragraph named DufCon, RotDW1kCon, SmoDur, TotCon together); development/plans/2026-09-23-burnup-duration-divergence-case4.md; tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
       "unit": "s"
     },
     "SndDW1kCon": {
-      "atol": 0.02,
+      "atol": 0.0003,
       "covers_columns": [
         "SndDW1kCon"
       ],
-      "justification": "Same legacy tolerance/source as LitCon. Measured (n=8): max |diff|=0.000627, within tol=0.02 (margin 0.0194).",
+      "justification": "TIGHTENED 2026-09-23 after the F-70 case-4 burnup-duration-divergence fix (litter mass fed to Burnup, plus _burnup_durations()'s threshold-units correction -- see development/plans/2026-09-23-burnup-duration-divergence-case4.md). Case 4 was this field's argmax and was driven by the same root causes now fixed. Re-measured post-fix (n=8, full precision): max |diff|=0.0000948 (case 4). atol=0.0003 gives a ~3.2x margin. HISTORICAL: pre-fix max |diff| was 0.000627 against the then-current atol=0.02 (legacy, same source as LitCon, never re-derived since the pre-Phase-2 test_compare_cpp_python.py._COMPARE_COLS dict).",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",
@@ -840,11 +840,11 @@
       "unit": "T/ac"
     },
     "TotCon": {
-      "atol": 0.1,
+      "atol": 0.0015,
       "covers_columns": [
         "TotCon"
       ],
-      "justification": "RESOLVED 2026-09-21 (F-23 fix pass): sum of the above component tolerances. Downstream consequence of the SAME F-23 Northeast case-6 duff-routing defect, now fixed -- DufCon feeds directly into TotCon's sum, and Gate 0's F-23 \"Consequences\" paragraph named TotCon directly as one of the four affected fields (gate0/04-findings.md). HISTORICAL: measured (n=8, case 6 only) |diff|=0.1946, exceeding tol=0.10 -- see test_case6_is_the_only_expected_divergent_case, whose expected-divergence set is now empty.",
+      "justification": "TIGHTENED 2026-09-23 after the F-70 case-4 burnup-duration-divergence fix (litter mass fed to Burnup, plus _burnup_durations()'s threshold-units correction -- see development/plans/2026-09-23-burnup-duration-divergence-case4.md). Case 4 was this field's argmax and was driven by the same root causes now fixed. Re-measured post-fix (n=8, full precision): max |diff|=0.000533 (case 4). atol=0.0015 gives a ~2.8x margin. HISTORICAL: RESOLVED 2026-09-21 (F-23 fix pass) as a downstream consequence of the Northeast case-6 duff-routing defect (DufCon feeds directly into TotCon's sum; gate0/04-findings.md), with the then-current atol=0.1 (legacy) left unchanged at that time.",
       "rtol": 0.0,
       "status": "verified",
       "traceability": "gate0/04-findings.md:F-23 (resolved; Consequences paragraph named DufCon, RotDW1kCon, SmoDur, TotCon together); tests/cpp_parity_live/test_compare_cpp_python.py:test_cpp_python_case_summary_matches",

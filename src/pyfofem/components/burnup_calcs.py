@@ -15,7 +15,13 @@ from .burnup import (
     _BURNUP_LIMIT_ADJUST,
     _BURNUP_LIMIT_ERROR,
 )
-from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
+from ._component_helpers import (
+    _is_scalar,
+    _maybe_scalar,
+    _to_str_arr,
+    _TPAC_TO_KGPM2,
+    _KGPM2_TO_TPAC,
+)
 
 # --- Burnup physical constants and helpers ---
 _DENSITY_SOUND: float = 513.0
@@ -24,8 +30,6 @@ _SOUND_TPIG: float = 327.0
 _ROTTEN_TPIG: float = 302.0
 _TCHAR: float = 377.0
 _HTVAL: float = 1.86e7
-_TPAC_TO_KGPM2: float = 1.0 / 4.4609
-_KGPM2_TO_TPAC: float = 4.4609
 _IN_TO_CM: float = 2.54
 
 _SAV_DEFAULTS: Dict[str, float] = {
@@ -47,9 +51,30 @@ def _burnup_durations(
     """
     Derive flaming and smoldering durations from burnup time-series.
 
+    Both thresholds are compared against the PER-TIMESTEP consumed MASS
+    (kg/m²), matching pinned C++ ``ES_Calc``'s own literal comparisons
+    (``d_FlaCon > 0.00001`` / ``d_SmoCon > 0.00001``, ``bur_brn.cpp:2185-
+    2187``), where ``d_FlaCon``/``d_SmoCon`` are themselves per-timestep
+    masses, not rates. ``r.comp_flaming``/``r.comp_smoldering`` are RATES
+    (kg/m²/s -- see the docstring-vs-actual-units gotcha on
+    :class:`BurnResult`), so each is multiplied by this result's own
+    elapsed interval before the threshold comparison -- the same
+    rate-to-mass conversion :func:`_extract_burnup_consumption` already
+    applies for its own consumption totals. Comparing the raw per-second
+    RATE against the epsilon (as an earlier version of this function did)
+    made Python's threshold effectively ``dt``-times stricter than C++'s
+    (a 15-second timestep meant Python's smoldering rate crossed below
+    the epsilon roughly 15x sooner than the equivalent per-timestep-mass
+    crossing would) -- confirmed by reproducing C++'s ``d_SmoCon`` to
+    within numeric noise as ``sum(r.comp_smoldering) * interval`` for
+    every late-simulation timestep of a live diagnostic trace; see
+    ``development/plans/2026-09-23-burnup-duration-divergence-case4.md``.
+
     :param results: Per-timestep burnup results from :func:`burnup`.
-    :param fla_threshold: Minimum flaming mass-loss rate (kg/m²/s) counted as still flaming.
-    :param smo_threshold: Minimum smoldering mass-loss rate (kg/m²/s) counted as still smoldering.
+    :param fla_threshold: Minimum per-timestep flaming mass consumed
+        (kg/m²) counted as still flaming.
+    :param smo_threshold: Minimum per-timestep smoldering mass consumed
+        (kg/m²) counted as still smoldering.
     :param first_step_flaming_extra: Herb + shrub + foliage + branch mass
         consumed (kg/m²), added to the FIRST result's own flaming total
         only. C++ ``ES_Calc()`` always counts ``d_HSFB`` (entirely
@@ -70,22 +95,22 @@ def _burnup_durations(
         return float('nan'), float('nan')
     fla_dur = 0.0
     smo_dur = 0.0
+    prev_time = 0.0
     for idx, r in enumerate(results):
+        interval = r.time - prev_time
+        prev_time = r.time
         if r.comp_flaming is not None:
-            step_fla = sum(r.comp_flaming)
+            step_fla = sum(r.comp_flaming) * interval
         else:
-            step_fla = r.ff
+            step_fla = r.ff * interval
         if idx == 0 and r.time > 0.0:
-            # first_step_flaming_extra is a MASS (kg/m^2); step_fla (like
-            # every other comp_flaming-derived quantity here) is a RATE
-            # (kg/m^2/s -- see docs/CODEBASE.md gotcha on BurnResult.
-            # comp_flaming's rate-vs-mass docstring), so divide by this
-            # first result's own elapsed time before adding.
-            step_fla += first_step_flaming_extra / r.time
+            # first_step_flaming_extra is already a MASS (kg/m^2) -- add
+            # directly, no rate/interval conversion needed.
+            step_fla += first_step_flaming_extra
         if r.comp_smoldering is not None:
-            step_smo = sum(r.comp_smoldering)
+            step_smo = sum(r.comp_smoldering) * interval
         else:
-            step_smo = (1.0 - r.ff)
+            step_smo = (1.0 - r.ff) * interval
         if step_fla > fla_threshold:
             fla_dur = r.time
         if step_smo > smo_threshold:

@@ -61,6 +61,8 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 
+from ._component_helpers import _TPAC_TO_KGPM2
+
 # ---------------------------------------------------------------------------
 # Fast math aliases  (avoid repeated attribute lookup in tight loops)
 # ---------------------------------------------------------------------------
@@ -1093,13 +1095,15 @@ def burnup(
     # ------------------------------------------------------------------
     # Mirrors C++ HSB_Init / HSB_Get / BRN_Intensity mechanism.
     # Herb+shrub are distributed linearly at a fixed rate (C++ default:
-    # 10 T/ac per minute = 10 / 4.4609 / 60 kg/m²/s in SI).
+    # 10 T/ac per minute, converted via the single canonical
+    # _TPAC_TO_KGPM2 -- C++'s own TPA_To_KiSq(), fof_util.cpp:543-562,
+    # applied to d_HSt at bur_brn.cpp:317/362).
     # Branch+foliage is consumed entirely in the first timestep.
     # Fire intensity (kW/m²) = htval (J/kg) × consumed_rate (kg/m²/s) × 1e-3.
     # We use 1.86e7 J/kg as the heat content, matching C++ e_htval*1000.
     _HSF_HTVAL = 1.86e7  # J/kg — same heat content used for all FOFEM fuels
     _HSF_RATE_TPAC_PER_MIN = 10.0  # C++ default: 10 tons/acre/minute
-    _HSF_RATE_SI = _HSF_RATE_TPAC_PER_MIN / 4.4609 / 60.0  # kg/m²/s
+    _HSF_RATE_SI = _HSF_RATE_TPAC_PER_MIN * _TPAC_TO_KGPM2 / 60.0  # kg/m²/s
     _hsf_remaining = float(hsf_consumed)
     _brafol_remaining = float(brafol_consumed)
 
@@ -1138,8 +1142,6 @@ def burnup(
     # First-timestep HSF/brafol intensity (consumed over ti seconds)
     fi_cur = fi_wl + fi_hs + _brafol_fi(ti)
 
-    _record(ti, fi_wl=fi_wl, fi_hs=fi_hs)
-
     # C++ bur_brn.cpp:322: the FIRST duff-mass decrement after Start()
     # uses a HARDCODED literal 60.0 -- NOT `ti`/`dt` -- regardless of the
     # scenario's actual ignition/residence time. Verified directly via a
@@ -1149,7 +1151,27 @@ def burnup(
     # where ti != 60 (e.g. long-igtime's ti=199.9) -- see the
     # duf_tot_mass comment above _duff_burn()'s own call for the full
     # crosswalk.
+    #
+    # C++ computes this decrement (Duff_CPTS(), bur_brn.cpp:311) and
+    # feeds its RETURNED consumed amount into ES_Calc's `d_Duff`
+    # parameter for THIS SAME call -- i.e. the reported duff smoldering
+    # rate is gated by the remaining mass pool, dropping to (and staying
+    # at) zero once the pool is exhausted. `smoldering[number]` must
+    # mirror that: it is set here, from the SAME transaction that updates
+    # `duf_tot_mass`, before `_record()` snapshots it -- not left at the
+    # constant nominal `duff_smolder_rate` for the entire simulation
+    # (a real, confirmed defect: verified via a live C++ diagnostic trace
+    # that C++'s duff-consumption input to ES_Calc genuinely reaches zero
+    # once the pool empties, while this array previously never did,
+    # letting duff alone hold SmoDur's reported threshold-crossing open
+    # indefinitely in any scenario where the nominal rate exceeds the
+    # 1e-5 epsilon -- see
+    # development/plans/2026-09-23-burnup-duration-divergence-case4.md).
+    _duf_consumed_first = min(duf_tot_mass, duff_smolder_rate * 60.0)
+    smoldering[number] = _duf_consumed_first / 60.0
     duf_tot_mass = _duff_cpts(duf_tot_mass, duff_smolder_rate, 60.0)
+
+    _record(ti, fi_wl=fi_wl, fi_hs=fi_hs)
 
     fimin = 0.1
     tis = ti
@@ -1437,6 +1459,20 @@ def burnup(
             fi_wl = _fire_intensity()
             fi_hs = _hsf_fi(dt)  # herb/shrub fire-intensity contribution
             fi_cur = fi_wl + fi_hs
+
+            # C++ bur_brn.cpp:366-369: this decrement (Duff_CPTS()) happens
+            # BEFORE ES_Calc() is called for the same timestep, and its
+            # RETURNED consumed amount is what ES_Calc receives as `d_Duff`
+            # -- so the reported duff smoldering rate is gated by the
+            # remaining mass pool and genuinely reaches (and stays at) zero
+            # once it empties. `smoldering[number]` must be set from this
+            # SAME transaction, before `_record()` snapshots it, rather
+            # than left at the constant nominal `duff_smolder_rate` for the
+            # entire simulation (a real, confirmed defect -- see the
+            # matching comment on the first-timestep decrement above, and
+            # development/plans/2026-09-23-burnup-duration-divergence-case4.md).
+            _duf_consumed = min(duf_tot_mass, duff_smolder_rate * dt)
+            smoldering[number] = _duf_consumed / dt if dt > 0.0 else 0.0
             _record(tis, fi_wl=fi_wl, fi_hs=fi_hs)
 
             # ---- termination ----

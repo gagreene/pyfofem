@@ -488,6 +488,7 @@ def run_fofem_emissions(
         duf_dep_a=duf_dep_a, dw10_a=dw10_a, dw1_a=dw1_a, dw1k_m_a=dw1k_m_a,
     )
     lit_pre_arr = pre['lit_pre_arr']; lit_con_arr = pre['lit_con_arr']; lit_pos_arr = pre['lit_pos_arr']
+    lit_burnup_arr = pre['lit_burnup_arr']
     her_pre_arr = pre['her_pre_arr']; her_con_arr = pre['her_con_arr']; her_pos_arr = pre['her_pos_arr']
     shr_pre_arr = pre['shr_pre_arr']; shr_con_arr = pre['shr_con_arr']; shr_pos_arr = pre['shr_pos_arr']
     fol_pre_arr = pre['fol_pre_arr']; fol_con_arr = pre['fol_con_arr']; fol_pos_arr = pre['fol_pos_arr']
@@ -556,7 +557,13 @@ def run_fofem_emissions(
                     fl[key] = v
                     fm[key] = max(moist, 0.02)
 
-            _add('litter', lit_pre_arr[i], max(d10f - _DW1HR_ADJ, 0.02))
+            # C++ BCM_SetInputs (fof_bcm.cpp:379-402) feeds Burnup the
+            # already-consumed litter amount, not the raw pre-fire load,
+            # for cells whose litter consumption is computed by a shortcut
+            # equation (Flatwoods/Coastal Plain/SouthEast) -- see F-70's
+            # case-4 burnup duration-divergence writeup,
+            # development/plans/2026-09-23-burnup-duration-divergence-case4.md.
+            _add('litter', lit_burnup_arr[i], max(d10f - _DW1HR_ADJ, 0.02))
             _add('dw1',    dw1_pre_arr[i],  max(d10f - _DW1HR_ADJ, 0.02))
             _add('dw10',   dw10_pre_arr[i], max(d10f, 0.02))
             _add('dw100',  dw100_pre_arr[i], max(d10f + _DW100HR_ADJ, 0.02))
@@ -758,7 +765,22 @@ def run_fofem_emissions(
             _ff = float(pdc_arr[i]) / 100.0 if 0.0 <= float(pdc_arr[i]) <= 100.0 else (0.837 - 0.426 * _dfm)
             _den = 7.5 - 2.7 * _dfm
             if _wdf > 0.0 and _dfm < 1.96 and _den > 0.0 and _ff > 0.0:
-                smo_dur_arr[i] = 1.0e4 * _ff * _wdf / _den
+                _tdf_raw = 1.0e4 * _ff * _wdf / _den
+                # C++ still runs the real discrete timestep loop even for a
+                # duff-only cell (the injected 1e-7 kg/m^2 DW1 guard keeps
+                # `number>=1`); its duff-mass pool (Duff_CPTS) depletes by
+                # `rate * dt` each step and floors at zero, so the reported
+                # SmoDur is the LAST step where the pool still holds a
+                # nonzero remainder -- i.e. `tdf` rounded UP to the next
+                # simulation-grid point, not the raw continuous value.
+                # Confirmed via a live C++ diagnostic trace (case 8 of
+                # cpp_comparison_cases.csv): the continuous tdf evaluates to
+                # 1164.03s, but C++'s actual last qualifying timestep is
+                # 1170.0s = ig_time(60) + 15s * ceil((1164.03-60)/15). See
+                # development/plans/2026-09-23-burnup-duration-divergence-case4.md.
+                _ig_time_i = float(frt_a[i]) if not np.isnan(frt_a[i]) else 60.0
+                _steps = max(np.ceil((_tdf_raw - _ig_time_i) / burnup_dt), 0.0)
+                smo_dur_arr[i] = _ig_time_i + _steps * burnup_dt
                 continue
         if np.isnan(smo_dur_arr[i]) and not np.isnan(duf_dep_con_arr[i]) and duf_dep_con_arr[i] > 0:
             dep_cm  = duf_dep_con_arr[i] * _IN_TO_CM if is_imperial else duf_dep_con_arr[i]

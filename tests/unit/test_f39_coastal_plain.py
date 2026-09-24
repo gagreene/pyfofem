@@ -41,6 +41,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from pyfofem.components._component_helpers import _KGPM2_TO_TPAC
 from pyfofem.components.consumption_calcs import (
     MG_HECTARE_PER_TON_ACRE,
     consm_duff,
@@ -407,7 +408,7 @@ def test_consm_litter_coastal_plain_si_and_imperial_agree():
 
     :return: None. Raises via ``assert`` on mismatch.
     """
-    kg_m2_per_tac = 4.4609
+    kg_m2_per_tac = _KGPM2_TO_TPAC
     pre_ll_tac, pre_dl_tac, l_moist = 2.0, 10.0, 40.0
 
     imperial = consm_litter(

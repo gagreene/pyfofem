@@ -13,6 +13,7 @@ from typing import Dict, Tuple, Union
 import numpy as np
 
 from .consumption_calcs import (
+    _litter_shortcut_mask,
     consm_canopy,
     consm_duff,
     consm_herb,
@@ -399,7 +400,9 @@ def compute_pre_burnup_consumption(
     :param dw1_a: Pre-fire 1-hr down-wood load per cell.
     :param dw1k_m_a: 1000-hr woody fuel moisture content (%) per cell.
     :return: Dict of per-cell consumption arrays keyed by
-        'lit_pre_arr'/'lit_con_arr'/'lit_pos_arr',
+        'lit_pre_arr'/'lit_con_arr'/'lit_pos_arr'/'lit_burnup_arr'
+        ('lit_burnup_arr' is the litter mass Burnup itself should
+        receive -- see the F-70 comment at its computation site),
         'her_pre_arr'/'her_con_arr'/'her_pos_arr',
         'shr_pre_arr'/'shr_con_arr'/'shr_pos_arr',
         'fol_pre_arr'/'fol_con_arr'/'fol_pos_arr',
@@ -414,6 +417,16 @@ def compute_pre_burnup_consumption(
     )
     lit_pre_arr = lit_a.copy()
     lit_pos_arr = lit_pre_arr - lit_con_arr
+    # C++ BCM_SetInputs (fof_bcm.cpp:379-402) feeds Burnup the already-
+    # consumed litter amount -- not the raw pre-fire load -- for cells
+    # whose litter consumption is computed by a shortcut equation
+    # (Flatwoods Eq 997 / Coastal Plain Eq 30 / SouthEast Eq 998), since
+    # Burnup is assumed to consume all of it. Only cells falling through
+    # to consm_litter()'s default Eq 999 route (litter consumption
+    # determined BY Burnup itself) should receive the raw pre-fire load.
+    lit_burnup_arr = np.where(
+        _litter_shortcut_mask(cvr_a, reg_a, n), lit_con_arr, lit_pre_arr,
+    )
 
     her_pre_arr = her_a.copy()
     her_con_arr = np.asarray(
@@ -511,6 +524,7 @@ def compute_pre_burnup_consumption(
         "lit_pre_arr": lit_pre_arr,
         "lit_con_arr": lit_con_arr,
         "lit_pos_arr": lit_pos_arr,
+        "lit_burnup_arr": lit_burnup_arr,
         "her_pre_arr": her_pre_arr,
         "her_con_arr": her_con_arr,
         "her_pos_arr": her_pos_arr,

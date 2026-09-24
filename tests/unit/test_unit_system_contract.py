@@ -12,9 +12,13 @@ non-burnup nonlinear-consumption facade call and a full
 ``use_burnup=True`` fire-environment call). All conversion-factor
 expectations are independently derived from the SAME constants
 production code itself uses, never invented:
-``burnup_calcs._TPAC_TO_KGPM2 = 1.0 / 4.4609`` /
-``_KGPM2_TO_TPAC = 4.4609`` for mass loads, and ``2.54`` cm/in for
-depths.
+``_component_helpers._TPAC_TO_KGPM2 = 1.0 / 4.46`` /
+``_KGPM2_TO_TPAC = 4.46`` -- the single canonical T/ac<->kg/m² factor
+used everywhere in this package (matching pinned C++'s
+``TPA_To_KiSq()``), unified 2026-09-23 (see
+``development/plans/2026-09-23-burnup-duration-divergence-case4.md``;
+previously ``consumption_calcs.py`` used its own, different, never-
+C++-validated ``4.4609`` literal) -- and ``2.54`` cm/in for depths.
 
 **Correction pass (2026-09-10, responding to independent review) -
 route selection deliberately avoids non-discriminating cases**:
@@ -115,7 +119,7 @@ from pyfofem import (
     mort_crnsch,
     run_fofem_emissions,
 )
-from pyfofem.components.burnup_calcs import _KGPM2_TO_TPAC, _TPAC_TO_KGPM2
+from pyfofem.components._component_helpers import _KGPM2_TO_TPAC, _TPAC_TO_KGPM2
 
 #: A representative, nontrivial (non-round-number) litter load in T/ac.
 _LITTER_IMPERIAL = 3.7

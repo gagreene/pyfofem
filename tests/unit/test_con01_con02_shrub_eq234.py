@@ -63,6 +63,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from pyfofem.components._component_helpers import _KGPM2_TO_TPAC
 from pyfofem.components.consumption_calcs import consm_shrub
 from pyfofem.components.emission_pipeline import compute_pre_burnup_consumption
 from tests.cpp_parity_live._expanded_matrix_contract import (
@@ -393,7 +394,7 @@ def test_eq234_si_imperial_equivalence_with_dw_terms():
     """
     pre_ll_tac, pre_dl_tac, pre_dw10_tac, pre_dw1_tac = 1.0, 0.8, 0.5, 0.3
     pre_sl_tac, duff_moist = 2.0, 40.0
-    kg_m2_per_tac = 4.4609
+    kg_m2_per_tac = _KGPM2_TO_TPAC
 
     imperial = consm_shrub(
         'SouthEast', 'NA', pre_sl_tac,

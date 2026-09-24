@@ -33,6 +33,7 @@ import pandas as pd
 import pytest
 
 from pyfofem import run_burnup
+from pyfofem.components._component_helpers import _TPAC_TO_KGPM2
 from tests._support import TEST_GOLDEN_DIR, TEST_INPUTS_DIR
 
 # ---------------------------------------------------------------------------
@@ -50,7 +51,7 @@ _ATOL_TIGN   = 2.0     # ignition time tolerance (s)
 _ATOL_WDF    = 0.005   # overall remaining-weight fraction
 _ATOL_FF     = 0.02    # flaming fraction
 
-_TAC_TO_KGM2 = 1.0 / 4.4609  # T/ac → kg/m²
+_TAC_TO_KGM2 = _TPAC_TO_KGPM2  # T/ac → kg/m²
 
 
 # ---------------------------------------------------------------------------

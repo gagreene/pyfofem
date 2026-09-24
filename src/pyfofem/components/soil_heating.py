@@ -23,6 +23,8 @@ import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
 
+from ._component_helpers import _TPAC_TO_KGPM2
+
 # ---------------------------------------------------------------------------
 # Soil family defaults
 # ---------------------------------------------------------------------------
@@ -473,7 +475,10 @@ class SoilSimulationError(RuntimeError):
 
 
 #: Tons per acre to kilograms per square metre for the duff-burn relation.
-_TONS_ACRE_TO_KG_M2 = 1.0 / 4.46
+#: Alias of the single canonical `_component_helpers._TPAC_TO_KGPM2` --
+#: kept as its own name since this module's own tests already document
+#: and assert it by this identifier.
+_TONS_ACRE_TO_KG_M2 = _TPAC_TO_KGPM2
 
 #: Inches to centimetres for the duff heat-adjustment relation.
 _INCH_TO_CM = 100.0 / 39.37
@@ -1265,7 +1270,7 @@ def _make_guide_herb_shrub_intensity(
         return []
 
     interval_s = 15.0
-    rate_kg_m2_s = 5.0 / 4.4609 / 60.0
+    rate_kg_m2_s = 5.0 * _TPAC_TO_KGPM2 / 60.0
     first_minute_load = min(consumed_load, rate_kg_m2_s * 60.0)
     interval_loads = [first_minute_load * fraction for fraction in (0.10, 0.20, 0.30, 0.40)]
 
