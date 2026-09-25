@@ -38,7 +38,7 @@ Usage:
 ``--verify-only`` regenerates into a temporary directory and compares
 against the committed goldens byte-for-byte (CSVs) / field-for-field
 (manifests, excluding the fields that legitimately vary by run location:
-``generated_utc`` and ``generating_command``, plus the path-keys — not
+``generated_utc``, plus the path-keys — not
 values — of the CSV-hash dicts, whose VALUES are still compared) without
 overwriting anything, to prove deterministic regeneration (self-test
 15/16 at the dataset level).
@@ -200,10 +200,6 @@ def _generate_one(mode: str, out_dir: str) -> str:
         architecture=platform.machine(),
         build_type="Debug",
         build_flags=_build_flags_from_cache(),
-        generating_command=(
-            f"{HARNESS_EXE} {prefix}_in.csv {prefix}"
-            + (f" --species-csv {SPECIES_CSV}" if m["needs_species"] else "")
-        ),
         input_csv_paths=input_csv,
         output_csv_paths=output_csvs,
         tolerance_policy_keys=GOLDEN_TOLERANCE_KEYS[mode],
@@ -585,7 +581,7 @@ def verify_regeneration(committed_root: str, fresh_root: str, modes) -> List[str
     stat-based shortcut, which can pass on a changed file with an
     unchanged size/mtime). Every manifest field is compared directly
     except the run-location-dependent ones: ``generated_utc``,
-    ``generating_command``, ``pyfofem_commit``, and the entire
+    ``pyfofem_commit``, and the entire
     ``pyfofem_dirty`` object (``dirty``/``staged``/``unstaged``/
     ``untracked``/``porcelain``). These are real, correctly-recorded
     provenance for the environment a given regeneration ran in — not a
@@ -656,7 +652,6 @@ def verify_regeneration(committed_root: str, fresh_root: str, modes) -> List[str
         def _normalize(manifest):
             d = dict(manifest)
             d.pop("generated_utc", None)
-            d.pop("generating_command", None)
             d.pop("pyfofem_commit", None)
             d.pop("pyfofem_dirty", None)
             return d
@@ -664,7 +659,7 @@ def verify_regeneration(committed_root: str, fresh_root: str, modes) -> List[str
         if _normalize(committed_manifest) != _normalize(fresh_manifest):
             mismatches.append(
                 f"{mode}: manifest content differs (fields excluded from "
-                "this comparison: generated_utc, generating_command, "
+                "this comparison: generated_utc, "
                 "pyfofem_commit, pyfofem_dirty)"
             )
     return mismatches
@@ -691,7 +686,7 @@ def main() -> int:
                 "(SHA-256 compared) to the committed goldens for every "
                 "input/output CSV — no missing/extra files either — and "
                 "every manifest field matches except generated_utc, "
-                "generating_command, pyfofem_commit, and pyfofem_dirty."
+                "pyfofem_commit and pyfofem_dirty."
             )
             return 0
 

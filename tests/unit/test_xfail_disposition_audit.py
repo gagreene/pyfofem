@@ -7,12 +7,12 @@ comprehensive-suite xfail disposition audit
 2026-09-18 xfail-disposition audit pass) exactly covers every currently
 collected ``xfail`` node in the test files it audits.
 
-This is NOT a snapshot count check: it re-runs the exact 8 test files the
-CSV's own ``test_file`` column names, in a bounded, repository-local
-subprocess, and asserts the resulting xfail node SET is identical (both
-directions) to the CSV's ``node_id`` SET. A new xfail added to one of
-these files without an audit row, or an audit row for a node that no
-longer exists/no longer xfails, both fail this test loudly.
+This is NOT a snapshot count check: it re-runs the fixed inventory of 7
+test files that contributed xfail nodes during the audit, in a bounded,
+repository-local subprocess, and asserts the resulting xfail node SET is
+identical (both directions) to the CSV's ``node_id`` SET. A new xfail added
+to one of these files without an audit row, or an audit row for a node that
+no longer exists/no longer xfails, both fail this test loudly.
 
 The CSV lives under ``development/plans/gate0/``, which is
 LOCAL/GITIGNORED (matching ``07-branch-traceability.csv``'s own
@@ -26,9 +26,11 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Sequence
 
 import pytest
 
@@ -64,27 +66,89 @@ _AUDITED_TEST_FILES = [
 ]
 
 
+def _collect_xfail_records(test_files: Sequence[str], run_root: Path) -> list[dict]:
+    """
+    Run the xfail collector against *test_files* and return its records.
+
+    :param test_files: Test paths passed directly to the pytest subprocess.
+    :param run_root: Existing or creatable directory for the report and
+        subprocess basetemp.
+    :returns: Parsed collector records.
+    """
+    run_root.mkdir(parents=True, exist_ok=True)
+    out_path = run_root / "xfail_report.json"
+    full_env = dict(os.environ)
+    full_env["XFAIL_COLLECTOR_OUT"] = str(out_path)
+    full_env["PYTHONPATH"] = (
+        str(_COLLECTOR_PLUGIN.parent)
+        + os.pathsep
+        + full_env.get("PYTHONPATH", "")
+    )
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "_xfail_audit_collector_plugin",
+        "--basetemp",
+        str(run_root / "basetemp"),
+        *test_files,
+    ]
+    result = subprocess.run(
+        cmd,
+        cwd=str(_PROJECT_ROOT),
+        env=full_env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, (
+        "xfail collector subprocess failed; its report cannot be trusted:\n"
+        + result.stdout[-4000:]
+        + "\n"
+        + result.stderr[-2000:]
+    )
+    assert out_path.exists(), (
+        "collector plugin did not write a report -- subprocess output:\n"
+        + result.stdout[-4000:]
+        + "\n"
+        + result.stderr[-2000:]
+    )
+    with open(out_path, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
 def _load_csv_node_ids() -> set:
     """
     Read the audit CSV's ``node_id`` column.
 
     :returns: Set of every audited node id.
     """
-    with open(_CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        return {row["node_id"] for row in csv.DictReader(f)}
+    with open(_CSV_PATH, "r", encoding="utf-8", newline="") as handle:
+        return {row["node_id"] for row in csv.DictReader(handle)}
+
+
+def _write_synthetic_test(tmp_path: Path, source: str) -> Path:
+    """
+    Write one temporary pytest module used to exercise collector failures.
+
+    :param tmp_path: Directory in which to create the test module.
+    :param source: Complete Python source for the synthetic test.
+    :returns: Path to the created test module.
+    """
+    path = tmp_path / "test_synthetic_xfail_audit.py"
+    path.write_text(source, encoding="utf-8")
+    return path
 
 
 def test_audit_csv_exactly_covers_the_current_xfail_inventory(tmp_path):
     """
-    Re-collect the real xfail outcomes from every test file the CSV
-    audits, in a bounded subprocess, and assert the CSV's ``node_id``
-    set is identical to the freshly-observed xfail node set -- neither
-    missing a currently-xfailing node nor carrying a stale row for a
-    node that no longer xfails.
+    Re-collect the real xfail outcomes and require exact CSV coverage.
 
     :param tmp_path: Pytest's own per-test temp directory (repository-
         external, matching this test's own bounded-subprocess needs).
-    :return: None. Raises via ``assert`` on mismatch.
+    :returns: None. Raises via ``assert`` on mismatch.
     """
     if not _CSV_PATH.exists():
         pytest.skip(
@@ -93,46 +157,19 @@ def test_audit_csv_exactly_covers_the_current_xfail_inventory(tmp_path):
             "is not present in this checkout -- nothing to audit."
         )
 
-    test_files = _AUDITED_TEST_FILES
-    for rel in test_files:
+    for rel in _AUDITED_TEST_FILES:
         assert (_PROJECT_ROOT / rel).exists(), f"audited file missing: {rel}"
 
-    with open(_CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        csv_test_files = {row["test_file"] for row in csv.DictReader(f)}
+    with open(_CSV_PATH, "r", encoding="utf-8", newline="") as handle:
+        csv_test_files = {row["test_file"] for row in csv.DictReader(handle)}
     unaudited_files = csv_test_files - set(_AUDITED_TEST_FILES)
     assert not unaudited_files, (
         f"CSV references test file(s) outside _AUDITED_TEST_FILES's fixed "
         f"scan scope -- update that list too: {sorted(unaudited_files)}"
     )
 
-    out_path = tmp_path / "xfail_report.json"
-    env = {
-        "XFAIL_COLLECTOR_OUT": str(out_path),
-    }
-    import os
-    full_env = dict(os.environ)
-    full_env.update(env)
-    full_env["PYTHONPATH"] = str(_COLLECTOR_PLUGIN.parent) + os.pathsep + full_env.get("PYTHONPATH", "")
-
-    cmd = [
-        sys.executable, "-m", "pytest", "-q",
-        "-p", "_xfail_audit_collector_plugin",
-        "--basetemp", str(tmp_path / "basetemp"),
-    ] + test_files
-
-    result = subprocess.run(
-        cmd, cwd=str(_PROJECT_ROOT), env=full_env,
-        capture_output=True, text=True, timeout=180,
-    )
-    assert out_path.exists(), (
-        "collector plugin did not write a report -- subprocess output:\n"
-        + result.stdout[-4000:] + "\n" + result.stderr[-2000:]
-    )
-
-    with open(out_path, "r", encoding="utf-8") as f:
-        observed = json.load(f)
-    observed_ids = {r["nodeid"] for r in observed}
-
+    observed = _collect_xfail_records(_AUDITED_TEST_FILES, tmp_path / "audit")
+    observed_ids = {record["nodeid"] for record in observed}
     csv_ids = _load_csv_node_ids()
 
     missing_from_csv = observed_ids - csv_ids
@@ -146,3 +183,37 @@ def test_audit_csv_exactly_covers_the_current_xfail_inventory(tmp_path):
         f"{len(stale_in_csv)} audited node(s) no longer xfail (stale row, "
         f"needs re-audit): {sorted(stale_in_csv)[:10]}"
     )
+
+
+def test_collector_subprocess_rejects_ordinary_failure(tmp_path):
+    """
+    Prove an ordinary child-test failure cannot masquerade as an empty audit.
+
+    :param tmp_path: Pytest temporary directory for the synthetic module.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    path = _write_synthetic_test(
+        tmp_path,
+        "def test_failure():\n"
+        "    assert False\n",
+    )
+    with pytest.raises(AssertionError, match="xfail collector subprocess failed"):
+        _collect_xfail_records([str(path)], tmp_path / "ordinary-failure")
+
+
+def test_collector_subprocess_rejects_strict_xpass(tmp_path):
+    """
+    Prove a strict XPASS cannot masquerade as an empty legitimate audit.
+
+    :param tmp_path: Pytest temporary directory for the synthetic module.
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    path = _write_synthetic_test(
+        tmp_path,
+        "import pytest\n\n"
+        "@pytest.mark.xfail(strict=True, reason='synthetic strict XPASS')\n"
+        "def test_strict_xpass():\n"
+        "    assert True\n",
+    )
+    with pytest.raises(AssertionError, match="xfail collector subprocess failed"):
+        _collect_xfail_records([str(path)], tmp_path / "strict-xpass")

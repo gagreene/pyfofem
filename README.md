@@ -18,7 +18,7 @@ pyfofem/
 |   |-- conftest.py                     # Fixtures, markers, installed-only session check
 |   |-- run_unified_tests.py            # `--suite core|full`, `--installed-only` runner
 |   |-- prepare_cpp_reference.py        # Regenerates reference fixtures
-|   |-- compare_cpp_python_soil_heating.py  # Scripted Lay* reference-comparison driver
+|   |-- compare_cpp_python_soil_heating.py  # Lay* driver; run as a tests package module
 |   |-- unit/                           # Golden-CSV + reference-independent unit tests
 |   |-- integration/                    # Full-pipeline (`run_fofem_emissions`) tests
 |   |-- regression/                     # Behavior regression tests
@@ -297,6 +297,17 @@ python tests/run_unified_tests.py --suite core
 # Extended suite with parity/comparison tests
 python tests/run_unified_tests.py --suite full
 ```
+
+Run the standalone Lay* soil-heating reference comparison from the repository
+root so its ``tests`` package import resolves correctly:
+
+```bash
+python -m tests.compare_cpp_python_soil_heating
+```
+
+This diagnostic reads the pinned `reference/fofem_cpp/soil.tmp` fixture, exits
+nonzero when a comparison exceeds its embedded tolerance, and is not part of
+the unified test suites.
 
 `.github/workflows/ci.yml` runs these in three tiers: `ci-smoke` on every
 pull request, `core` on pushes to `master`, and `full` (live C++ harness,

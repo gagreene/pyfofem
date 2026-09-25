@@ -95,7 +95,6 @@ def sample_manifest(tmp_path, side_file):
         architecture="test-arch",
         build_type="Debug",
         build_flags="-flags-",
-        generating_command="fofem_test in.csv out",
         input_csv_paths=[str(input_csv)],
         output_csv_paths=[str(output_csv)],
         tolerance_policy_keys=["mortality.CroSco"],
@@ -114,7 +113,6 @@ def test_build_manifest_empty_tolerance_keys_is_rejected(tmp_path):
             harness_mode="litter_eq", schema_version="1",
             compiler_identity="c", generator_toolchain="t", platform="p",
             architecture="a", build_type="Debug", build_flags="f",
-            generating_command="cmd",
             input_csv_paths=[str(input_csv)], output_csv_paths=[str(output_csv)],
             tolerance_policy_keys=[],
         )
@@ -123,6 +121,7 @@ def test_build_manifest_empty_tolerance_keys_is_rejected(tmp_path):
 def test_build_manifest_has_every_required_field(sample_manifest):
     for field in REQUIRED_FIELDS:
         assert field in sample_manifest, f"missing {field}"
+    assert "generating_command" not in sample_manifest
 
 
 def test_check_pinned_sha_passes_on_pinned_checkout():
@@ -159,6 +158,12 @@ def test_corrupted_manifest_wrong_type_is_rejected(sample_manifest):
     corrupted["input_csv_sha256"] = "not-a-dict"
     errors = validate_manifest(corrupted, check_against_live_checkout=False)
     assert any("input_csv_sha256" in e for e in errors)
+
+def test_deprecated_generating_command_field_is_rejected(sample_manifest):
+    deprecated = copy.deepcopy(sample_manifest)
+    deprecated["generating_command"] = "C:/Users/example/private/path"
+    errors = validate_manifest(deprecated, check_against_live_checkout=False)
+    assert any("generating_command" in error for error in errors)
 
 
 def test_git_dirty_status_detects_untracked_file(tmp_path):
@@ -615,7 +620,6 @@ def test_wrong_upstream_sha_manifest_is_rejected_before_any_hashing(monkeypatch,
             harness_mode="litter_eq", schema_version="1",
             compiler_identity="c", generator_toolchain="t", platform="p",
             architecture="a", build_type="Debug", build_flags="f",
-            generating_command="cmd",
             input_csv_paths=[str(input_csv)], output_csv_paths=[str(output_csv)],
             tolerance_policy_keys=["litter_eq.998"],
         )

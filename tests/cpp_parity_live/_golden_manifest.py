@@ -242,7 +242,6 @@ REQUIRED_FIELDS = [
     "architecture",
     "build_type",
     "build_flags",
-    "generating_command",
     "input_csv_sha256",
     "output_csv_sha256",
     "side_file_sha256",
@@ -335,7 +334,6 @@ def build_manifest(
         architecture: str,
         build_type: str,
         build_flags: str,
-        generating_command: str,
         input_csv_paths: List[str],
         output_csv_paths: List[str],
         tolerance_policy_keys: List[str],
@@ -363,8 +361,6 @@ def build_manifest(
     :param build_type: CMake build type used (``"Debug"``).
     :param build_flags: The EFFECTIVE compiler flags actually used, read
         from the real CMake cache — never guessed/hardcoded prose.
-    :param generating_command: The exact command that produced this
-        dataset (argv, joined).
     :param input_csv_paths: Absolute paths to every input CSV consumed.
     :param output_csv_paths: Absolute paths to every output CSV produced.
     :param tolerance_policy_keys: Dotted ``mode.scenario`` keys (from
@@ -438,7 +434,6 @@ def build_manifest(
         "architecture": architecture,
         "build_type": build_type,
         "build_flags": build_flags,
-        "generating_command": generating_command,
         "input_csv_sha256": sha256_files_by_basename(input_csv_paths),
         "output_csv_sha256": sha256_files_by_basename(output_csv_paths),
         "side_file_sha256": {
@@ -851,6 +846,8 @@ def validate_manifest(
     for field in REQUIRED_FIELDS:
         if field not in manifest:
             errors.append(f"missing required field: {field}")
+    if "generating_command" in manifest:
+        errors.append("deprecated field must be removed: generating_command")
     if errors:
         # Structural errors make every check below meaningless.
         return errors

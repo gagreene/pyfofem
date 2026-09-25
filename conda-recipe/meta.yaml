@@ -27,6 +27,7 @@ requirements:
 test:
   requires:
     - pytest >=7.0
+    - psutil >=5.9
   imports:
     - pyfofem
   commands:

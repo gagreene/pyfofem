@@ -21,17 +21,16 @@ This module proves, by EXACT membership (not count), that:
   modes, and structurally excludes ``soil_campbell``.
 - ``EXPANDED_MATRIX_MODES`` (``expanded_matrix``'s owned mode set) is
   exactly the same six modes, and structurally excludes ``soil_campbell``.
-- ``soil_campbell`` IS a real, known mode name in the shared vocabulary
+- ``soil_campbell`` IS a real, known mode name in both shared vocabulary
   dicts (``MODE_SCHEMA_VERSIONS``, ``MODE_OUTPUT_SUFFIXES``) - it is not
   simply absent from the codebase - but is owned by neither ``canonical``
   nor ``expanded_matrix``.
-- ``generate_canonical_goldens.py`` and ``generate_expanded_matrix_goldens.py`` each
-  contain exactly one mode-iteration construct over their respective
-  owned-mode collection (``MODES`` / ``EXPANDED_MATRIX_MODES``), confirmed by a
-  source scan, not merely "currently doesn't crash" - a future edit that
-  adds a second, unscoped iteration (e.g. over the raw
-  ``MODE_OUTPUT_SUFFIXES`` dict, the defect this module's sibling fix in
-  ``test_tolerance_policy_completeness.py`` corrected) is caught here.
+- ``generate_canonical_goldens.py`` and
+  ``generate_expanded_matrix_goldens.py`` do not directly iterate either
+  raw shared-vocabulary dict and each contains a recognizable iteration over
+  its owned-mode collection. This source scan guards the direct vocabulary
+  leak that originally motivated it; it deliberately makes no exact-count or
+  alias/data-flow claim.
 - The two datasets are disjoint from ``soil_campbell``'s own mode set of
   exactly ``{"soil_campbell"}``.
 
@@ -71,11 +70,14 @@ _GENERATOR_PATHS = {
     ),
 }
 
-#: Matches a top-level mode-iteration construct: ``for mode in <NAME>`` or
-#: ``list(<NAME>)`` where ``<NAME>`` is a bare identifier (not a subscript,
-#: attribute access, or literal), which is precisely the shape an unscoped
-#: ``MODE_OUTPUT_SUFFIXES``/``MODE_SCHEMA_VERSIONS`` leak would take.
-_MODE_ITERATION_RE = re.compile(r"for\s+mode\s+in\s+([A-Za-z_][A-Za-z0-9_]*)|list\(([A-Za-z_][A-Za-z0-9_]*)\)")
+#: Matches a mode-iteration construct: ``for mode in <NAME>`` or
+#: ``list(<NAME>)`` where ``<NAME>`` is a bare identifier (not a
+#: subscript, attribute access, or literal). The scan detects direct iteration
+#: of the shared vocabulary names; it is not an alias/data-flow analysis.
+_MODE_ITERATION_RE = re.compile(
+    r"for\s+mode\s+in\s+([A-Za-z_][A-Za-z0-9_]*)|"
+    r"list\(([A-Za-z_][A-Za-z0-9_]*)\)"
+)
 
 
 def _read_generator_source(dataset: str) -> str:
@@ -83,24 +85,12 @@ def _read_generator_source(dataset: str) -> str:
         return handle.read()
 
 
-def test_canonical_and_expanded_matrix_owned_mode_sets_are_identical_and_exact():
-    """``MODES``/``ALL_MODE_NAMES`` (``canonical``) and
-    ``EXPANDED_MATRIX_MODES`` (``expanded_matrix``) must both equal the
-    same explicit six-mode set - not merely the same length."""
-    assert set(MODES) == _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES
-    assert set(ALL_MODE_NAMES) == _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES
-    assert set(EXPANDED_MATRIX_MODES) == _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES
-    assert len(MODES) == 6
-    assert len(EXPANDED_MATRIX_MODES) == 6
+def test_canonical_and_expanded_matrix_generators_do_not_iterate_shared_vocabulary_directly():
+    """Prove each generator uses its owned collection, not a raw vocabulary.
 
-
-def test_canonical_and_expanded_matrix_generators_only_iterate_their_owned_mode_collection():
-    """Source-scan proof (not behavioural inference) that neither
-    generator's mode-iteration construct names the raw shared vocabulary
-    dicts. Every bare-identifier ``for mode in X`` / ``list(X)`` construct
-    found in each generator must resolve to that generator's own
-    owned-mode collection, never to ``MODE_OUTPUT_SUFFIXES`` or
-    ``MODE_SCHEMA_VERSIONS`` directly."""
+    This recognizes direct bare-name iteration. It deliberately does not claim
+    to count every iteration or trace aliases and function arguments.
+    """
     forbidden_names = {"MODE_OUTPUT_SUFFIXES", "MODE_SCHEMA_VERSIONS"}
     allowed_by_dataset = {
         "canonical": {"MODES", "ALL_MODE_NAMES"},
@@ -118,8 +108,6 @@ def test_canonical_and_expanded_matrix_generators_only_iterate_their_owned_mode_
             "- this would silently pull soil_campbell (or any future "
             "soil_campbell-only mode) into this dataset's generation."
         )
-        # At least one iteration construct must exist and it must be a
-        # collection this dataset actually owns.
         owned_hits = found_names & allowed_by_dataset[dataset]
         assert owned_hits, (
             f"{path} has no recognisable mode-iteration construct over its "
@@ -127,10 +115,17 @@ def test_canonical_and_expanded_matrix_generators_only_iterate_their_owned_mode_
         )
 
 
+def test_canonical_and_expanded_matrix_owned_mode_sets_are_identical_and_exact():
+    """Require both generators' owned sets to equal the explicit six modes."""
+    assert set(MODES) == _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES
+    assert set(ALL_MODE_NAMES) == _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES
+    assert set(EXPANDED_MATRIX_MODES) == _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES
+    assert len(MODES) == 6
+    assert len(EXPANDED_MATRIX_MODES) == 6
+
+
 def test_soil_campbell_is_a_known_mode_but_owned_by_neither_canonical_nor_expanded_matrix():
-    """``soil_campbell`` must be present in the shared vocabulary (proving
-    it is real, wired-in Part-1 work, not simply missing) while being
-    absent from both dataset-owned mode sets."""
+    """Require soil_campbell in both vocabularies but neither shared dataset."""
     assert "soil_campbell" in MODE_SCHEMA_VERSIONS
     assert "soil_campbell" in MODE_OUTPUT_SUFFIXES
     assert "soil_campbell" not in MODES
@@ -139,10 +134,8 @@ def test_soil_campbell_is_a_known_mode_but_owned_by_neither_canonical_nor_expand
 
 
 def test_the_three_dataset_owned_mode_sets_partition_every_known_mode():
-    """``canonical``/``expanded_matrix``'s owned set and ``soil_campbell``'s
-    owned set must be disjoint and, together, must equal the complete
-    known-mode vocabulary - no mode is owned by more than one dataset and
-    no known mode is owned by zero datasets."""
+    """Require matching vocabularies and exact, disjoint dataset ownership."""
+    assert set(MODE_SCHEMA_VERSIONS) == set(MODE_OUTPUT_SUFFIXES)
     all_known_modes = frozenset(MODE_SCHEMA_VERSIONS)
     assert _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES & _SOIL_CAMPBELL_OWNED_MODES == frozenset()
     assert _CANONICAL_AND_EXPANDED_MATRIX_OWNED_MODES | _SOIL_CAMPBELL_OWNED_MODES == all_known_modes

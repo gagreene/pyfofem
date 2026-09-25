@@ -198,6 +198,14 @@ def _msvc_env() -> Optional[Dict[str, str]]:
             if k:
                 env[k] = v
 
+    # ``set`` preserves Windows' conventional ``Path`` spelling.  The
+    # process environment is case-insensitive, but this parsed dictionary is
+    # not; normalize the lookup key consumed by ``shutil.which`` and callers.
+    for key, value in list(env.items()):
+        if key.upper() == "PATH":
+            env["PATH"] = value
+            break
+
     if not env or shutil.which("cmake", path=env.get("PATH", "")) is None:
         _env_cache["env"] = None
         return None

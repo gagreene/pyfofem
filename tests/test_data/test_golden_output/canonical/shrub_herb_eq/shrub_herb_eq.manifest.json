@@ -4,14 +4,13 @@
   "build_type": "Debug",
   "compiler_identity": "Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35728 for x64",
   "documented_expected_divergences": [],
-  "generated_utc": "2026-09-24T19:43:31.692727+00:00",
-  "generating_command": "C:\\Users\\ggreene\\PycharmProjects\\pyfofem\\reference\\fofem_cpp\\build\\fofem_test.exe C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpq88cfz21\\shrub_herb_eq\\shrub_herb_eq_in.csv C:\\Users\\ggreene\\AppData\\Local\\Temp\\tmpq88cfz21\\shrub_herb_eq\\shrub_herb_eq",
+  "generated_utc": "2026-09-24T23:34:18.395033+00:00",
   "generator_source_sha256": {
-    "tests/cpp_parity_live/_golden_manifest.py": "00c960ce86cf1e2a3cd3a45a8bb848cd40769ca743e80e3b558a1db388bbbfd1",
-    "tests/cpp_parity_live/_harness_support.py": "6777edce78a72e6cc12728ed505c05205664a8ad3425e97fa20b58be6ac7c4dd",
+    "tests/cpp_parity_live/_golden_manifest.py": "052adb752f0e8ea31df4021f2f0f58745b5ab88b82eb5990fe25895cca4a8ef7",
+    "tests/cpp_parity_live/_harness_support.py": "0fdadb064f6e05ca21e3fd58ee37d366f7f15a24718bcca91e6a43730048b901",
     "tests/cpp_parity_live/_output_contract.py": "2026e6b3f6816b8a5ca387de74f41baf89527cf8b0997d34477e003b5985d2eb",
     "tests/cpp_parity_live/_proc.py": "985d556439245cc1c9c2a2c487abff0b7b7ce3d972c9d86427c24ec7f3223c80",
-    "tests/cpp_parity_live/generate_canonical_goldens.py": "d156910cc9251507029896479db4a2ad1bfbe23ce511b19bd67ff0f48ba38b51",
+    "tests/cpp_parity_live/generate_canonical_goldens.py": "d92ed475d7bd982c0786d7deec74efdfab4c96ed63f188bc2d3a68b34e8ede7d",
     "tests/cpp_parity_live/test_cpp_harness_contract.py": "8fd76da623b7a3a485ac6c3b04187f4d859044178118f7a347d2bf0de150ecd7",
     "tests/cpp_parity_live/tolerance_policy.json": "a7e15b1638091c5ffa6a0852587f31dfc8ad61ca6336496641397da59bb49014"
   },
@@ -35,10 +34,10 @@
     "source/compile_test.bat": "306e5b262d297f70ad4931b887f98050eafcbe8c3df5b7ee503235880f38b7e3"
   },
   "platform": "Windows-10-10.0.19044-SP0",
-  "pyfofem_commit": "2f1f32d3209538122a966430526c7d966e5b24ba",
+  "pyfofem_commit": "eae659de29e092b4776531763518a7fb06080a28",
   "pyfofem_dirty": {
     "dirty": true,
-    "porcelain": " M reference/fofem_cpp\n M tests/cpp_parity_live/generate_burnup_extended_goldens.py\n M tests/cpp_parity_live/generate_canonical_goldens.py\n M tests/cpp_parity_live/generate_emissions_equivalence_goldens.py\n M tests/cpp_parity_live/generate_expanded_matrix_goldens.py\n M tests/cpp_parity_live/generate_soil_campbell_goldens.py\n M tests/cpp_parity_live/test_generate_canonical_goldens.py\n M tests/test_data/test_golden_output/burnup_extended/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/canonical/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/canonical/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/canonical/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/canonical/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/test_data/test_golden_output/emissions_equivalence/consume/consume.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/consume/consume.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/expanded_matrix/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/test_data/test_golden_output/soil_campbell/soil_campbell/soil_campbell.manifest.json\n?? AGENTS.md\n?? CLAUDE-Archive.md\n?? compress-skill.md\n?? preserve-skill.md\n?? resume-skill.md\n",
+    "porcelain": " M README.md\n M conda-recipe/meta.yaml\n M reference/fofem_cpp\n M tests/compare_cpp_python_soil_heating.py\n M tests/cpp_parity_live/_golden_manifest.py\n M tests/cpp_parity_live/_harness_support.py\n M tests/cpp_parity_live/generate_burnup_extended_goldens.py\n M tests/cpp_parity_live/generate_canonical_goldens.py\n M tests/cpp_parity_live/generate_emissions_equivalence_goldens.py\n M tests/cpp_parity_live/generate_expanded_matrix_goldens.py\n M tests/cpp_parity_live/generate_soil_campbell_goldens.py\n M tests/run_unified_tests.py\n M tests/unit/cpp/test_dataset_ownership.py\n M tests/unit/test_golden_manifest_validator.py\n M tests/unit/test_xfail_disposition_audit.py\n?? AGENTS.md\n?? CLAUDE-Archive.md\n?? compress-skill.md\n?? preserve-skill.md\n?? resume-skill.md\n",
     "staged": false,
     "unstaged": true,
     "untracked": true

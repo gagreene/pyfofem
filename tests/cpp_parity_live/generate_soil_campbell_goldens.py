@@ -201,7 +201,6 @@ def _generate_one(mode: str, out_dir: str) -> str:
         architecture=platform.machine(),
         build_type="Debug",
         build_flags=_build_flags_from_cache(),
-        generating_command=f"{HARNESS_EXE} {prefix}_in.csv {prefix}",
         input_csv_paths=input_csv,
         output_csv_paths=output_csvs,
         tolerance_policy_keys=GOLDEN_TOLERANCE_KEYS[mode],
@@ -318,7 +317,7 @@ def main() -> int:
                 "byte-identical (SHA-256 compared) to the committed soil_campbell "
                 "goldens for every input/output CSV - no missing/extra files "
                 "either - and every manifest field matches except "
-                "generated_utc, generating_command, pyfofem_commit, "
+                "generated_utc, pyfofem_commit, "
                 "and pyfofem_dirty."
             )
             return 0

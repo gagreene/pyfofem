@@ -226,7 +226,7 @@ CORE_TESTS: List[str] = [
     # 2026-09-18 xfail-disposition audit: meta-test guaranteeing
     # development/plans/gate0/08-xfail-disposition.csv exactly covers
     # the suite's currently-collected xfail nodes. Spawns its own bounded
-    # subprocess restricted to 8 already-CORE test files, no live C++
+    # subprocess restricted to 7 already-CORE test files, no live C++
     # build of its own.
     "tests/unit/test_xfail_disposition_audit.py",
     # 2026-09-21 F-62 partial-resolution regression coverage: synthetic,
