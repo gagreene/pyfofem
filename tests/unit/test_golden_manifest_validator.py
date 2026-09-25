@@ -23,7 +23,7 @@ import os
 
 import pytest
 
-from tests._support import CPP_REFERENCE_DIR, PROJECT_ROOT
+from tests._support import CPP_REFERENCE_DIR, PROJECT_ROOT, TEST_GOLDEN_DIR
 from tests.cpp_parity_live._golden_manifest import (
     EXPECTED_SPECIES_TABLE_REPO_PATH,
     GENERATOR_SOURCE_FILES,
@@ -111,6 +111,50 @@ def sample_manifest(tmp_path, side_file):
         generator_source_files_for_dataset("canonical")
     )
     return manifest
+
+
+def test_all_committed_golden_manifests_match_the_pinned_cpp_revision():
+    """
+    Fail before Python/golden validation if the C++ reference commit changed.
+
+    This check reads Git metadata and committed JSON only; it never configures,
+    builds, or executes C++. Updating the reference submodule or approved pin
+    without regenerating every affected C++-derived golden baseline therefore
+    fails the ordinary core suite with the required local follow-up.
+
+    :returns: None. Raises via ``assert`` on a stale C++ provenance baseline.
+    """
+    manifest_paths = sorted(
+        os.path.join(root, filename)
+        for root, _directories, filenames in os.walk(TEST_GOLDEN_DIR)
+        for filename in filenames
+        if filename.endswith(".manifest.json")
+    )
+    assert manifest_paths, "no committed golden manifests were found"
+
+    stale = []
+    current_sha = current_upstream_sha()
+    if current_sha != PINNED_UPSTREAM_SHA:
+        stale.append(
+            "reference/fofem_cpp HEAD: "
+            f"{current_sha} (expected {PINNED_UPSTREAM_SHA})"
+        )
+    for path in manifest_paths:
+        with open(path, encoding="utf-8") as stream:
+            manifest = json.load(stream)
+        if manifest.get("upstream_cpp_sha") != PINNED_UPSTREAM_SHA:
+            stale.append(
+                f"{os.path.relpath(path, PROJECT_ROOT)}: "
+                f"{manifest.get('upstream_cpp_sha')!r}"
+            )
+
+    assert not stale, (
+        "The pinned C++ reference commit changed without regenerating all "
+        "C++-derived golden data. Do not run C++ in CI. In a deliberate local "
+        "parity session, run the live-C++ full suite and the relevant golden "
+        "generators, review the Python impact, then commit the refreshed "
+        "manifests and datasets. Stale manifests: " + "; ".join(stale)
+    )
 
 
 def test_build_manifest_empty_tolerance_keys_is_rejected(tmp_path):

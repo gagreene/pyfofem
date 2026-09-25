@@ -1,0 +1,9 @@
+include LICENSE
+include THIRD_PARTY_NOTICES.md
+include CITATION.cff
+
+prune docs
+prune development
+prune examples
+prune reference
+prune tests

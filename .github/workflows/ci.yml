@@ -7,19 +7,10 @@ on:
       - "**.md"
   push:
     branches: [master]
-    tags: ["v*"]
     paths-ignore:
       - "docs/**"
       - "**.md"
-  schedule:
-    - cron: "23 7 * * 1"
   workflow_dispatch:
-    inputs:
-      run_full:
-        description: Run the live-C++ full suite on Windows.
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
@@ -28,72 +19,77 @@ concurrency:
 jobs:
   smoke:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.14"
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
+          enable-cache: true
+          cache-dependency-glob: |
             pyproject.toml
-            requirements-test.txt
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements-test.txt -e .
-      - run: python tests/run_unified_tests.py --suite ci-smoke
+            uv.lock
+      - run: uv python install ${{ matrix.python-version }}
+      - run: uv sync --locked --all-extras --group dev --python ${{ matrix.python-version }}
+      - run: uv run --no-sync python tests/run_unified_tests.py --suite ci-smoke
 
   core:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
+          enable-cache: true
+          cache-dependency-glob: |
             pyproject.toml
-            requirements-test.txt
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements-test.txt -e .
-      - run: python tests/run_unified_tests.py --suite core
+            uv.lock
+      - run: uv python install ${{ matrix.python-version }}
+      - run: uv sync --locked --all-extras --group dev --python ${{ matrix.python-version }}
+      - run: uv run --no-sync python tests/run_unified_tests.py --suite core
 
-  full:
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.run_full)
-    runs-on: windows-latest
+  minimum-dependencies:
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
+    name: Core suite (Python 3.11 minimum dependencies)
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements-test.txt
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements-test.txt -e .
-      - name: Cache C++ harness build
-        uses: actions/cache@v4
-        with:
-          path: reference/fofem_cpp/build
-          key: cpp-harness-${{ runner.os }}-${{ hashFiles('reference/fofem_cpp/FOF_UNIX/**', 'reference/fofem_cpp_overlay/**', 'tests/cpp_parity_live/**') }}
-      - run: python tests/run_unified_tests.py --suite full
-      - name: Build and install wheel in an isolated environment
-        run: |
-          python -m pip install build
-          python -m build --wheel
-          python -m venv .ci-wheel-venv
-          .ci-wheel-venv\Scripts\python -m pip install -r requirements-test.txt dist\*.whl
-      - name: Verify installed wheel
-        run: |
-          .ci-wheel-venv\Scripts\python tests\run_unified_tests.py --suite core --installed-only
-          .ci-wheel-venv\Scripts\python tests\run_unified_tests.py --suite full --installed-only
-      - run: python tests/cpp_parity_live/generate_canonical_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_expanded_matrix_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_soil_campbell_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_emissions_equivalence_goldens.py --verify-only
-      - run: python tests/cpp_parity_live/generate_burnup_extended_goldens.py --verify-only
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv python install 3.11
+      - run: uv venv .minimum-venv --python 3.11
+      - name: Install declared minimum compatible versions
+        run: >-
+          uv pip install --python .minimum-venv/bin/python ".[test]"
+          "numpy==1.23.5" "pandas==1.5.0" "scipy==1.10.0"
+          "tqdm==4.64.0" "pytest==7.0.0" "psutil==5.9.0"
+      - name: Verify installed dependency versions
+        run: >-
+          .minimum-venv/bin/python -c
+          "import numpy, pandas, psutil, pytest, scipy, tqdm; assert numpy.__version__ == '1.23.5'; assert pandas.__version__ == '1.5.0'; assert scipy.__version__ == '1.10.0'; assert tqdm.__version__ == '4.64.0'; assert pytest.__version__ == '7.0.0'; assert psutil.__version__ == '5.9.0'"
+      - run: .minimum-venv/bin/python tests/run_unified_tests.py --suite core

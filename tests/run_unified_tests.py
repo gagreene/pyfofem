@@ -8,7 +8,7 @@ It wraps pytest suites and supports two publishing-friendly modes:
 
 1) ci-smoke - fast representative checks for ordinary pull-request updates.
 2) core     - deterministic tests suitable for protected-branch integration.
-3) full     - core + parity/comparison tests that depend on reference assets.
+3) full     - explicit live-C++ parity/generator investigation suite; never an ordinary CI gate.
 
 Examples
 --------
@@ -462,7 +462,7 @@ def main() -> int:
         default="core",
         help=(
             "ci-smoke: representative PR checks; core: publish-safe "
-            "integration tests; full: includes parity/comparison tests."
+            "integration tests; full: explicit live-C++ parity/generator investigation."
         ),
     )
     parser.add_argument(

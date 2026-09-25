@@ -42,22 +42,33 @@ pyfofem/
 - Integrated soil-heating outputs in `run_fofem_emissions` (`Lay0`, `Lay2`, `Lay4`, `Lay6`, `Lay60d`, `Lay275d`)
 - Reference-validation scripts/tests for burnup, consumption, and soil-heating outputs
 
+## Python support
+
+PyFOFEM supports Python 3.11, 3.12, 3.13, and 3.14. GitHub Actions runs
+smoke tests on Ubuntu for every supported version and on macOS and Windows for
+Python 3.12 on pull requests. It runs the core suite on Ubuntu for every
+supported version on updates to `master`.
 ## Installation
+
+Install [uv](https://docs.astral.sh/uv/) and create the project environment:
 
 ```bash
 git clone https://github.com/gagreene/pyfofem.git
 cd pyfofem
-python -m pip install -r requirements.txt
-python -m pip install .
+uv sync
 ```
 
-For development with test dependencies:
+For development and the supported test suite, install the test extra and the
+repository's `dev` dependency group, then use the locked environment:
 
 ```bash
-python -m pip install -r requirements-test.txt
-python -m pip install -e .[test]
+uv sync --all-extras --group dev
+uv run python tests/run_unified_tests.py --suite core
 ```
 
+`uv.lock` records the reproducible development and CI resolution. Users who
+prefer pip can install the package with `python -m pip install .`; contributors
+using pip should add the test extra with `python -m pip install -e .[test]`.
 ## Usage
 
 ```python
@@ -309,10 +320,15 @@ This diagnostic reads the pinned `reference/fofem_cpp/soil.tmp` fixture, exits
 nonzero when a comparison exceeds its embedded tolerance, and is not part of
 the unified test suites.
 
-`.github/workflows/ci.yml` runs these in three tiers: `ci-smoke` on every
-pull request, `core` on pushes to `master`, and `full` (live C++ harness,
-installed-wheel, and golden verification) on a weekly schedule, tagged
-releases, or manual dispatch.
+`.github/workflows/ci.yml` runs `ci-smoke` on pull requests and `core` on
+pushes to `master`. `core` validates Python behavior against committed golden
+data and does not build or run the C++ reference. The `full` suite invokes the
+live C++ harness and golden generators; it is intentionally excluded from
+ordinary CI and release checks. Core reads the pinned C++ Git revision and every
+golden manifest, so a changed reference commit fails before it can be treated as
+a current golden baseline. Run `full` only when that failure identifies a pinned
+upstream C++ change or when a deliberate Python/parity investigation needs new C++
+evidence.
 
 ### Experimental prototype: `development/burnup_array`
 
@@ -368,8 +384,12 @@ build and test commands.
 
 Reference-validation tooling and deterministic golden-data verification live
 under `tests/cpp_parity_live/`. See [CODEBASE.md](docs/CODEBASE.md) for the
-current test tiers and maintenance guidance.
+current test tiers and maintenance guidance. Release provenance and attribution
+for bundled FOFEM-derived data are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## License
 
 PyFOFEM source is licensed under the [MIT License](LICENSE).
+Bundled FOFEM-derived runtime tables and their provenance are described in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
