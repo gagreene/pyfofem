@@ -96,6 +96,7 @@ import hashlib
 import os
 import re
 import sys
+import tomllib
 
 import pandas as pd
 import pytest
@@ -544,6 +545,90 @@ def test_loaders_resolve_resources_independently_of_the_working_directory():
     for path in (ef_path, spp_path, eq1_path, bark_path):
         assert os.path.isabs(path)
         assert os.path.commonpath([package_dir, path]) == package_dir
+
+
+def test_packaging_metadata_uses_current_license_release_and_python_support_records():
+    """
+    Category (a). Pin release metadata and the UV records that make local and
+    CI dependency resolution reproducible.
+
+    This static contract complements installed-wheel checks. It catches a
+    metadata or workflow edit that would silently drop the documented Python
+    policy, locked UV environment, or explicit cross-platform smoke lanes.
+
+    :returns: None. Raises via ``assert`` on mismatch.
+    """
+    pyproject_path = os.path.join(PROJECT_ROOT, "pyproject.toml")
+    with open(pyproject_path, "rb") as stream:
+        config = tomllib.load(stream)
+
+    assert config["build-system"]["requires"] == ["setuptools>=77", "wheel"]
+    project = config["project"]
+    assert project["license"] == "MIT"
+    assert project["license-files"] == ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+    assert project["requires-python"] == ">=3.11"
+    assert project["optional-dependencies"]["test"] == ["pytest>=7.0", "psutil>=5.9"]
+    assert config["dependency-groups"]["dev"] == ["pytest>=7.0", "psutil>=5.9"]
+    assert not any(item.startswith("License ::") for item in project["classifiers"])
+    assert [
+        item
+        for item in project["classifiers"]
+        if item.startswith("Programming Language :: Python :: 3.")
+    ] == [
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
+    ]
+
+    for filename in (
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+            "CITATION.cff",
+            "MANIFEST.in",
+            "uv.lock",
+    ):
+        assert os.path.isfile(os.path.join(PROJECT_ROOT, filename)), filename
+
+    with open(os.path.join(PROJECT_ROOT, "MANIFEST.in"), encoding="utf-8") as stream:
+        manifest = stream.read()
+    assert "include THIRD_PARTY_NOTICES.md" in manifest
+    assert "include CITATION.cff" in manifest
+    assert "recursive-include src/pyfofem/supporting_data" not in manifest
+    assert "prune reference" in manifest
+    assert "prune tests" in manifest
+
+    with open(
+            os.path.join(PROJECT_ROOT, ".github", "workflows", "ci.yml"),
+            encoding="utf-8",
+    ) as stream:
+        ci_workflow = stream.read()
+    assert ci_workflow.count('python-version: ["3.11", "3.12", "3.13", "3.14"]') == 1
+    assert "runs-on: ${{ matrix.os }}" in ci_workflow
+    assert ci_workflow.count("astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4") == 4
+    assert ci_workflow.count("uv sync --locked --all-extras --group dev") == 3
+    for lane in (
+            'os: ubuntu-latest\n            python-version: "3.11"',
+            'os: ubuntu-latest\n            python-version: "3.12"',
+            'os: ubuntu-latest\n            python-version: "3.13"',
+            'os: ubuntu-latest\n            python-version: "3.14"',
+            'os: macos-latest\n            python-version: "3.12"',
+            'os: windows-latest\n            python-version: "3.12"',
+    ):
+        assert lane in ci_workflow
+    assert "numpy==1.23.5" in ci_workflow
+    assert "pandas==1.5.0" in ci_workflow
+    assert "scipy==1.10.0" in ci_workflow
+
+    with open(
+            os.path.join(PROJECT_ROOT, ".github", "workflows", "release.yml"),
+            encoding="utf-8",
+    ) as stream:
+        release_workflow = stream.read()
+    assert "astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4" in release_workflow
+    assert "uv sync --locked --all-extras --group dev --python 3.12" in release_workflow
+    assert "uv build --no-sources" in release_workflow
+    assert "uvx twine check dist/*" in release_workflow
 
 
 def test_packaging_config_ships_runtime_csvs_and_no_vendor_binaries():

@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use PyFOFEM, please cite this software and the underlying FOFEM model."
+title: "PyFOFEM"
+type: software
+version: 0.1.0
+authors:
+  - family-names: Greene
+    given-names: Gregory A.
+repository-code: "https://github.com/gagreene/pyfofem"
+url: "https://github.com/gagreene/pyfofem"
+keywords:
+  - fire effects
+  - FOFEM
+  - fuel consumption
+  - emissions
+  - soil heating
+references:
+  - type: software
+    title: "First Order Fire Effects Model (FOFEM)"
+    publisher:
+      name: "USDA Forest Service"
+    url: "https://research.fs.usda.gov/firelab/products/dataandtools/fofem/spatialfofem-fire-effects-model"
