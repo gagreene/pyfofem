@@ -320,10 +320,15 @@ This diagnostic reads the pinned `reference/fofem_cpp/soil.tmp` fixture, exits
 nonzero when a comparison exceeds its embedded tolerance, and is not part of
 the unified test suites.
 
-`.github/workflows/ci.yml` runs these in three tiers: `ci-smoke` on every
-pull request, `core` on pushes to `master`, and `full` (live C++ harness,
-installed-wheel, and golden verification) on a weekly schedule, tagged
-releases, or manual dispatch.
+`.github/workflows/ci.yml` runs `ci-smoke` on pull requests and `core` on
+pushes to `master`. `core` validates Python behavior against committed golden
+data and does not build or run the C++ reference. The `full` suite invokes the
+live C++ harness and golden generators; it is intentionally excluded from
+ordinary CI and release checks. Core reads the pinned C++ Git revision and every
+golden manifest, so a changed reference commit fails before it can be treated as
+a current golden baseline. Run `full` only when that failure identifies a pinned
+upstream C++ change or when a deliberate Python/parity investigation needs new C++
+evidence.
 
 ### Experimental prototype: `development/burnup_array`
 

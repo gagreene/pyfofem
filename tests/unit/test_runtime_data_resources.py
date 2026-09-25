@@ -605,8 +605,8 @@ def test_packaging_metadata_uses_current_license_release_and_python_support_reco
         ci_workflow = stream.read()
     assert ci_workflow.count('python-version: ["3.11", "3.12", "3.13", "3.14"]') == 1
     assert "runs-on: ${{ matrix.os }}" in ci_workflow
-    assert ci_workflow.count("astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4") == 4
-    assert ci_workflow.count("uv sync --locked --all-extras --group dev") == 3
+    assert ci_workflow.count("astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4") == 3
+    assert ci_workflow.count("uv sync --locked --all-extras --group dev") == 2
     for lane in (
             'os: ubuntu-latest\n            python-version: "3.11"',
             'os: ubuntu-latest\n            python-version: "3.12"',
@@ -619,6 +619,7 @@ def test_packaging_metadata_uses_current_license_release_and_python_support_reco
     assert "numpy==1.23.5" in ci_workflow
     assert "pandas==1.5.0" in ci_workflow
     assert "scipy==1.10.0" in ci_workflow
+    assert "--suite full" not in ci_workflow
 
     with open(
             os.path.join(PROJECT_ROOT, ".github", "workflows", "release.yml"),
