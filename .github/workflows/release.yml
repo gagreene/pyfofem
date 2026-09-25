@@ -49,11 +49,18 @@ jobs:
           uv pip install --python .release-wheel-venv/bin/python -r requirements-test.txt dist/*.whl
           .release-wheel-venv/bin/python tests/run_unified_tests.py --suite core --installed-only
       - name: Write artifact checksums
-        run: sha256sum dist/* > dist/SHA256SUMS.txt
+        run: |
+          mkdir -p checksums
+          sha256sum dist/* > checksums/SHA256SUMS.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: python-distributions
           path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-checksums
+          path: checksums/SHA256SUMS.txt
           if-no-files-found: error
 
   publish-testpypi:

@@ -622,6 +622,13 @@ def test_packaging_metadata_uses_current_license_release_and_python_support_reco
     assert "--suite full" not in ci_workflow
 
     with open(
+            os.path.join(PROJECT_ROOT, "conda-recipe", "meta.yaml"),
+            encoding="utf-8",
+    ) as stream:
+        conda_recipe = stream.read()
+    assert "- python >=3.11" in conda_recipe
+    assert "- setuptools >=77" in conda_recipe
+    with open(
             os.path.join(PROJECT_ROOT, ".github", "workflows", "release.yml"),
             encoding="utf-8",
     ) as stream:
@@ -630,6 +637,10 @@ def test_packaging_metadata_uses_current_license_release_and_python_support_reco
     assert "uv sync --locked --all-extras --group dev --python 3.12" in release_workflow
     assert "uv build --no-sources" in release_workflow
     assert "uvx twine check dist/*" in release_workflow
+    assert "sha256sum dist/* > checksums/SHA256SUMS.txt" in release_workflow
+    assert "dist/SHA256SUMS.txt" not in release_workflow
+    assert "name: release-checksums" in release_workflow
+    assert "path: checksums/SHA256SUMS.txt" in release_workflow
 
 
 def test_packaging_config_ships_runtime_csvs_and_no_vendor_binaries():
