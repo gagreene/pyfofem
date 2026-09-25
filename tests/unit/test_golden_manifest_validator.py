@@ -38,9 +38,11 @@ from tests.cpp_parity_live._golden_manifest import (
     compute_overlay_digests,
     current_upstream_sha,
     divergences_for_keys,
+    generator_source_files_for_dataset,
     git_dirty_status,
     git_safe_directory_value,
     load_tolerance_policy,
+    sha256_files,
     to_repo_relative,
     validate_manifest,
     write_manifest,
@@ -86,7 +88,7 @@ def sample_manifest(tmp_path, side_file):
     )
     output_csv = tmp_path / f"{_SAMPLE_MODE}.csv"
     output_csv.write_text("case_id,outcome\nc1,ok\n", encoding="utf-8")
-    return build_manifest(
+    manifest = build_manifest(
         harness_mode=_SAMPLE_MODE,
         schema_version=MODE_SCHEMA_VERSIONS[_SAMPLE_MODE],
         compiler_identity="test-compiler",
@@ -101,6 +103,14 @@ def sample_manifest(tmp_path, side_file):
         side_files={"species_table": side_file},
         now_utc_iso="2026-01-01T00:00:00+00:00",
     )
+    # A real generated manifest records source hashes only when the generator
+    # ran from a dirty worktree. These tamper tests exercise the validator's
+    # non-empty source-map path, so populate it explicitly and independently
+    # of the checkout state. GitHub Actions uses a clean checkout.
+    manifest["generator_source_sha256"] = sha256_files(
+        generator_source_files_for_dataset("canonical")
+    )
+    return manifest
 
 
 def test_build_manifest_empty_tolerance_keys_is_rejected(tmp_path):
@@ -553,10 +563,7 @@ def test_tamper_generator_source_digest_mismatch_is_rejected_per_file(sample_man
     previously untested: _proc.py, tolerance_policy.json, and the new
     _output_contract.py."""
     corrupted = copy.deepcopy(sample_manifest)
-    assert corrupted["generator_source_sha256"], (
-        "fixture precondition: repo must be dirty in this test environment "
-        "for generator_source_sha256 to be populated"
-    )
+    assert corrupted["generator_source_sha256"]
     assert rel_path in corrupted["generator_source_sha256"], (
         f"{rel_path!r} missing from a real generator_source_sha256 — "
         "GENERATOR_SOURCE_FILES and this test's expected set have drifted"
@@ -568,10 +575,7 @@ def test_tamper_generator_source_digest_mismatch_is_rejected_per_file(sample_man
 
 def test_tamper_generator_source_extra_key_is_rejected(sample_manifest):
     corrupted = copy.deepcopy(sample_manifest)
-    assert corrupted["generator_source_sha256"], (
-        "fixture precondition: repo must be dirty in this test environment "
-        "for generator_source_sha256 to be populated"
-    )
+    assert corrupted["generator_source_sha256"]
     corrupted["generator_source_sha256"]["tests/not_a_real_generator.py"] = "a" * 64
     errors = validate_manifest(corrupted, check_against_live_checkout=True)
     assert any("generator_source_sha256 key set does not match" in e for e in errors)
