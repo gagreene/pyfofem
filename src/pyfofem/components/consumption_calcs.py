@@ -34,7 +34,13 @@ from .burnup import (
     _BURNUP_LIMIT_ADJUST,
     _BURNUP_LIMIT_ERROR,
 )
-from ._component_helpers import _is_scalar, _maybe_scalar, _to_str_arr
+from ._component_helpers import (
+    _is_scalar,
+    _maybe_scalar,
+    _to_str_arr,
+    _TPAC_TO_KGPM2,
+    _KGPM2_TO_TPAC,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +63,150 @@ TOTAL_DURATION_CONSUMED_VARS = ['FlaDur', 'SmoDur', 'FlaCon', 'SmoCon',]
 SOIL_HEAT_VARS = ['Lay0', 'Lay2', 'Lay4', 'Lay6', 'Lay60d', 'Lay275d']
 EQUATION_VARS = ['Lit-Equ', 'DufCon-Equ', 'DufRed-Equ', 'MSE-Equ', 'Herb-Equ', 'Shrub-Equ']
 ERROR_VARS = ['BurnupLimitAdj', 'BurnupError']
+
+#: FOFEM's Pine Flatwoods equations work internally in Mg/ha while the
+#: surrounding consumption API uses T/ac for Imperial inputs. The pinned C++
+#: uses this rounded factor in ``Ton_To_Mega``/``Mega_To_Ton``
+#: (``fof_hsf.cpp:828-839``).
+T_ACRE_PER_MG_HECTARE = 0.446
+
+#: T/ac -> Mg/ha (metric tons/hectare) conversion, used ONLY by the Coastal
+#: Plain forest-floor equation (``Equ_CP_Per``). This is a DIFFERENT, more
+#: precise factor than :data:`T_ACRE_PER_MG_HECTARE` above (0.446, a
+#: Pine-Flatwoods-specific rounded constant from ``Ton_To_Mega``/
+#: ``Mega_To_Ton``, ``fof_hsf.cpp:828-839``) -- the two must not be
+#: interchanged. Matches C++'s ``TPA_To_MTPH`` exactly
+#: (``fof_util.cpp:657-662``: ``f = 0.907184 * TPA``).
+MG_HECTARE_PER_TON_ACRE = 0.907184
+
+#: Inclusive litter-moisture bounds for the Coastal Plain forest-floor
+#: equation, matching C++'s ``e_LitMoiMin``/``e_LitMoiMax``
+#: (``fof_ci.h:61-62``) and enforced the same way C++'s ``_ChkLitMoist()``
+#: does (``fof_hsf.cpp:614-626``) -- only for Coastal Plain cover types.
+_CP_LIT_MOIST_MIN = 1.0
+_CP_LIT_MOIST_MAX = 100.0
+
+#: Case-insensitive Coastal Plain cover-group aliases, matching C++'s
+#: ``CI_isCoastPlain()`` (``fof_ci.cpp:185``), which accepts either
+#: ``e_CoastPlain`` ("CoastPlain") or ``e_CVT_CoastPlain`` ("CP")
+#: case-insensitively (``xstrcmpi``). Deliberately excludes "Coastal Plain"
+#: (two words) and any integer code -- not part of this pass's scope.
+_COASTPLAIN_ALIASES = frozenset({'cp', 'coastplain'})
+
+
+def _check_cp_litter_moisture(l_moist: np.ndarray) -> None:
+    """
+    Enforce C++'s inclusive Coastal Plain litter-moisture range, matching
+    ``_ChkLitMoist()`` (``fof_hsf.cpp:614-626``).
+
+    :param l_moist: Litter moisture content (%). np.ndarray.
+    :raises ValueError: If any value is missing (``NaN``) or outside
+        ``[1.0, 100.0]`` inclusive.
+    """
+    bad = ~np.isfinite(l_moist) | (l_moist < _CP_LIT_MOIST_MIN) | (l_moist > _CP_LIT_MOIST_MAX)
+    if np.any(bad):
+        bad_val = float(np.asarray(l_moist)[bad][0])
+        raise ValueError(
+            f"Litter Moisture {bad_val:.2f} is out of limits "
+            f"({_CP_LIT_MOIST_MIN:.2f} -> {_CP_LIT_MOIST_MAX:.2f}). "
+            "Litter Moisture is required for Coastal Plain cover types "
+            "(matches C++ _ChkLitMoist(), fof_hsf.cpp:614-626)."
+        )
+
+def _coastal_plain_forest_floor(
+        pre_ll: np.ndarray, pre_dl: np.ndarray, l_moist: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Shared core of C++ ``Equ_CP_Per`` (Coastal Plain combined litter/duff
+    percent consumed, equation ID 30, ``fof_duf.cpp:1171-1225``).
+
+    Litter is consumed first; duff only receives whatever remains of the
+    total-consumed budget beyond the full pre-fire litter load, exactly
+    matching the C++ allocation (``Dc = Tc - Ll``, ``Lc = Tc - Dc``).
+
+    :param pre_ll: Pre-fire litter load (T/ac). np.ndarray.
+    :param pre_dl: Pre-fire duff load (T/ac). np.ndarray, same shape.
+    :param l_moist: Litter moisture content (%). np.ndarray, same shape.
+    :return: ``(litter_pct, duff_pct)``, each clamped to ``[0, 100]`` and
+        ``0`` wherever the combined pre-fire litter+duff load is not
+        strictly positive (matching C++'s ``if ((Lit+Duff)<=0) return;``
+        early exit, which leaves both percents at their zero defaults).
+    """
+    ll_mgha = pre_ll * MG_HECTARE_PER_TON_ACRE
+    dl_mgha = pre_dl * MG_HECTARE_PER_TON_ACRE
+    x1_load = ll_mgha + dl_mgha
+    has_load = x1_load > 0
+
+    total_consumed = -3.893 + (0.944 * x1_load) - (0.078 * l_moist)
+    total_consumed = np.minimum(total_consumed, x1_load)
+    total_consumed = np.maximum(total_consumed, 0.0)
+
+    duff_consumed = np.maximum(total_consumed - ll_mgha, 0.0)
+    litter_consumed = total_consumed - duff_consumed
+
+    dl_safe = np.where(dl_mgha > 0, dl_mgha, 1.0)
+    ll_safe = np.where(ll_mgha > 0, ll_mgha, 1.0)
+    duff_pct = np.where(dl_mgha > 0, 100.0 * duff_consumed / dl_safe, 0.0)
+    litter_pct = np.where(ll_mgha > 0, 100.0 * litter_consumed / ll_safe, 0.0)
+
+    duff_pct = np.where(has_load, np.clip(duff_pct, 0.0, 100.0), 0.0)
+    litter_pct = np.where(has_load, np.clip(litter_pct, 0.0, 100.0), 0.0)
+    return litter_pct, duff_pct
+
+
+def _is_coastal_plain(cvr_grp: Optional[str]) -> bool:
+    """
+    Case-insensitive Coastal Plain cover-group check, matching C++'s
+    ``CI_isCoastPlain()`` (``fof_ci.cpp:185``).
+
+    :param cvr_grp: Cover group value, or ``None``.
+    :return: ``True`` when *cvr_grp* is ``'CP'`` or ``'CoastPlain'``
+        (any case), ``False`` otherwise (including ``None`` or a
+        non-string value).
+    """
+    if not isinstance(cvr_grp, str):
+        return False
+    return cvr_grp.strip().lower() in _COASTPLAIN_ALIASES
+
+
+def _litter_shortcut_mask(
+        cvr_grp: Union[str, int, np.ndarray, None],
+        reg: Union[str, int, np.ndarray, None],
+        n: int,
+) -> np.ndarray:
+    """
+    ``True`` per cell where :func:`consm_litter` computes litter
+    consumption via a region/cover-group shortcut equation (Flatwoods
+    Eq 997, Coastal Plain Eq 30, or SouthEast Eq 998) rather than
+    deferring to Burnup's own consumption.
+
+    Mirrors :func:`consm_litter`'s own routing exactly (kept in sync by
+    hand -- update both if either changes) and matches pinned C++'s
+    ``BCM_SetInputs`` (``fof_bcm.cpp:379-402``): C++ feeds Burnup the
+    already-computed consumed amount for these cells instead of the raw
+    pre-fire load ("burnup always consumes all of the litter, so we send
+    in consumed amount from the ... litter eq"). ``F-70``'s case-4 burnup
+    duration divergence traced to this substitution being entirely absent
+    from the Python port -- see
+    ``development/plans/2026-09-23-burnup-duration-divergence-case4.md``.
+
+    :param cvr_grp: Cover group name/code/array, or ``None``.
+    :param reg: Region name/code/array, or ``None``.
+    :param n: Broadcast length.
+    :return: Boolean ``np.ndarray``, shape ``(n,)``.
+    """
+    cvr_arr = _to_str_arr(cvr_grp if cvr_grp is not None else '', CVR_GRP_CODES)
+    reg_arr = _to_str_arr(reg if reg is not None else '', REGION_CODES)
+    cvr_arr = np.broadcast_to(cvr_arr, (n,)) if cvr_arr.size == 1 else cvr_arr
+    reg_arr = np.broadcast_to(reg_arr, (n,)) if reg_arr.size == 1 else reg_arr
+
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
+    is_flatwood = np.isin(cvr_arr, _flatwood_vals)
+    is_southeast = reg_arr == 'SouthEast'
+    cvr_lower = np.array([str(v).strip().lower() for v in cvr_arr], dtype=object)
+    is_coastplain = np.isin(cvr_lower, tuple(_COASTPLAIN_ALIASES))
+    return is_flatwood | is_coastplain | is_southeast
+
 
 # ---------------------------------------------------------------------------
 # Categorical parameter lookup tables (int code → string label)
@@ -215,16 +365,16 @@ def consm_canopy(
     pre_fl = np.ravel(np.asarray(pre_fl, dtype=float))
     pre_bl = np.ravel(np.asarray(pre_bl, dtype=float))
 
-    if units == 'SI':
-        pre_fl = pre_fl * 4.4609  # kg/m² → T/acre
-        pre_bl = pre_bl * 4.4609
+    if units.upper() == 'SI':
+        pre_fl = pre_fl * _KGPM2_TO_TPAC  # kg/m² → T/acre
+        pre_bl = pre_bl * _KGPM2_TO_TPAC
 
     flc = (crown_burn / 100) * pre_fl
     blc = (crown_burn / 100) * pre_bl * 0.5
 
-    if units == 'SI':
-        flc = flc / 4.4609  # T/acre → kg/m²
-        blc = blc / 4.4609
+    if units.upper() == 'SI':
+        flc = flc * _TPAC_TO_KGPM2  # T/acre → kg/m²
+        blc = blc * _TPAC_TO_KGPM2
 
     return {
         'flc': _maybe_scalar(flc, scalar_input),
@@ -245,6 +395,8 @@ def consm_duff(
         dw1000_moist: Optional[Union[float, np.ndarray]] = None,
         pile: bool = False,
         units: str = 'SI',
+        pre_ll: Optional[Union[float, np.ndarray]] = None,
+        l_moist: Optional[Union[float, np.ndarray]] = None,
 ) -> dict:
     """
     FOFEM duff consumption model.
@@ -267,7 +419,8 @@ def consm_duff(
     This matches the final line of ``DUF_Mngr``:
     ``a_DUF->f_Red = a_CI->f_DufDep * (a_DUF->f_Per / 100.0)``.
 
-    **Percent consumed routing** (matches ``DUF_Mngr`` priority order):
+    **Percent consumed routing** (matches ``DUF_Mngr``/``DUF_NorthEast``
+    priority order, ``fof_duf.cpp:306-483``):
 
     +---------------------+---------------+------------+--------+
     | Region              | Cover type    | Moist cat  | Eq     |
@@ -283,18 +436,60 @@ def consm_duff(
     |                     | Other         | edm        | 2      |
     |                     | Other         | nfdth      | 3      |
     +---------------------+---------------+------------+--------+
-    | NorthEast           | RedJacPine    | edm        | 15     |
-    |                     | RedJacPine    | ldm/nfdth  | 2 (dflt|
-    |                     | BalsamSpruce  | ldm        | 5→pct  |
-    |                     | BalsamSpruce  | edm        | 15     |
-    |                     | BalsamSpruce  | nfdth      | 3      |
-    |                     | Other         | —          | 2 (dflt|
+    | NorthEast           | WhiPinHem     | any        | (delegates to |
+    |                     |               |            | InteriorWest, |
+    |                     |               |            | see above)    |
+    |                     | RedJacPine    | edm        | 15 (pine=1)   |
+    |                     | RedJacPine    | ldm        | 2 (Duf_Default)|
+    |                     | RedJacPine    | nfdth      | 3             |
+    |                     | BalsamSpruce  | ldm        | 5→pct         |
+    |                     | BalsamSpruce  | edm        | 15 (pine=0)   |
+    |                     | BalsamSpruce  | nfdth      | 3             |
+    |                     | Other         | any        | 2 (Duf_Default,|
+    |                     |               |            | UNCONDITIONAL —|
+    |                     |               |            | never branches |
+    |                     |               |            | on moist cat)  |
     +---------------------+---------------+------------+--------+
     | SouthEast           | Pocosin       | —          | 20     |
+    |                     | CP/CoastPlain | —          | 30     |
     |                     | Other         | —          | 16     |
     +---------------------+---------------+------------+--------+
     | Any / fallback      | —             | —          | 2      |
     +---------------------+---------------+------------+--------+
+
+    **Depth (``ddc``/``rdd``) is ALWAYS percent-derived**, never a
+    per-region regression equation, for every region and fuel category —
+    see the "Depth reduction approach" note above and the implementation's
+    own comment at ``fof_duf.cpp:290-300`` (Note-5) / ``:395``. The
+    per-region depth-reduction equations (Eq 5/6/7/15/etc.) referenced
+    implicitly above (percent-only equations like 1-4/17/19 have no depth
+    equation of their own) are still computed by the pinned C++ but
+    discarded before being returned to the caller.
+
+    **Coastal Plain** (``cvr_grp`` ``'CP'`` or ``'CoastPlain'``, matching
+    C++'s ``CI_isCoastPlain()`` case-insensitively) is a SouthEast COVER
+    GROUP, not a region — C++'s special route lives entirely inside
+    ``DUF_SouthEast()`` (``fof_duf.cpp:409-426``). Supplying a Coastal Plain
+    ``cvr_grp`` with any ``reg`` other than ``'SouthEast'`` raises
+    ``ValueError`` rather than silently falling through to an unrelated
+    regional equation — this is PyFOFEM's own supported contract; the C++
+    special branch itself is likewise SouthEast-only by construction
+    (``DUF_Mngr`` only calls ``DUF_SouthEast()`` when ``CI_isSouthEast()``).
+    Requires *pre_ll* and *l_moist* (raises ``ValueError`` naming the
+    missing/out-of-range input otherwise); litter moisture is enforced to
+    C++'s inclusive ``[1.0, 100.0]`` range (``fof_ci.h:61-62``,
+    ``_ChkLitMoist()``, ``fof_hsf.cpp:614-626``). The pre-existing global
+    ``duff_moist <= 10`` override (100% duff consumed) and the final
+    ``ddc = d_pre * (pdc/100)`` depth derivation below both still apply
+    unchanged on top of Eq 30's ``pdc`` — this mirrors the CURRENT C++
+    production result exactly: ``DUF_Mngr`` overwrites ``Equ_CP_Red``'s own
+    historical regression value with this same percent-derived depth after
+    recording equation ID 31 (``fof_duf.cpp:388-391``). Litter percent
+    consumed (equation ID 30, shared with duff) is available from
+    :func:`consm_litter` (pass the same *pre_dl* as this call's *pre_dl* via
+    its own *pre_dl* parameter) — both derive from the same
+    :func:`_coastal_plain_forest_floor` helper so the two are never
+    inconsistent for identical inputs.
 
     :param pre_dl: Pre-fire duff load (Mg/ha if ``units='SI'``, T/acre if
         ``units='Imperial'``). Scalar or np.ndarray.
@@ -323,9 +518,16 @@ def consm_duff(
     :param pile: ``True`` for pile burning (Eq 17 – 10 % consumed).
     :param units: ``'SI'`` (default, kg/m² / cm) or ``'Imperial'`` (T/ac /
         in).
+    :param pre_ll: Pre-fire litter load (same mass units as *pre_dl*).
+        Required for Coastal Plain (Eq 30).
+    :param l_moist: Litter moisture content (%). Required for Coastal Plain
+        (Eq 30); enforced to the inclusive ``[1.0, 100.0]`` range.
 
     :return: Dict with keys ``'pdc'``, ``'ddc'``, ``'rdd'``.
         ``'ddc'`` and ``'rdd'`` are ``None`` when *d_pre* is not supplied.
+    :raises ValueError: If *cvr_grp* is Coastal Plain and *reg* is not
+        ``'SouthEast'``; if *pre_ll* or *l_moist* is missing for Coastal
+        Plain; or if *l_moist* is outside ``[1.0, 100.0]``.
     """
     scalar_input = _is_scalar(pre_dl) and _is_scalar(duff_moist)
 
@@ -339,6 +541,10 @@ def consm_duff(
         pre_dl110 = np.ravel(np.asarray(pre_dl110, dtype=float))
     if pre_l110 is not None:
         pre_l110 = np.ravel(np.asarray(pre_l110, dtype=float))
+    if pre_ll is not None:
+        pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
+    if l_moist is not None:
+        l_moist = np.ravel(np.asarray(l_moist, dtype=float))
 
     # Eq 3 / NE-Balsam-nfdth use 1000-hr moisture (C++ f_MoistDW1000).
     # Fall back to duff_moist when not supplied.
@@ -347,14 +553,16 @@ def consm_duff(
     else:
         dw1k = duff_moist
 
-    if units == 'SI':
-        pre_dl = pre_dl * 4.4609                 # Mg/ha → T/acre
+    if units.upper() == 'SI':
+        pre_dl = pre_dl * _KGPM2_TO_TPAC                 # Mg/ha → T/acre
         if d_pre is not None:
             d_pre = d_pre / 2.54                 # cm → in
         if pre_dl110 is not None:
-            pre_dl110 = pre_dl110 * 4.4609
+            pre_dl110 = pre_dl110 * _KGPM2_TO_TPAC
         if pre_l110 is not None:
-            pre_l110  = pre_l110  * 4.4609
+            pre_l110  = pre_l110  * _KGPM2_TO_TPAC
+        if pre_ll is not None:
+            pre_ll = pre_ll * _KGPM2_TO_TPAC
 
     # ------------------------------------------------------------------
     # Convenience flag sets (matching C++ CI_is* predicates)
@@ -362,6 +570,7 @@ def consm_duff(
     _IW_PW     = {'InteriorWest', 'PacificWest'}
     _PONDEROSA = {'Ponderosa pine', 'PN', 'Ponderosa'}
     _POCOSIN   = {'Pocosin', 'PC'}
+    _WHITE_PINE_HEMLOCK = {'White Pine Hemlock', 'WhiPinHem', 'WPH'}
     _CHAPARRAL = {'Chaparral', 'Shrub-Chaparral', 'SGC', 'ShrubGroupChaparral'}
     _REDJAC    = {'Red Jack Pine', 'Red, Jack Pine', 'RedJacPin', 'RJP'}
     _BALSAM    = {'Balsam', 'Black Spruce', 'Red Spruce', 'White Spruce',
@@ -372,9 +581,25 @@ def consm_duff(
     is_se       = reg == 'SouthEast'
     is_ponderosa = cvr_grp in _PONDEROSA
     is_pocosin  = cvr_grp in _POCOSIN
+    is_white_pine_hemlock = cvr_grp in _WHITE_PINE_HEMLOCK
     is_chaparral = cvr_grp in _CHAPARRAL
     is_redjac   = cvr_grp in _REDJAC
     is_balsam   = cvr_grp in _BALSAM
+    is_coastplain = _is_coastal_plain(cvr_grp)
+
+    # PyFOFEM's own supported contract (stricter than raw C++, which would
+    # silently fall through to whatever OTHER regional equation "reg"
+    # happens to select): Coastal Plain is a SouthEast cover group, not a
+    # region, and its special route lives only inside DUF_SouthEast()
+    # (fof_duf.cpp:409-426). A non-SouthEast region with a Coastal Plain
+    # cvr_grp fails loudly instead of silently applying an unrelated
+    # regional equation.
+    if is_coastplain and not is_se:
+        raise ValueError(
+            f"consm_duff(): Coastal Plain (cvr_grp={cvr_grp!r}) is only "
+            "supported for reg='SouthEast' (C++'s DUF_SouthEast-only "
+            f"routing, fof_duf.cpp:409-426); got reg={reg!r}."
+        )
 
     # ------------------------------------------------------------------
     # pdc – percent consumed
@@ -390,7 +615,7 @@ def consm_duff(
         # Eq 19 – Chaparral/SGC: 100 %
         pdc = np.full_like(duff_moist, 100.0)
 
-    elif is_iw_pw:
+    elif is_iw_pw or (is_ne and is_white_pine_hemlock):
         # PacificWest Slash → same as InteriorWest (C++ DUF_PacificWest Note-1)
         if is_ponderosa:
             if duff_moist_cat == 'ldm':
@@ -411,7 +636,9 @@ def consm_duff(
     elif is_ne:
         if is_redjac:
             if duff_moist_cat == 'edm':
-                # Eq 15 with pine=1: derive pdc from residual depth
+                # C++ Jack_Red_Pine + Duf Entire -> Equ_15_RedPer(..., "JACK")
+                # (fof_duf.cpp:458-461): Eq 15 with pine=1, pdc derived from
+                # residual depth.
                 f_rdd = (-0.791 + 0.004 * duff_moist
                          + 0.8 * (d_pre if d_pre is not None
                                   else np.zeros_like(duff_moist))
@@ -428,9 +655,16 @@ def consm_duff(
                         else np.ones_like(duff_moist), 1e-12)) * 100, 0, 100),
                     0.0,
                 )
-            else:
-                # ldm or nfdth → default (Eq 2)
+            elif duff_moist_cat == 'ldm':
+                # C++ Jack_Red_Pine + Duf Lower -> Duf_Default() (fof_duf.cpp:
+                # 462-464) -- NOT a RedJacPine-specific equation; C++ falls
+                # through to the SAME Eq 2 the generic NorthEast case uses.
                 pdc = 83.7 - 0.426 * duff_moist
+            else:
+                # C++ Jack_Red_Pine + NFDR/Adj-NFDR -> Equ_3_Red (fof_duf.cpp:
+                # 465-467), whose own Equ_3_Per is Eq 3 on 1000-hr moisture --
+                # matches Balsam's and IW/PW's own nfdth routing exactly.
+                pdc = 114.7 - 4.2 * dw1k
         elif is_balsam:
             if duff_moist_cat == 'ldm':
                 # Eq 5 → derive pdc from depth reduction
@@ -468,31 +702,15 @@ def consm_duff(
                 # nfdth → Eq 3
                 pdc = 114.7 - 4.2 * dw1k
         else:
-            if duff_moist_cat == 'edm':
-                # Eq 15 with pine=0 for NorthEast non-RedJac, non-Balsam.
-                f_rdd = (-0.791 + 0.004 * duff_moist
-                         + 0.8 * (d_pre if d_pre is not None
-                                  else np.zeros_like(duff_moist)))
-                f_red = np.clip(
-                    (d_pre if d_pre is not None
-                     else np.zeros_like(duff_moist)) - f_rdd,
-                    0.0, None,
-                )
-                pdc = np.where(
-                    (d_pre is not None) and (d_pre > 0),
-                    np.clip((f_red / np.maximum(
-                        d_pre if d_pre is not None
-                        else np.ones_like(duff_moist), 1e-12)) * 100, 0, 100),
-                    0.0,
-                )
-            else:
-                # NorthEast default (Duf_Default) → Eq 2
-                pdc = 83.7 - 0.426 * duff_moist
+            # The generic NorthEast route uses Eq. 2 regardless of the
+            # moisture method. Red jack pine and balsam routes are handled
+            # separately above.
+            pdc = 83.7 - 0.426 * duff_moist
 
     elif is_se:
         if is_pocosin:
-            # Eq 20 – Pocosin per-layer load-based algorithm (C++ Equ_20_PerRed_Pocosin)
-            # Works on duff load per 4-inch layer; mc_lyr1 is the top-layer moisture.
+            # Eq. 20 Pocosin per-layer load-based algorithm. It operates on
+            # duff load per 4-inch layer; mc_lyr1 is the top-layer moisture.
             mc0    = float(mc_lyr1[0]) if mc_lyr1 is not None else float(duff_moist[0])
             dl_val = float(pre_dl[0])
             dp_val = float(d_pre[0]) if d_pre is not None else 0.0
@@ -537,6 +755,22 @@ def consm_duff(
                 pdc_val = 0.0
             pdc = np.ravel(np.full_like(duff_moist, pdc_val))
 
+        elif is_coastplain:
+            # Eq. 30 Coastal Plain combined litter/duff consumption. This
+            # function uses the duff result; consm_litter() uses the matching
+            # litter result from the same helper.
+            if pre_ll is None or l_moist is None:
+                raise ValueError(
+                    "consm_duff(): Coastal Plain (cvr_grp="
+                    f"{cvr_grp!r}) requires both pre_ll (litter load) and "
+                    "l_moist (litter moisture %) to compute Eq 30."
+                )
+            _check_cp_litter_moisture(l_moist)
+            _lit_pct_cp, duff_pct_cp = _coastal_plain_forest_floor(
+                pre_ll, pre_dl, l_moist,
+            )
+            pdc = np.ravel(duff_pct_cp)
+
         else:
             # SE non-Pocosin – Eq 16
             # f_WPRE = lit + duff + dw10 + dw1  (here approximated by pre_dl110)
@@ -566,48 +800,34 @@ def consm_duff(
         # Global fallback → Duf_Default → Eq 2
         pdc = 83.7 - 0.426 * duff_moist
 
-    # C++ DUF_Mngr: duff_moist ≤ 10 forces 100 % consumed (Note, 2012)
+    # Duff moisture at or below 10% forces complete consumption.
     low_moist_mask = duff_moist <= 10.0
     pdc = np.where(low_moist_mask, 100.0, pdc)
 
-    # Clamp to [0, 100] (C++ DUF_Mngr Note-1)
+    # There is nothing to consume when the duff load is zero.  Preserve the
+    # moisture override above for ordinary loads, then apply this independent
+    # physical boundary condition.
+    pdc = np.where(pre_dl <= 0.0, 0.0, pdc)
+
+    # Clamp to the physical percent range.
     pdc = np.clip(pdc, 0.0, 100.0)
 
     # ------------------------------------------------------------------
     # ddc / rdd – depth outputs.
-    # Match golden/C++ equation-level behavior:
-    #   Eq5: ddc = 1.028 - 0.0089*moist + 0.417*d_pre
-    #   Eq6: ddc = 0.8811 - 0.0096*moist + 0.439*d_pre
-    #   Eq7: ddc = 1.773 - 0.1051*dw1000_moist + 0.399*d_pre
-    #   Eq15: rdd = -0.791 + 0.004*moist + 0.8*d_pre + 0.56*pine
-    # Fall back to pdc-derived depth when no specific depth equation applies.
+    #
+    # Depth consumed is derived from the final, clamped percent consumed for
+    # every region and cover group. This preserves a physically consistent
+    # relationship between remaining depth and remaining duff load.
     # ------------------------------------------------------------------
     ddc = None
     rdd = None
     if d_pre is not None:
         d_pre_in = d_pre  # already in inches if units=='SI' was converted above
-        if is_iw_pw:
-            if duff_moist_cat == 'ldm':
-                ddc = 1.028 - 0.0089 * duff_moist + 0.417 * d_pre_in  # Eq 5
-            elif duff_moist_cat == 'edm':
-                ddc = 0.8811 - 0.0096 * duff_moist + 0.439 * d_pre_in  # Eq 6
-            elif duff_moist_cat == 'nfdth':
-                ddc = 1.773 - 0.1051 * dw1k + 0.399 * d_pre_in  # Eq 7
-            else:
-                ddc = d_pre_in * (pdc / 100.0)
-            ddc = np.clip(ddc, 0.0, d_pre_in)
-            rdd = d_pre_in - ddc
-        elif is_ne and duff_moist_cat == 'edm':
-            pine_flag = 1.0 if is_redjac else 0.0
-            rdd = -0.791 + 0.004 * duff_moist + 0.8 * d_pre_in + 0.56 * pine_flag  # Eq 15
-            rdd = np.clip(rdd, 0.0, d_pre_in)
-            ddc = d_pre_in - rdd
-        else:
-            ddc = np.clip(d_pre_in * (pdc / 100.0), 0.0, d_pre_in)
-            rdd = d_pre_in - ddc
+        ddc = np.clip(d_pre_in * (pdc / 100.0), 0.0, d_pre_in)
+        rdd = d_pre_in - ddc
 
         # Convert back to cm for SI callers
-        if units == 'SI':
+        if units.upper() == 'SI':
             ddc = ddc * 2.54
             rdd = rdd * 2.54
 
@@ -641,7 +861,7 @@ def consm_herb(
         T/acre if ``units='Imperial'``). Scalar or np.ndarray.
     :param season: Burn season (``'Spring'``, ``'Summer'``, ``'Fall'``,
         ``'Winter'``) or integer code (see :data:`SEASON_CODES`). Only
-        relevant for GrassGroup: Eq 221 (10%) applies in Spring; all other
+        relevant for GrassGroup: Eq 221 (90%) applies in Spring; all other
         seasons use Eq 22 (100%). Optional; defaults to non-Spring behaviour.
     :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
 
@@ -654,9 +874,9 @@ def consm_herb(
     pre_hl = np.ravel(np.asarray(pre_hl, dtype=float))
     n = max(len(pre_ll), len(pre_hl))
 
-    if units == 'SI':
-        pre_ll = pre_ll * 4.4609
-        pre_hl = pre_hl * 4.4609
+    if units.upper() == 'SI':
+        pre_ll = pre_ll * _KGPM2_TO_TPAC
+        pre_hl = pre_hl * _KGPM2_TO_TPAC
 
     reg_arr  = _to_str_arr(reg, REGION_CODES)
     cvr_arr  = _to_str_arr(cvr_grp, CVR_GRP_CODES)
@@ -665,7 +885,7 @@ def consm_herb(
     cvr_arr  = np.broadcast_to(cvr_arr,  (n,)) if cvr_arr.size  == 1 else cvr_arr
     sea_arr  = np.broadcast_to(sea_arr,  (n,)) if sea_arr.size  == 1 else sea_arr
 
-    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
     _grass_vals    = ('Grass', 'GG', 'GrassGroup')
 
     is_se         = reg_arr == 'SouthEast'
@@ -673,20 +893,22 @@ def consm_herb(
     is_flatwood   = np.isin(cvr_arr, _flatwood_vals)
 
     hlc = np.select(
-        [is_se, is_grass_spr, is_flatwood],
+        [is_flatwood, is_se, is_grass_spr],
         [
-            # Eq 222
-            -0.059 + (0.004 * pre_ll) + (0.917 * pre_hl),
-            # Eq 221 – 10% in Spring only
-            pre_hl * 0.1,
             # Eq 223
             ((pre_hl * 2.24) * 0.9944) / 2.24,
+            # Eq 222
+            -0.059 + (0.004 * pre_ll) + (0.917 * pre_hl),
+            # Eq 221 - 90% in Spring only (fof_hsf.cpp:352-358)
+            pre_hl * 0.9,
         ],
         default=pre_hl.copy(),  # Eq 22 – 100%
     )
 
-    if units == 'SI':
-        hlc = hlc / 4.4609
+    hlc = np.clip(hlc, 0.0, pre_hl)
+
+    if units.upper() == 'SI':
+        hlc = hlc * _TPAC_TO_KGPM2
 
     return float(hlc[0]) if scalar_input else hlc
 
@@ -697,18 +919,43 @@ def consm_litter(
         cvr_grp: Union[str, int, np.ndarray, None] = None,
         reg: Union[str, int, np.ndarray, None] = None,
         units: str = 'SI',
+        pre_dl: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
-    FOFEM litter consumption model (Eqs 997–999).
+    FOFEM litter consumption model (Eqs 997–999, 30).
 
     Accepts scalar or array inputs for all parameters, including *cvr_grp*
     and *reg* (which may be strings, integer codes, or arrays thereof).
 
     .. note::
         Most fuel consumption is simulated using Burnup. This function covers
-        litter-specific override equations for Flatwoods and Southeast regions.
+        litter-specific override equations for Flatwoods, Southeast, and
+        Coastal Plain (a SouthEast cover group, not a region).
 
-    :param pre_ll: Pre-fire litter load (Mg/ha if ``units='SI'``, T/acre if
+    **Coastal Plain** (``cvr_grp`` ``'CP'`` or ``'CoastPlain'``,
+    case-insensitive, matching C++'s ``CI_isCoastPlain()``) bypasses the
+    ordinary SouthEast Eq 998 (``* 0.8``) route entirely and uses the same
+    litter-first-allocation Eq 30 (C++ ``Equ_CP_Per``,
+    ``fof_duf.cpp:1171-1225``) that :func:`consm_duff` uses for its duff
+    percent — both derive from the shared :func:`_coastal_plain_forest_floor`
+    helper, so calling this function and :func:`consm_duff` with the SAME
+    *pre_ll*/*pre_dl*/*l_moist* for a Coastal Plain cell always yields a
+    consistent, non-contradictory litter/duff split. Requires *pre_dl*
+    (raises ``ValueError`` otherwise); *l_moist* is enforced to C++'s
+    inclusive ``[1.0, 100.0]`` range (``fof_ci.h:61-62``, ``_ChkLitMoist()``,
+    ``fof_hsf.cpp:614-626``). Coastal Plain is a SouthEast cover group, not a
+    region — supplying it with any other *reg* raises ``ValueError`` rather
+    than silently falling through to Flatwoods/Eq999 (PyFOFEM's own
+    supported contract; C++'s special route is likewise SouthEast-only,
+    living entirely inside ``DUF_SouthEast()``, ``fof_duf.cpp:409-426``).
+
+    This litter-consumed value is the SAME one used by the full
+    ``run_fofem_emissions()`` facade for Coastal Plain cells — it does not
+    additionally run through Burnup's own independent litter handling, so
+    litter is never double-counted (mirrors C++'s ``BCM_Mngr``:
+    ``if (i_LitEqu == e_CP_PerEq) goto OneHr;``, ``fof_bcm.cpp:99-101``).
+
+    :param pre_ll: Pre-fire litter load (kg/m² if ``units='SI'``, T/acre if
         ``units='Imperial'``). Scalar or np.ndarray.
     :param l_moist: Litter moisture content (%). Scalar or np.ndarray.
     :param cvr_grp: Cover group name or integer code (see
@@ -716,19 +963,30 @@ def consm_litter(
     :param reg: Region name or integer code (see :data:`REGION_CODES`).
         Scalar or np.ndarray. Optional.
     :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+    :param pre_dl: Pre-fire duff load (same units as *pre_ll*). Required for
+        Coastal Plain (Eq 30); ignored otherwise.
 
     :return: Litter load consumed (kg/m² for ``'SI'``, T/acre for
         ``'Imperial'``). Scalar ``float`` when all numeric inputs are scalars,
         otherwise 1D ``np.ndarray``.
+    :raises ValueError: If *cvr_grp* is Coastal Plain and *reg* is not
+        ``'SouthEast'``; if *pre_dl* is missing for Coastal Plain; or if
+        *l_moist* is outside ``[1.0, 100.0]`` for a Coastal Plain cell.
     """
     scalar_input = _is_scalar(pre_ll) and _is_scalar(l_moist)
 
     pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
     l_moist = np.ravel(np.asarray(l_moist, dtype=float))
     n = max(len(pre_ll), len(l_moist))
+    pre_ll = np.broadcast_to(pre_ll, (n,)) if pre_ll.size == 1 else pre_ll
+    l_moist = np.broadcast_to(l_moist, (n,)) if l_moist.size == 1 else l_moist
 
-    if units == 'SI':
-        pre_ll = pre_ll * 4.4609  # kg/m² → T/acre
+    if units.upper() == 'SI':
+        pre_ll = pre_ll * _KGPM2_TO_TPAC  # kg/m² → T/acre
+        if pre_dl is not None:
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * _KGPM2_TO_TPAC
+    elif pre_dl is not None:
+        pre_dl = np.ravel(np.asarray(pre_dl, dtype=float))
 
     # Resolve categorical strings to broadcast-compatible arrays
     cvr_arr = _to_str_arr(cvr_grp if cvr_grp is not None else '', CVR_GRP_CODES)
@@ -737,23 +995,56 @@ def consm_litter(
     cvr_arr = np.broadcast_to(cvr_arr, (n,)) if cvr_arr.size == 1 else cvr_arr
     reg_arr = np.broadcast_to(reg_arr, (n,)) if reg_arr.size == 1 else reg_arr
 
-    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
     is_flatwood = np.isin(cvr_arr, _flatwood_vals)
     is_southeast = reg_arr == 'SouthEast'
+    cvr_lower = np.array([str(v).strip().lower() for v in cvr_arr], dtype=object)
+    is_coastplain = np.isin(cvr_lower, tuple(_COASTPLAIN_ALIASES))
+
+    if np.any(is_coastplain & ~is_southeast):
+        bad_reg = str(reg_arr[is_coastplain & ~is_southeast][0])
+        raise ValueError(
+            "consm_litter(): Coastal Plain is only supported for "
+            f"reg='SouthEast' (C++'s DUF_SouthEast-only routing, "
+            f"fof_duf.cpp:409-426); got reg={bad_reg!r}."
+        )
+
+    if np.any(is_coastplain):
+        if pre_dl is None:
+            raise ValueError(
+                "consm_litter(): Coastal Plain requires pre_dl (duff load) "
+                "to compute Eq 30 (fof_duf.cpp:1171-1225)."
+            )
+        pre_dl_bc = np.broadcast_to(pre_dl, (n,)) if np.asarray(pre_dl).size == 1 else pre_dl
+        _check_cp_litter_moisture(l_moist[is_coastplain])
+        litter_pct_cp, _duff_pct_cp = _coastal_plain_forest_floor(
+            pre_ll, pre_dl_bc, l_moist,
+        )
+        coastplain_consumed_tac = pre_ll * (litter_pct_cp / 100.0)
+    else:
+        coastplain_consumed_tac = np.zeros(n)
+
+    pre_ll_mgha = pre_ll / T_ACRE_PER_MG_HECTARE
+    flatwood_consumed_tac = T_ACRE_PER_MG_HECTARE * np.square(
+        0.2871 + (0.9140 * np.sqrt(pre_ll_mgha)) - (0.0101 * l_moist)
+    )
+    flatwood_consumed_tac = np.minimum(flatwood_consumed_tac, pre_ll)
 
     llc = np.select(
-        [is_flatwood, is_southeast],
+        [is_flatwood, is_coastplain, is_southeast],
         [
-            # Eq 997
-            np.power(0.2871 + (0.9140 * np.sqrt(pre_ll)) - (0.0101 * l_moist), 2),
+            # Eq 997 operates in Mg/ha before converting back to T/ac.
+            flatwood_consumed_tac,
+            # Eq 30 (Coastal Plain) — litter-first allocation.
+            coastplain_consumed_tac,
             # Eq 998
             pre_ll * 0.8,
         ],
         default=pre_ll.copy(),  # Eq 999
     )
 
-    if units == 'SI':
-        llc = llc / 4.4609  # T/acre → kg/m²
+    if units.upper() == 'SI':
+        llc = llc * _TPAC_TO_KGPM2  # T/acre → kg/m²
 
     return float(llc[0]) if scalar_input else llc
 
@@ -766,12 +1057,23 @@ def consm_mineral_soil(
         duff_moist_cat: str,
         pile: bool = False,
         pdr: Optional[Union[float, np.ndarray]] = None,
+        duff_load: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[float, np.ndarray]:
     """
     FOFEM mineral soil exposure model.
 
     Accepts scalar or array inputs, including *reg*, *cvr_grp*, and
     *fuel_type* (strings, integer codes, or arrays thereof).
+
+    **Coastal Plain** (``cvr_grp`` ``'CP'`` or ``'CoastPlain'``,
+    case-insensitive) reports equation ID 32 (C++ ``Equ_CP_MSE``,
+    ``fof_duf.cpp:1232-1236``): a flat 5% whenever *duff_load* is positive,
+    or 100% whenever *duff_load* is ``<= 0`` (C++'s subsequent global
+    ``if (f_Duff <= 0) f_MSEPer = 100.0`` override, ``fof_duf.cpp:377-378``,
+    which applies regardless of cover group but is exercised here only for
+    Coastal Plain). Coastal Plain is a SouthEast cover group, not a region;
+    supplying it with any other *reg* raises ``ValueError`` (PyFOFEM's own
+    supported contract — see :func:`consm_duff`).
 
     :param reg: Region name or integer code (see :data:`REGION_CODES`).
     :param cvr_grp: Cover group name or integer code (see :data:`CVR_GRP_CODES`).
@@ -783,9 +1085,13 @@ def consm_mineral_soil(
     :param pile: ``True`` for pile burning (returns 10%). Default ``False``.
     :param pdr: Percent duff reduction (%), required when
         ``duff_moist_cat='%dr'``. Scalar or np.ndarray.
+    :param duff_load: Pre-fire duff load (any consistent mass-load unit).
+        Required for Coastal Plain (Eq 32); ignored otherwise.
 
     :return: Mineral soil exposure (%). Scalar ``float`` when all numeric
         inputs are scalars, otherwise 1D ``np.ndarray``.
+    :raises ValueError: If *cvr_grp* is Coastal Plain and *reg* is not
+        ``'SouthEast'``, or if *duff_load* is missing for Coastal Plain.
     """
     scalar_input = _is_scalar(duff_moist)
 
@@ -793,6 +1099,10 @@ def consm_mineral_soil(
     n = len(duff_moist)
     if pdr is not None:
         pdr = np.ravel(np.asarray(pdr, dtype=float))
+        pdr = np.broadcast_to(pdr, (n,)) if pdr.size == 1 else pdr
+    if duff_load is not None:
+        duff_load = np.ravel(np.asarray(duff_load, dtype=float))
+        duff_load = np.broadcast_to(duff_load, (n,)) if duff_load.size == 1 else duff_load
 
     reg_arr = _to_str_arr(reg, REGION_CODES)
     cvr_arr = _to_str_arr(cvr_grp, CVR_GRP_CODES)
@@ -802,6 +1112,22 @@ def consm_mineral_soil(
     ft_arr  = np.broadcast_to(ft_arr,  (n,)) if ft_arr.size  == 1 else ft_arr
 
     ft_lower = np.array([v.lower() for v in ft_arr], dtype=object)
+    cvr_lower = np.array([str(v).strip().lower() for v in cvr_arr], dtype=object)
+    is_coastplain = np.isin(cvr_lower, tuple(_COASTPLAIN_ALIASES))
+    is_southeast = reg_arr == 'SouthEast'
+
+    if np.any(is_coastplain & ~is_southeast):
+        bad_reg = str(reg_arr[is_coastplain & ~is_southeast][0])
+        raise ValueError(
+            "consm_mineral_soil(): Coastal Plain is only supported for "
+            f"reg='SouthEast' (C++'s DUF_SouthEast-only routing, "
+            f"fof_duf.cpp:409-426); got reg={bad_reg!r}."
+        )
+    if np.any(is_coastplain) and duff_load is None:
+        raise ValueError(
+            "consm_mineral_soil(): Coastal Plain requires duff_load to "
+            "compute Eq 32 (fof_duf.cpp:1232-1236)."
+        )
 
     mse = np.full(n, np.nan)
 
@@ -809,37 +1135,67 @@ def consm_mineral_soil(
         mse[:] = 10.0
     else:
         is_iw_pw    = np.isin(reg_arr, ('InteriorWest', 'PacificWest'))
+        is_ne       = reg_arr == 'NorthEast'
         is_pocosin  = np.isin(cvr_arr, ('Pocosin', 'PC'))
+        is_white_pine_hemlock = np.isin(cvr_arr, ('White Pine Hemlock', 'WhiPinHem', 'WPH'))
+        is_chaparral = np.isin(cvr_arr, ('Chaparral', 'Shrub-Chaparral', 'SGC', 'ShrubGroupChaparral'))
+        is_iw_effective = is_iw_pw | (is_ne & is_white_pine_hemlock)
         is_slash    = ft_lower == 'slash'
         is_natural  = ft_lower == 'natural'
 
         pdr_vals = pdr if pdr is not None else np.zeros(n)
+        duff_load_vals = duff_load if duff_load is not None else np.zeros(n)
+        moisture_for_nfd = (
+            duff_moist / 1.4 if duff_moist_cat == 'adjnfdr' else duff_moist
+        )
+        is_red_jack = np.isin(cvr_arr, ('Red Jack Pine', 'Red, Jack Pine', 'RedJacPin', 'RJP'))
+        is_balsam_spruce = np.isin(
+            cvr_arr,
+            ('Balsam', 'Black Spruce', 'Red Spruce', 'White Spruce', 'BalBRWSpr', 'Balsam Fir', 'BFS'),
+        )
+        is_ne_eq14 = is_ne & (
+            is_balsam_spruce | (is_red_jack & (duff_moist_cat != 'ldm'))
+        )
+        is_se_eq14 = (reg_arr == 'SouthEast') & ~is_pocosin & ~is_coastplain
+        is_eq14 = is_ne_eq14 | is_se_eq14
 
         mse = np.select(
             [
-                is_iw_pw & is_slash   & (duff_moist_cat == 'ldm'),   # Eq 9
-                is_iw_pw & is_natural & (duff_moist_cat == 'ldm'),   # Eq 13
-                is_iw_pw & is_slash   & (duff_moist_cat == 'nfdth'), # Eq 11
-                is_iw_pw & is_natural & (duff_moist_cat == 'nfdth'), # Eq 12
-                is_iw_pw              & (duff_moist_cat == 'edm'),   # Eq 10
+                is_chaparral,                                         # Eq 19
+                is_iw_effective & is_slash   & (duff_moist_cat == 'ldm'),   # Eq 9
+                is_iw_effective & is_natural & (duff_moist_cat == 'ldm'),   # Eq 13
+                is_iw_effective & is_slash & np.isin(duff_moist_cat, ('nfdth', 'adjnfdr')), # Eq 11
+                is_iw_effective & is_natural & np.isin(duff_moist_cat, ('nfdth', 'adjnfdr')), # Eq 12
+                is_iw_effective              & (duff_moist_cat == 'edm'),   # Eq 10
+                is_eq14,                                             # Eq 14
+                is_ne & is_red_jack & (duff_moist_cat == 'ldm'),    # Eq 10
                 is_pocosin,                                           # Eq 202
+                is_coastplain,                                        # Eq 32
                 ~is_iw_pw & ~is_pocosin & (duff_moist_cat == 'edm'),         # Eq 10
                 ~is_iw_pw & ~is_pocosin & (duff_moist_cat == '%dr'),         # Eq 14
             ],
             [
+                np.full(n, 100.0),
                 np.where(duff_moist <= 135,
                          80 - 0.507 * duff_moist,
                          23.5 - 0.0914 * duff_moist),
                 60.4 - 0.440 * duff_moist,
-                93.3 - 3.55  * duff_moist,
-                94.3 - 4.96  * duff_moist,
+                93.3 - 3.55  * moisture_for_nfd,
+                94.3 - 4.96  * moisture_for_nfd,
+                167.4 - 31.6 * np.log(duff_moist),
+                -8.98 + 0.44 * pdr_vals,
                 167.4 - 31.6 * np.log(duff_moist),
                 np.zeros(n),
+                np.where(duff_load_vals > 0, 5.0, 100.0),
                 167.4 - 31.6 * np.log(duff_moist),
                 -8.98 + 0.899 * pdr_vals,
             ],
             default=np.full(n, np.nan),
         )
+
+        mse = np.clip(mse, 0.0, 100.0)
+        if duff_load is not None:
+            mse = np.where(duff_load_vals <= 0.0, 100.0, mse)
 
     return float(mse[0]) if scalar_input else mse
 
@@ -852,6 +1208,8 @@ def consm_shrub(
         pre_ll: Optional[Union[float, np.ndarray]] = None,
         pre_dl: Optional[Union[float, np.ndarray]] = None,
         pre_rl: Optional[Union[float, np.ndarray]] = None,
+        pre_dw1: Optional[Union[float, np.ndarray]] = None,
+        pre_dw10: Optional[Union[float, np.ndarray]] = None,
         duff_moist: Optional[Union[float, np.ndarray]] = None,
         llc: Optional[Union[float, np.ndarray]] = None,
         ddc: Optional[Union[float, np.ndarray]] = None,
@@ -867,13 +1225,23 @@ def consm_shrub(
     :param cvr_grp: Cover group name or integer code (see :data:`CVR_GRP_CODES`).
     :param pre_sl: Pre-fire shrub fuel load. Scalar or np.ndarray.
     :param season: Burn season or integer code (see :data:`SEASON_CODES`).
-    :param pre_ll: Pre-fire litter load (SE non-Pocosin Eq 234). Optional.
-    :param pre_dl: Pre-fire duff load (SE non-Pocosin Eq 234). Optional.
+    :param pre_ll: Pre-fire litter load (SE non-Pocosin Eq 16/234). Optional.
+    :param pre_dl: Pre-fire duff load (SE non-Pocosin Eq 16/234). Optional.
     :param pre_rl: Pre-fire regeneration load (SE non-Pocosin Eq 234). Optional.
+    :param pre_dw1: Pre-fire 1-hr dead woody load (SE non-Pocosin Eq 16/234).
+        Optional; omitting it is equivalent to passing 0, matching the
+        function's behavior before this parameter existed.
+    :param pre_dw10: Pre-fire 10-hr dead woody load (SE non-Pocosin Eq 16/234).
+        Optional; omitting it is equivalent to passing 0, matching the
+        function's behavior before this parameter existed.
     :param duff_moist: Duff moisture content (%). Optional.
     :param llc: Litter load consumed (SE non-Pocosin Eq 234). Optional.
     :param ddc: Duff depth consumed (SE non-Pocosin Eq 234). Optional.
-    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``.
+    :param units: Unit system. ``'SI'`` (default) or ``'Imperial'``. All of
+        *pre_sl*, *pre_ll*, *pre_dl*, *pre_rl*, *pre_dw1*, and *pre_dw10* are
+        read in this same system: kg/m2 for ``'SI'`` (converted internally to
+        tons/acre), or tons/acre directly for ``'Imperial'``. The returned
+        percent-consumed value is never unit-converted.
 
     :return: Percent shrub load consumed (%). Scalar ``float`` when all
         numeric inputs are scalars, otherwise 1D ``np.ndarray``.
@@ -883,14 +1251,18 @@ def consm_shrub(
     pre_sl = np.ravel(np.asarray(pre_sl, dtype=float))
     n = len(pre_sl)
 
-    if units == 'SI':
-        pre_sl = pre_sl * 4.4609
+    if units.upper() == 'SI':
+        pre_sl = pre_sl * _KGPM2_TO_TPAC
         if pre_ll is not None:
-            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float)) * 4.4609
+            pre_ll = np.ravel(np.asarray(pre_ll, dtype=float)) * _KGPM2_TO_TPAC
         if pre_dl is not None:
-            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * 4.4609
+            pre_dl = np.ravel(np.asarray(pre_dl, dtype=float)) * _KGPM2_TO_TPAC
         if pre_rl is not None:
-            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float)) * 4.4609
+            pre_rl = np.ravel(np.asarray(pre_rl, dtype=float)) * _KGPM2_TO_TPAC
+        if pre_dw1 is not None:
+            pre_dw1 = np.ravel(np.asarray(pre_dw1, dtype=float)) * _KGPM2_TO_TPAC
+        if pre_dw10 is not None:
+            pre_dw10 = np.ravel(np.asarray(pre_dw10, dtype=float)) * _KGPM2_TO_TPAC
     else:
         if pre_ll is not None:
             pre_ll = np.ravel(np.asarray(pre_ll, dtype=float))
@@ -898,6 +1270,10 @@ def consm_shrub(
             pre_dl = np.ravel(np.asarray(pre_dl, dtype=float))
         if pre_rl is not None:
             pre_rl = np.ravel(np.asarray(pre_rl, dtype=float))
+        if pre_dw1 is not None:
+            pre_dw1 = np.ravel(np.asarray(pre_dw1, dtype=float))
+        if pre_dw10 is not None:
+            pre_dw10 = np.ravel(np.asarray(pre_dw10, dtype=float))
 
     if duff_moist is not None:
         duff_moist = np.ravel(np.asarray(duff_moist, dtype=float))
@@ -913,7 +1289,7 @@ def consm_shrub(
     cvr_arr = np.broadcast_to(cvr_arr, (n,)) if cvr_arr.size == 1 else cvr_arr
     sea_arr = np.broadcast_to(sea_arr, (n,)) if sea_arr.size == 1 else sea_arr
 
-    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd')
+    _flatwood_vals = ('Flatwood', 'Pine Flatwoods', 'PFL', 'PinFltwd', 'PinFlaWoo')
 
     is_se       = reg_arr == 'SouthEast'
     is_pocosin  = np.isin(cvr_arr, ('Pocosin', 'PC'))
@@ -927,42 +1303,83 @@ def consm_shrub(
     sea_fall    = sea_arr == 'Fall'
     sea_spr_sum = np.isin(sea_arr, ('Spring', 'Summer'))
 
-    # Eq 234 – SE non-Pocosin (requires optional params; fall back to nan)
-    if all(x is not None for x in (pre_ll, pre_dl, pre_rl, duff_moist, llc, ddc)):
-        combo = pre_ll + pre_dl
-        combo_safe = np.where(combo > 0, combo, np.nan)
-        denom_safe = np.where((pre_sl + pre_rl) > 0, (pre_sl + pre_rl), np.nan)
-        eq234 = (((3.2484 + (0.4322 * combo) + (0.6765 * (pre_sl + pre_rl)) -
-                   (0.0276 * duff_moist) - (5.0796 / combo_safe)) -
-                  (llc + ddc)) / denom_safe) * 100
+    # Eq 234 – SE non-Pocosin.  The direct C++ path (fof_hsf.cpp:229-274,
+    # Equation_16 / Equ_234_Per) first derives f_W = Equation_16(a_CI) using
+    # f_WPRE = f_Lit + f_Duff + f_DW10 + f_DW1 (litter + duff + 10-hr + 1-hr
+    # dead woody fuel), then Equ_234_Per reuses the same 4-term f_WPRE to
+    # compute a fraction.  Calc_Shrub (fof_hsf.cpp:166-209) multiplies that
+    # fraction directly by f_Shrub to get the consumed load -- the fraction
+    # is not itself a 0-100 percent despite the `if (f > 100) f = 100;`
+    # clamp bound (fof_hsf.cpp:253-255); this quirk is preserved unchanged.
+    # C++ returns 0 when f_W == 0 (fof_hsf.cpp:234-235), f_WPRE == 0
+    # (fof_hsf.cpp:238,271), and again when f_ShrReg (= f_Shrub) == 0
+    # (fof_hsf.cpp:243); Calc_Shrub's own
+    # `if (f_Shrub != 0) {...} else *af_Percent = 0;` (fof_hsf.cpp:182-186)
+    # applies the same zero-shrub guard a second time. *pre_dw1*/*pre_dw10*
+    # default to 0 when omitted, so omitting them is exactly equivalent to
+    # passing 0 and existing callers are unaffected.
+    if all(x is not None for x in (pre_ll, pre_dl, duff_moist)):
+        pre_dw1_term = pre_dw1 if pre_dw1 is not None else 0.0
+        pre_dw10_term = pre_dw10 if pre_dw10 is not None else 0.0
+        woody_pre = pre_ll + pre_dl + pre_dw10_term + pre_dw1_term
+        woody_pre_zero = woody_pre == 0
+        woody_pre_safe = np.where(woody_pre > 0, woody_pre, np.nan)
+        fire_weight = (
+            3.4958 + (0.3833 * woody_pre) - (0.0237 * duff_moist) -
+            (5.6075 / woody_pre_safe)
+        )
+        fire_weight_zero = fire_weight == 0
+        shrub_zero = pre_sl == 0
+        shrub_safe = np.where(pre_sl > 0, pre_sl, np.nan)
+        eq234_fraction = (
+            (3.2484 + (0.4322 * woody_pre) + (0.6765 * pre_sl) -
+             (0.0276 * duff_moist) - (5.0796 / woody_pre_safe) - fire_weight) /
+            shrub_safe
+        )
+        # Exact-zero fuel-load guards, matching C++'s `== 0` checks. Any
+        # other invalid (e.g. negative) input is left to propagate as NaN
+        # rather than being silently zeroed.
+        eq234_fraction = np.where(
+            woody_pre_zero | fire_weight_zero | shrub_zero, 0.0,
+            eq234_fraction,
+        )
+        eq234_load = pre_sl * np.clip(eq234_fraction, 0.0, 100.0)
     else:
-        eq234 = np.full(n, np.nan)
+        eq234_load = np.full(n, np.nan)
 
     # Eq 236 – Flatwood
     season_flag = np.where(sea_spr_sum, 1.0, 0.0)
-    eq236 = -0.1889 + (0.9049 * np.log(np.maximum(pre_sl, 1e-12))) + (0.0676 * season_flag)
-
-    slc = np.select(
+    pre_sl_mgha = pre_sl / T_ACRE_PER_MG_HECTARE
+    eq236_load_tac = T_ACRE_PER_MG_HECTARE * np.exp(
+        -0.1889 + (0.9049 * np.log(np.maximum(pre_sl_mgha, 1e-12))) +
+        (0.0676 * season_flag)
+    )
+    eq236_load_tac = np.minimum(eq236_load_tac, pre_sl)
+    consumed_load = np.select(
         [
-            is_se & is_pocosin & sea_spr_win,        # Eq 233
-            is_se & is_pocosin & sea_sum_fal,        # Eq 235
-            is_se & ~is_pocosin,                     # Eq 234
             is_sage & sea_fall,                      # Eq 233
             is_sage & ~sea_fall,                     # Eq 232
             is_flatwood,                             # Eq 236
             is_shrubgrp,                             # Eq 231
+            is_se & is_pocosin & sea_spr_win,        # Eq 233
+            is_se & is_pocosin & sea_sum_fal,        # Eq 235
+            is_se & ~is_pocosin,                     # Eq 234
         ],
         [
-            np.full(n, 90.0),
-            np.full(n, 80.0),
-            eq234,
-            np.full(n, 90.0),
-            np.full(n, 50.0),
-            eq236,
-            np.full(n, 80.0),
+            pre_sl * 0.9,
+            pre_sl * 0.5,
+            eq236_load_tac,
+            pre_sl * 0.8,
+            pre_sl * 0.9,
+            pre_sl * 0.8,
+            eq234_load,
         ],
-        default=np.full(n, 60.0),  # Eq 23
+        default=pre_sl * 0.6,  # Eq 23
     )
+
+    consumed_load = np.clip(consumed_load, 0.0, pre_sl)
+    slc = np.zeros_like(pre_sl)
+    np.divide(100.0 * consumed_load, pre_sl, out=slc, where=pre_sl > 0)
 
     return float(slc[0]) if scalar_input else slc
 

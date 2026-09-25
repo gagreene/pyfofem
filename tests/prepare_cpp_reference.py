@@ -161,6 +161,13 @@ def _ensure_cpp_repo(refresh: bool) -> None:
     remote_url = _read_gitmodules_url()
     if not CPP_DIR.exists():
         REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
+        # Deliberately no `repo_path=` here: `git clone` targets a
+        # not-yet-existing directory, so there is no existing repository
+        # for Git's dubious-ownership check to reject — verified directly
+        # (a real clone against a remote URL into a fresh destination
+        # succeeds under GIT_TEST_ASSUME_DIFFERENT_OWNER=1 with no
+        # safe.directory override at all; see
+        # test_prepare_cpp_reference_git_ownership.py).
         _run(["git", "clone", "--depth", "1", remote_url, str(CPP_DIR)], cwd=REPO_ROOT)
         return
 
@@ -173,9 +180,9 @@ def _ensure_cpp_repo(refresh: bool) -> None:
             "Refresh requires a clone or submodule checkout."
         )
 
-    _run(["git", "fetch", "origin"], cwd=CPP_DIR)
-    _run(["git", "checkout", "master"], cwd=CPP_DIR)
-    _run(["git", "reset", "--hard", "origin/master"], cwd=CPP_DIR)
+    _run(["git", "fetch", "origin"], cwd=CPP_DIR, repo_path=CPP_DIR)
+    _run(["git", "checkout", "master"], cwd=CPP_DIR, repo_path=CPP_DIR)
+    _run(["git", "reset", "--hard", "origin/master"], cwd=CPP_DIR, repo_path=CPP_DIR)
     # Remove previous generated build output so the next build is clean.
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
@@ -189,7 +196,7 @@ def _print_status() -> None:
     """
     if (CPP_DIR / ".git").exists():
         proc = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
+            ["git", *_safe_directory_args(CPP_DIR), "rev-parse", "HEAD"],
             cwd=str(CPP_DIR),
             capture_output=True,
             text=True,
@@ -217,20 +224,70 @@ def _read_gitmodules_url() -> str:
     return "https://github.com/bran-jnw/fofem_wuinity.git"
 
 
-def _run(cmd: Iterable[str], *, cwd: Path | None = None) -> None:
+def _run(cmd: Iterable[str], *, cwd: Path | None = None, repo_path: Path | None = None) -> None:
     """
     Print and execute a subprocess command, raising on non-zero exit.
 
     :param cmd: Command and arguments to execute.
     :param cwd: Working directory to run the command in. Defaults to
         ``REPO_ROOT`` when omitted.
+    :param repo_path: When given and *cmd* is a ``git`` invocation, a
+        per-command ``-c safe.directory=<forward-slash form of repo_path>``
+        is inserted immediately after ``git`` (never written to any config
+        file) so the command succeeds regardless of the running account's
+        global Git configuration or the repository's file ownership. Pass
+        the existing repository this specific invocation OPERATES ON (e.g.
+        ``CPP_DIR`` for a ``fetch``/``checkout``/``reset`` against the C++
+        reference checkout) — omit it for commands (like ``git clone`` into
+        a not-yet-existing directory) that do not need it; see
+        :func:`_safe_directory_args`.
     :return: None. Runs the command as a side effect.
     :raises subprocess.CalledProcessError: If the command exits non-zero.
     """
     cmd = list(cmd)
+    if repo_path is not None and cmd and cmd[0] == "git":
+        cmd = [cmd[0], *_safe_directory_args(repo_path), *cmd[1:]]
     shown_cwd = str(cwd or REPO_ROOT)
     print(f"[prepare-cpp] ({shown_cwd})$ {' '.join(cmd)}")
     subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
+
+
+def _safe_directory_args(repo_path: Path) -> List[str]:
+    """
+    Return the ``-c safe.directory=<value>`` argument pair for *repo_path*.
+
+    Git's "dubious ownership" safety check rejects operating on a
+    repository whose directory is (or is merely reported as, under
+    ``GIT_TEST_ASSUME_DIFFERENT_OWNER``) owned by a different account than
+    the running process, unless that exact path is listed in
+    ``safe.directory`` configuration. A per-command ``-c`` override applies
+    only to this one invocation — it never writes to any global, system, or
+    local Git configuration file, and never uses the ``*`` wildcard that
+    would blanket-disable the protection for every repository.
+
+    :param repo_path: The existing repository directory this git
+        invocation operates on.
+    :return: ``["-c", "safe.directory=<value>"]``.
+    """
+    return ["-c", f"safe.directory={_safe_directory_value(repo_path)}"]
+
+
+def _safe_directory_value(repo_path: Path) -> str:
+    """
+    Return *repo_path* resolved to an absolute, forward-slash-normalized
+    path suitable as a ``safe.directory`` config value on every platform.
+
+    Git matches a configured ``safe.directory`` value against its own
+    internally-normalized (forward-slash) form of the repository path even
+    on Windows — a raw Windows path with backslashes is not recognized as
+    matching the checkout, silently making the override ineffective (the
+    same gap already fixed for ``tests/cpp_parity_live/_golden_manifest.py``
+    and reproduced directly here again for this script's own git calls).
+
+    :param repo_path: Directory path to normalize (need not yet exist).
+    :return: Absolute, forward-slash-normalized path string.
+    """
+    return str(repo_path.resolve()).replace(os.sep, "/")
 
 
 def _which(executable: str) -> str | None:

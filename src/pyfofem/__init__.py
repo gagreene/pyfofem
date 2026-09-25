@@ -6,10 +6,7 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 
-from .components.soil_heating import (
-    soil_heat_campbell,
-    soil_heat_massman,
-)
+from .components.soil_heating import soil_heat_campbell, soil_heat_from_consumption
 
 from .pyfofem import (
     calc_scorch_ht,
@@ -82,5 +79,5 @@ __all__ = [
     'SEASON_CODES',
     'FUEL_CATEGORY_CODES',
     'soil_heat_campbell',
-    'soil_heat_massman',
+    'soil_heat_from_consumption',
 ]

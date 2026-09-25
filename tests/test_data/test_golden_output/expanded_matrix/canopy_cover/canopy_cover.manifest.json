@@ -1,0 +1,63 @@
+{
+  "architecture": "AMD64",
+  "build_flags": "CMAKE_BUILD_TYPE=Debug CMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /W3 /GR /EHsc CMAKE_CXX_FLAGS_DEBUG=/MDd /Zi /Ob0 /Od /RTC1",
+  "build_type": "Debug",
+  "compiler_identity": "Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35728 for x64",
+  "dataset": "expanded_matrix",
+  "documented_expected_divergences": [
+    "canopy_cover_expanded_matrix.all: known_divergent_scenario_scoped \u2014 calc_canopy_cover vs the manifested canopy_cover golden, with the per-species crown-width equation supplied explicitly from the tracked FOF_SPP.CSV. 12 of the 14 successful per-tree scenarios agree and 4 of the 5 emitted stand aggregates agree: measured maximum relative difference 1.02e-06 and maximum |diff| 8.32e-04 ft2. The rtol 2e-06 is evidence-based, not tuned: C++ SMT_CalcCrnCov uses the literal 3.14159 (fof_mrt.cpp:1634) where Python uses numpy.pi, a fixed relative difference of 8.4e-07 in an expression linear in that constant, plus the C++ side's float32 arithmetic. The atol 1e-04 is the golden's own output resolution (crown areas and percentages are written through fmt(v, 4)). The 2 diverging trees and 1 diverging stand are strict xfails under F-02: C++ returns 0 crown area as soon as f_Hgt <= 0, while Python excludes a tree only for dbh <= 0, so it credits a zero- or negative-height tree 30.229674 ft2. Python's DEFAULT species mapping (equation 39 for every species) is a separate, larger divergence characterised separately and never relied upon: measured 40 % to 70 % relative error against the real per-species equations. (gate0/04-findings.md:F-02; gate0/07-branch-traceability.csv BR-CCV-LRG, BR-CCV-SML, BR-CCV-ZERO, BR-CCV-OVL; tests/unit/cpp/test_tree_structure_parity.py::test_canopy_cover_per_tree_area_matches_cpp, ::test_canopy_cover_stand_percent_matches_cpp, ::test_canopy_cover_default_equation_mapping_matches_cpp)"
+  ],
+  "generated_utc": "2026-09-24T23:36:01.777778+00:00",
+  "generator_source_sha256": {
+    "tests/cpp_parity_live/_expanded_matrix_contract.py": "f8d639bbe3030d823d7257ea0843e334e5ef50bfc9cdbc1f97d7da2f79c2187e",
+    "tests/cpp_parity_live/_golden_manifest.py": "052adb752f0e8ea31df4021f2f0f58745b5ab88b82eb5990fe25895cca4a8ef7",
+    "tests/cpp_parity_live/_harness_support.py": "0fdadb064f6e05ca21e3fd58ee37d366f7f15a24718bcca91e6a43730048b901",
+    "tests/cpp_parity_live/_output_contract.py": "2026e6b3f6816b8a5ca387de74f41baf89527cf8b0997d34477e003b5985d2eb",
+    "tests/cpp_parity_live/_proc.py": "985d556439245cc1c9c2a2c487abff0b7b7ce3d972c9d86427c24ec7f3223c80",
+    "tests/cpp_parity_live/generate_canonical_goldens.py": "d92ed475d7bd982c0786d7deec74efdfab4c96ed63f188bc2d3a68b34e8ede7d",
+    "tests/cpp_parity_live/generate_expanded_matrix_goldens.py": "0aed213055f31ff0cea57df173f4f8f71d80518c11ce81a3cd68bedab6dd2279",
+    "tests/cpp_parity_live/test_cpp_harness_contract.py": "8fd76da623b7a3a485ac6c3b04187f4d859044178118f7a347d2bf0de150ecd7",
+    "tests/cpp_parity_live/tolerance_policy.json": "a7e15b1638091c5ffa6a0852587f31dfc8ad61ca6336496641397da59bb49014"
+  },
+  "generator_toolchain": "cmake=cmake version 4.2.3-msvc3; ninja=1.12.1",
+  "harness_mode": "canopy_cover",
+  "input_csv_sha256": {
+    "canopy_cover_in.csv": "3b78d0de2d48456377a0044e334ba7d9023b2f203a735a0d81cbca5750e8c217"
+  },
+  "output_csv_sha256": {
+    "canopy_cover_groups.csv": "6a7c4d423694d7eef7c87dbe1971bbbf121bf076a482776c67e63dcac2cca385",
+    "canopy_cover_stands.csv": "7edcff1bb268b84903e2257b093cdd3fcde11d23f6ff1f4c5a1e3d1a4088a807",
+    "canopy_cover_trees.csv": "017237a6f4a3060bc0acc5d1152ac9fd66763553f0591cba88d96b4ef16cd24e"
+  },
+  "overlay_combined_digest": "ab6b7f1a71f2f89819f390cfc010e91b264eaf24791c38544ecd773b244c49e9",
+  "overlay_file_digests": {
+    "README.md": "638c4c97e26d7de8f49bf823fe4f876c305c8547f0c74309ce01483a1338c8cd",
+    "patches/CMakeLists.remote_to_local.patch": "f303a803274f55617a1f4c789028feca50d6b764ba12a9af3a86c80a6080424f",
+    "source/CMakeLists.txt": "f5cdef0008bf9ca60896e4e5161fea4ce07b2470b791ef66f551a0d46e81e403",
+    "source/FOFEM_CPP_CODEBASE.md": "5bfe6f0c93b6720928a04fe47a301e2e34e47bc915b63c91cb5da2613aa311ed",
+    "source/FOF_UNIX/bur_brn_instr.cpp": "9374a872b72fb287367adf51dfe9131e478822c274542ebba9c9b2cdf4f25d9f",
+    "source/FOF_UNIX/fof_soi_instr.cpp": "82b92b622038289975d20d1edb44d027d9a2451b985a51ac59022332fe1c3ee3",
+    "source/FOF_UNIX/test_harness.cpp": "ba3cbb8d03fbea3c109ff61e79ada35f4ba7f5d5e6c48ca9d7142188b93f4eab",
+    "source/compile_test.bat": "306e5b262d297f70ad4931b887f98050eafcbe8c3df5b7ee503235880f38b7e3"
+  },
+  "platform": "Windows-10-10.0.19044-SP0",
+  "pyfofem_commit": "eae659de29e092b4776531763518a7fb06080a28",
+  "pyfofem_dirty": {
+    "dirty": true,
+    "porcelain": " M README.md\n M conda-recipe/meta.yaml\n M reference/fofem_cpp\n M tests/compare_cpp_python_soil_heating.py\n M tests/cpp_parity_live/_golden_manifest.py\n M tests/cpp_parity_live/_harness_support.py\n M tests/cpp_parity_live/generate_burnup_extended_goldens.py\n M tests/cpp_parity_live/generate_canonical_goldens.py\n M tests/cpp_parity_live/generate_emissions_equivalence_goldens.py\n M tests/cpp_parity_live/generate_expanded_matrix_goldens.py\n M tests/cpp_parity_live/generate_soil_campbell_goldens.py\n M tests/run_unified_tests.py\n M tests/test_data/test_golden_output/canonical/bark_thick/bark_thick.manifest.json\n M tests/test_data/test_golden_output/canonical/canopy_cover/canopy_cover.manifest.json\n M tests/test_data/test_golden_output/canonical/consume/consume.manifest.json\n M tests/test_data/test_golden_output/canonical/litter_eq/litter_eq.manifest.json\n M tests/test_data/test_golden_output/canonical/mortality/mortality.manifest.json\n M tests/test_data/test_golden_output/canonical/shrub_herb_eq/shrub_herb_eq.manifest.json\n M tests/unit/cpp/test_dataset_ownership.py\n M tests/unit/test_golden_manifest_validator.py\n M tests/unit/test_xfail_disposition_audit.py\n?? AGENTS.md\n?? CLAUDE-Archive.md\n?? compress-skill.md\n?? preserve-skill.md\n?? resume-skill.md\n",
+    "staged": false,
+    "unstaged": true,
+    "untracked": true
+  },
+  "schema_version": "1",
+  "side_file_sha256": {
+    "species_table": {
+      "path": "src/pyfofem/supporting_data/FOFEM6.7/FOF_SPP.CSV",
+      "sha256": "c830ba2218194953e2f44c5d2cbe598b6304bf2554f5330ffe12b61977655b71"
+    }
+  },
+  "tolerance_policy_reference": [
+    "canopy_cover_expanded_matrix.all"
+  ],
+  "upstream_cpp_sha": "78f97f093ee7d1c77b3cd2622b2bd7248036c1e4"
+}

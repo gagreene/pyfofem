@@ -7,18 +7,22 @@ This script uses the ansi_mai.cpp-style single-case inputs and compares:
   Lay0, Lay2, Lay4, Lay6, Lay60d, Lay275d
 
 against values derived from `reference/fofem_cpp/soil.tmp`.
+
+Run this package module from the repository root:
+
+    python -m tests.compare_cpp_python_soil_heating
+
+Direct path execution is unsupported because the script imports the
+``tests`` package and therefore requires the repository root on
+``sys.path``.
 """
 import os
 import re
-import sys
-
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from pyfofem import run_fofem_emissions
+from tests._support import CPP_REFERENCE_DIR
 
-
-SOIL_TMP = os.path.join(_REPO, "reference", "fofem_cpp", "soil.tmp")
+SOIL_TMP = os.path.join(CPP_REFERENCE_DIR, "soil.tmp")
 
 
 def _cpp_lay_values_from_soil_tmp(rows):

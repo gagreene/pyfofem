@@ -85,7 +85,7 @@ from .components.burnup_calcs import (
 )
 
 from .components.burnup import _BURNUP_LIMIT_ADJUST, _BURNUP_LIMIT_ERROR
-from .components.soil_heating import soil_heat_campbell
+from .components.soil_heating import soil_heat_campbell, soil_heat_from_consumption
 
 from .components.emission_calcs import (
     _EF_GROUP_DEFAULT,
@@ -181,6 +181,8 @@ def run_fofem_emissions(
         burnup_kwargs: Optional[dict] = None,
         em_mode: str = 'default',
         ef_group: int = _EF_GROUP_DEFAULT,
+        ef_smoldering_group: int = _EF_SMOLDERING_GROUP_DEFAULT,
+        ef_duff_group: int = _EF_DUFF_GROUP_DEFAULT,
         ef_csv_path: Optional[str] = None,
         units: str = 'Imperial',
         moisture_regime: Optional[str] = None,
@@ -251,7 +253,12 @@ def run_fofem_emissions(
     :param em_mode: Emission factor mode: ``'legacy'`` (C++ ES_Calc parity),
         ``'default'`` (single EF group), or ``'expanded'`` (flame/coarse/duff groups).
         In ``'legacy'`` mode, smoldering NOx is 0 by design (matching C++).
-    :param ef_group: Emission factor group (1-8; default 3).
+    :param ef_group: Flaming emission-factor group (1-8; default 3). In
+        ``'default'`` mode it remains the single group applied to both phases.
+    :param ef_smoldering_group: Coarse-wood smoldering emission-factor group
+        (1-8; default 7), used by ``'expanded'`` mode.
+    :param ef_duff_group: Duff-smoldering emission-factor group (1-8; default
+        8), used by ``'expanded'`` mode.
     :param ef_csv_path: Path to ``emissions_factors.csv`` override.
     :param units: Unit system. ``'Imperial'`` (T/ac, in) or ``'SI'``
         (kg/m², cm).
@@ -481,6 +488,7 @@ def run_fofem_emissions(
         duf_dep_a=duf_dep_a, dw10_a=dw10_a, dw1_a=dw1_a, dw1k_m_a=dw1k_m_a,
     )
     lit_pre_arr = pre['lit_pre_arr']; lit_con_arr = pre['lit_con_arr']; lit_pos_arr = pre['lit_pos_arr']
+    lit_burnup_arr = pre['lit_burnup_arr']
     her_pre_arr = pre['her_pre_arr']; her_con_arr = pre['her_con_arr']; her_pos_arr = pre['her_pos_arr']
     shr_pre_arr = pre['shr_pre_arr']; shr_con_arr = pre['shr_con_arr']; shr_pos_arr = pre['shr_pos_arr']
     fol_pre_arr = pre['fol_pre_arr']; fol_con_arr = pre['fol_con_arr']; fol_pos_arr = pre['fol_pos_arr']
@@ -513,9 +521,7 @@ def run_fofem_emissions(
     # ------------------------------------------------------------------
     # 5. Per-cell burnup (parallelised)
     # ------------------------------------------------------------------
-    burnup_times_cells = [None] * n
     burnup_wl_cells = [None] * n
-    burnup_hs_cells = [None] * n
 
     if use_burnup:
         # Build per-cell kwargs list
@@ -551,7 +557,13 @@ def run_fofem_emissions(
                     fl[key] = v
                     fm[key] = max(moist, 0.02)
 
-            _add('litter', lit_pre_arr[i], max(d10f - _DW1HR_ADJ, 0.02))
+            # C++ BCM_SetInputs (fof_bcm.cpp:379-402) feeds Burnup the
+            # already-consumed litter amount, not the raw pre-fire load,
+            # for cells whose litter consumption is computed by a shortcut
+            # equation (Flatwoods/Coastal Plain/SouthEast) -- see F-70's
+            # case-4 burnup duration-divergence writeup,
+            # development/plans/2026-09-23-burnup-duration-divergence-case4.md.
+            _add('litter', lit_burnup_arr[i], max(d10f - _DW1HR_ADJ, 0.02))
             _add('dw1',    dw1_pre_arr[i],  max(d10f - _DW1HR_ADJ, 0.02))
             _add('dw10',   dw10_pre_arr[i], max(d10f, 0.02))
             _add('dw100',  dw100_pre_arr[i], max(d10f + _DW100HR_ADJ, 0.02))
@@ -643,9 +655,7 @@ def run_fofem_emissions(
                 continue
 
             bcon = cr['bcon']
-            burnup_times_cells[i] = cr.get('burnup_times_s')
             burnup_wl_cells[i] = cr.get('burnup_fi_wl')
-            burnup_hs_cells[i] = cr.get('burnup_fi_hs')
             fsi  = from_si
             burnup_ran[i] = True
 
@@ -755,7 +765,22 @@ def run_fofem_emissions(
             _ff = float(pdc_arr[i]) / 100.0 if 0.0 <= float(pdc_arr[i]) <= 100.0 else (0.837 - 0.426 * _dfm)
             _den = 7.5 - 2.7 * _dfm
             if _wdf > 0.0 and _dfm < 1.96 and _den > 0.0 and _ff > 0.0:
-                smo_dur_arr[i] = 1.0e4 * _ff * _wdf / _den
+                _tdf_raw = 1.0e4 * _ff * _wdf / _den
+                # C++ still runs the real discrete timestep loop even for a
+                # duff-only cell (the injected 1e-7 kg/m^2 DW1 guard keeps
+                # `number>=1`); its duff-mass pool (Duff_CPTS) depletes by
+                # `rate * dt` each step and floors at zero, so the reported
+                # SmoDur is the LAST step where the pool still holds a
+                # nonzero remainder -- i.e. `tdf` rounded UP to the next
+                # simulation-grid point, not the raw continuous value.
+                # Confirmed via a live C++ diagnostic trace (case 8 of
+                # cpp_comparison_cases.csv): the continuous tdf evaluates to
+                # 1164.03s, but C++'s actual last qualifying timestep is
+                # 1170.0s = ig_time(60) + 15s * ceil((1164.03-60)/15). See
+                # development/plans/2026-09-23-burnup-duration-divergence-case4.md.
+                _ig_time_i = float(frt_a[i]) if not np.isnan(frt_a[i]) else 60.0
+                _steps = max(np.ceil((_tdf_raw - _ig_time_i) / burnup_dt), 0.0)
+                smo_dur_arr[i] = _ig_time_i + _steps * burnup_dt
                 continue
         if np.isnan(smo_dur_arr[i]) and not np.isnan(duf_dep_con_arr[i]) and duf_dep_con_arr[i] > 0:
             dep_cm  = duf_dep_con_arr[i] * _IN_TO_CM if is_imperial else duf_dep_con_arr[i]
@@ -820,6 +845,17 @@ def run_fofem_emissions(
             duf_moist_pct = float(duf_m_a[i])
 
             model = 'duff' if duf_depth_pre_in > 0.0 else 'non_duff'
+            woody_litter_loads = (
+                lit_pre_arr[i], dw1_pre_arr[i], dw10_pre_arr[i], dw100_pre_arr[i],
+                dw1ks_pre[i], dw1kr_pre[i],
+            )
+            if model == 'non_duff' and not burnup_wl_cells[i] and any(
+                    load > 0.0 for load in woody_litter_loads
+            ):
+                raise ValueError(
+                    "Non-duff soil heating with wood or litter fuel requires "
+                    "use_burnup=True to derive wood/litter intensity."
+                )
             try:
                 if model == 'duff':
                     df_soil = soil_heat_campbell(
@@ -836,27 +872,18 @@ def run_fofem_emissions(
                         timestep=_cfg_float_at('timestep_s', 10.0, i),
                     )
                 else:
-                    wl_series = burnup_wl_cells[i]
-                    hs_series = burnup_hs_cells[i]
-                    t_series = burnup_times_cells[i]
-                    if not wl_series or not t_series:
-                        fi_fallback = float(hfi_a[i]) if not np.isnan(hfi_a[i]) else 20.0
-                        t_fallback = float(frt_a[i]) if not np.isnan(frt_a[i]) else 60.0
-                        wl_series = [max(fi_fallback, 0.0)]
-                        hs_series = [0.0]
-                        t_series = [max(t_fallback, 1.0)]
-
-                    df_soil = soil_heat_campbell(
-                        model='non_duff',
-                        duff_params={},
+                    woody_litter_intensity = burnup_wl_cells[i] or []
+                    herb_shrub_consumed = (
+                        (float(her_con_arr[i]) if not np.isnan(her_con_arr[i]) else 0.0)
+                        + (float(shr_con_arr[i]) if not np.isnan(shr_con_arr[i]) else 0.0)
+                    ) * to_si
+                    df_soil = soil_heat_from_consumption(
                         soil_params=soil_params,
                         depth_layers=depth_layers,
-                        burnup_intensity=wl_series,
-                        burnup_intensity_hs=hs_series,
-                        burnup_times=t_series,
+                        herb_shrub_consumed=herb_shrub_consumed,
+                        woody_litter_intensity=woody_litter_intensity,
                         efficiency_wl=_cfg_float_at('efficiency_wl', eff_wl_default, i),
                         efficiency_hs=_cfg_float_at('efficiency_hs', eff_hs_default, i),
-                        timestep=_cfg_float_at('timestep_s', 10.0, i),
                     )
 
                 max_t = df_soil.max(axis=0)
@@ -909,6 +936,8 @@ def run_fofem_emissions(
         smoldering_load=smo_con_arr,
         mode=em_mode,
         ef_group=ef_group,
+        ef_smoldering_group=ef_smoldering_group,
+        ef_duff_group=ef_duff_group,
         duff_load=duff_load_for_emissions,
         ef_csv_path=ef_csv_path,
         units=units,
@@ -968,18 +997,18 @@ def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.nda
 
     Available mortality functions:
 
-    +-------------+----------------------------------------------+
-    | Key         | Model                                        |
-    +=============+==============================================+
-    | ``bolchar`` | Bole char model (BOLCHAR; Keyser 2018).      |
-    |             | For broadleaf hardwood species.              |
-    +-------------+----------------------------------------------+
-    | ``crnsch``  | Crown scorch model (CRNSCH).                 |
-    |             | For conifers and general species.            |
-    +-------------+----------------------------------------------+
-    | ``crcabe``  | Cambium kill model (CRCABE; Hood & Lutes     |
-    |             | 2017). For conifer species only.             |
-    +-------------+----------------------------------------------+
+    +-------------+-----------------------------------------------+
+    | Key         | Model                                         |
+    +=============+===============================================+
+    | ``bolchar`` | Bole char model (BOLCHAR; Keyser et al. 2018).|
+    |             | For broadleaf hardwood species.               |
+    +-------------+-----------------------------------------------+
+    | ``crnsch``  | Crown scorch model (CRNSCH).                  |
+    |             | For conifers and general species.             |
+    +-------------+-----------------------------------------------+
+    | ``crcabe``  | Cambium kill model (CRCABE; Hood & Lutes      |
+    |             | 2017). For conifer species only.              |
+    +-------------+-----------------------------------------------+
 
     :param mort_function: Name of the mortality sub-model to use.
         One of ``'bolchar'``, ``'crnsch'``, or ``'crcabe'``
@@ -1002,16 +1031,20 @@ def run_fofem_mortality(mort_function: str, params: dict) -> Union[float, np.nda
         # Crown scorch for a single ponderosa pine tree
         pm = run_fofem_mortality(
             'crnsch',
-            spp='PIPO', dbh=25.0, ht=15.0, crown_depth=5.0,
-            fire_intensity=500.0,
+            {
+                'spp': 'PIPO', 'dbh': 25.0, 'ht': 15.0,
+                'crown_depth': 5.0, 'fire_intensity': 500.0,
+            },
         )
 
         # Bole char for multiple broadleaf trees
         pm = run_fofem_mortality(
             'bolchar',
-            spp=np.array(['ACRU', 'QUAL']),
-            dbh=np.array([12.0, 20.0]),
-            char_ht=np.array([1.5, 2.0]),
+            {
+                'spp': np.array(['ACRU', 'QUAL']),
+                'dbh': np.array([12.0, 20.0]),
+                'char_ht': np.array([1.5, 2.0]),
+            },
         )
     """
     key = mort_function.strip().lower()

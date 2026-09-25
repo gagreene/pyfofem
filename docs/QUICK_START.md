@@ -103,6 +103,17 @@ print(result["Lay60d"])
 
 Accepted `soil_family` values include GUI-style names such as `Fine-Silt`.
 
+For a fuel bed with no duff, soil heating uses the wood/litter intensity
+from Burnup and a guide-defined herb/shrub profile. The herb/shrub profile
+consumes up to 5 T/ac in the first minute (10%, 20%, 30%, then 40% in its
+four 15-second intervals), then continues at 5 T/ac/min. Direct callers can
+use `soil_heat_from_consumption()` with consumed herb/shrub load and either
+wood/litter intensity samples or Burnup results; callers that already have
+both intensity series can use `soil_heat_campbell(model="non_duff", ...)`.
+When calling `run_fofem_emissions()`, set `use_burnup=True` for a no-duff
+fuel bed that includes litter or woody fuel; otherwise its wood/litter
+intensity is not defined.
+
 ## Batch Arrays
 
 Most numeric inputs can be passed as NumPy arrays. This lets `pyfofem`
@@ -151,7 +162,7 @@ For large batches:
 `em_mode` controls which emission-factor path is used:
 
 - `default`: standard single-group emissions
-- `legacy`: C++/GUI-style legacy emissions behavior
+- `legacy`: original FOFEM-style legacy emissions behavior
 - `expanded`: separate flaming/coarse-smolder/duff-smolder factors
 
 Example:
@@ -194,4 +205,3 @@ Run publish-style installed-package tests:
 ```bash
 python tests/run_unified_tests.py --suite core --installed-only
 ```
-

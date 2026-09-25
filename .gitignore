@@ -55,6 +55,35 @@ credentials.json
 *.csv
 !fuel_analyst/supporting_data/plant_photoload.csv
 !fuel_analyst/supporting_data/tree_parameters.csv
+!src/pyfofem/supporting_data/fofem_crnsch_eq1_bark.csv
+!src/pyfofem/supporting_data/fofem_bark_thickness.csv
+
+# expanded_matrix committed C++-oracle golden dataset (scientific
+# input/output CSVs only - manifests are .json and were never matched by
+# the *.csv rule above). Narrow negation, not a blanket golden-tree
+# exception: canonical's own goldens under
+# test_golden_output/canonical/ stay force-tracked exactly as they
+# already are (git add -f, see .gitattributes) and are deliberately NOT
+# touched by this rule.
+!tests/test_data/test_golden_output/expanded_matrix/**/*.csv
+
+# soil_campbell committed C++-oracle golden dataset (soil_campbell
+# scenario matrix). Same narrow negation as expanded_matrix's rule above,
+# its own sibling tree - never merged with canonical/ or expanded_matrix/.
+!tests/test_data/test_golden_output/soil_campbell/**/*.csv
+
+# emissions_equivalence committed C++-oracle golden dataset (investigation
+# A default-emissions-equivalence consume scenarios). Same narrow
+# negation, its own sibling tree - never merged with canonical/,
+# expanded_matrix/, or soil_campbell/.
+!tests/test_data/test_golden_output/emissions_equivalence/**/*.csv
+
+# burnup_extended committed C++-oracle golden dataset (item E additional
+# run_burnup scenarios: rotten/sound-mix, calm-wind, hot-ambient,
+# long-residence-time consume rows). Same narrow negation, its own
+# sibling tree - never merged with canonical/, expanded_matrix/,
+# soil_campbell/, or emissions_equivalence/.
+!tests/test_data/test_golden_output/burnup_extended/**/*.csv
 
 # Testing data (keep sample data in supporting_data only)
 src/pyfofem/reference_docs/
@@ -70,6 +99,21 @@ src/pyfofem/reference_docs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# massman_fof_dll_probe.py's own disposable build scratch area (rooted
+# under the repo per the Phase 6 authorized filesystem boundary, never
+# the system/user temp directory)
+/tests/cpp_parity_live/.massman_probe_scratch/
+
+# Shared disposable scratch area (tests/cpp_parity_live/_scratch.py),
+# rooted under the repo per the Phase 7 correction pass's authorized
+# filesystem boundary - golden generation, --verify-only, generator-driver
+# tests, golden-tracking tests, and the gen_burnup_in_file/fire-bounds/
+# Git-environment-independence tests all use this instead of the system/
+# user temp directory or pytest's built-in tmp_path. Originally named
+# after Phase 7 (which introduced it) but used generically by every
+# dataset; renamed to drop the phase label (test-suite renaming plan).
+/tests/.test_scratch/
 
 # mypy
 .mypy_cache/

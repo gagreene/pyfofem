@@ -12,21 +12,21 @@ pyfofem/
 |   |-- __init__.py                     # Public API re-exports
 |   |-- pyfofem.py                      # Core orchestrators
 |   `-- components/                     # Specialized computation modules
-|-- tests/                              # Unit, golden, and parity tests
-|   |-- run_unified_tests.py
-|   |-- prepare_cpp_reference.py
-|   |-- test_equations_golden.py
-|   |-- test_burnup_golden.py
-|   |-- test_compare_cpp_python.py
-|   |-- test_cpp_comparison.py
-|   |-- test_emission_equation_ids.py
-|   |-- test_run_fofem_emissions_output_keys.py
-|   |-- test_soil_heating_cpp_parity.py
-|   |-- test_soil_heating_invalid_soil_family.py
-|   |-- compare_cpp_python_soil_heating.py
+|-- tests/                              # Unit, golden, and parity tests (pytest package)
+|   |-- __init__.py                     # Makes tests/ a package for qualified imports
+|   |-- _support.py                     # Shared path constants (no src/ sys.path insert)
+|   |-- conftest.py                     # Fixtures, markers, installed-only session check
+|   |-- run_unified_tests.py            # `--suite core|full`, `--installed-only` runner
+|   |-- prepare_cpp_reference.py        # Regenerates reference fixtures
+|   |-- compare_cpp_python_soil_heating.py  # Lay* driver; run as a tests package module
+|   |-- unit/                           # Golden-CSV + reference-independent unit tests
+|   |-- integration/                    # Full-pipeline (`run_fofem_emissions`) tests
+|   |-- regression/                     # Behavior regression tests
+|   |-- cpp_parity_live/                # Tests requiring the compiled reference
 |   `-- test_data/                      # Input CSVs and expected outputs
 |-- examples/                           # Batch/array usage driver + example data
-|-- reference/fofem_cpp/                # C++ FOFEM reference source
+|-- development/burnup_array/           # Experimental prototype, outside the test gate
+|-- reference/fofem_cpp/                # Pinned FOFEM reference source
 |-- docs/reference/                     # Literature and reference docs
 |-- docs/CODEBASE.md                    # Architecture and model mapping
 `-- README.md
@@ -38,9 +38,9 @@ pyfofem/
 - Fuel consumption for litter, duff, herb, shrub, canopy, mineral soil
 - Burnup post-frontal combustion engine (Albini & Reinhardt port)
 - Smoke emissions (`legacy`, `default`, `expanded` modes)
-- Campbell and Massman soil-heating models
+- Campbell soil-heating model (Massman HMV is in development and unavailable)
 - Integrated soil-heating outputs in `run_fofem_emissions` (`Lay0`, `Lay2`, `Lay4`, `Lay6`, `Lay60d`, `Lay275d`)
-- C++ parity scripts/tests for burnup/consumption and soil-heating outputs
+- Reference-validation scripts/tests for burnup, consumption, and soil-heating outputs
 
 ## Installation
 
@@ -80,10 +80,90 @@ print(results["DufCon"])
 print(results["Lay2"])
 ```
 
-To match legacy GUI/C++ emissions behavior, pass `em_mode="legacy"`.
+To match original FOFEM legacy emissions behavior, pass `em_mode="legacy"`.
 In this mode, smoldering NOx (`NOXS`) is expected to be `0` by design.
 In `expanded` mode, default smolder group 7 (`CWDRSC`) also has `NOx as NO = 0`,
 so `NOXS` mainly comes from the duff group unless you change factor groups.
+
+## Output variables
+
+Scalar calls return scalar values. When any modeled input is an array,
+corresponding outputs are NumPy arrays with one value per input case. Fuel-load
+and consumption outputs use the selected unit system: T/ac for `Imperial` and
+kg/m² for `SI`. Emissions use lb/acre for `Imperial` and g/m² for `SI`.
+
+### Mortality outputs
+
+`run_fofem_mortality()` returns the mortality probability directly; it does
+not return a dictionary. The result is dimensionless and ranges from 0 (tree
+survives) to 1 (tree dies). Unsupported species/model combinations can return
+`NaN`. Scalar inputs produce a `float`, while array inputs produce a NumPy
+array.
+
+| Model | Output | Description |
+|---|---|---|
+| `bolchar` | Mortality probability | Probability of post-fire mortality from the bole-char model. |
+| `crnsch` | Mortality probability | Probability of post-fire mortality from the crown-scorch model. |
+| `crcabe` | Mortality probability | Probability of post-fire mortality from the cambium-kill model. |
+
+### Consumption, emissions, and soil-heating outputs
+
+`run_fofem_emissions()` returns a dictionary. The following table includes
+every key that can appear. The seven `*_Duff` keys depend on `em_mode`, and the
+six `Lay*` keys are present only when soil heating is enabled.
+
+| Variable | Units<br>(SI, Imperial) | Description |
+|---|---|---|
+| `LitPre`, `LitCon`, `LitPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire litter load. |
+| `DW1Pre`, `DW1Con`, `DW1Pos` | kg/m², T/ac | Pre-fire, consumed, and post-fire 1-hour down woody fuel. |
+| `DW10Pre`, `DW10Con`, `DW10Pos` | kg/m², T/ac | Pre-fire, consumed, and post-fire 10-hour down woody fuel. |
+| `DW100Pre`, `DW100Con`, `DW100Pos` | kg/m², T/ac | Pre-fire, consumed, and post-fire 100-hour down woody fuel. |
+| `DW1kSndPre`, `DW1kSndCon`, `DW1kSndPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire sound 1000-hour down woody fuel, summed across diameter classes. |
+| `DW1kRotPre`, `DW1kRotCon`, `DW1kRotPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire rotten 1000-hour down woody fuel, summed across diameter classes. |
+| `DufPre`, `DufCon`, `DufPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire duff load. |
+| `HerPre`, `HerCon`, `HerPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire herbaceous fuel. |
+| `ShrPre`, `ShrCon`, `ShrPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire shrub fuel. |
+| `FolPre`, `FolCon`, `FolPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire crown foliage. |
+| `BraPre`, `BraCon`, `BraPos` | kg/m², T/ac | Pre-fire, consumed, and post-fire crown branch fuel. |
+| `MSE` | % | Mineral soil exposure. |
+| `DufDepPre`, `DufDepCon`, `DufDepPos` | cm, in | Pre-fire, consumed, and post-fire duff depth. |
+| `FlaDur` | s | Duration through the last timestep with flaming consumption above the Burnup reporting threshold. |
+| `SmoDur` | s | Duration through the last timestep with smoldering consumption above the Burnup reporting threshold. |
+| `FlaCon` | kg/m², T/ac | Total fuel consumed in the flaming phase. |
+| `SmoCon` | kg/m², T/ac | Total fuel consumed in the smoldering phase. |
+| `Lit-Equ` | Equation ID | Litter-consumption equation selected for the case. |
+| `DufCon-Equ` | Equation ID | Duff-consumption equation selected for the case. |
+| `DufRed-Equ` | Equation ID | Duff-depth-reduction equation selected for the case. |
+| `MSE-Equ` | Equation ID | Mineral-soil-exposure equation selected for the case. |
+| `Herb-Equ` | Equation ID | Herbaceous-consumption equation selected for the case. |
+| `Shrub-Equ` | Equation ID | Shrub-consumption equation selected for the case. |
+| `BurnupLimitAdj` | Code | Recoverable Burnup input-adjustment code. `0` means no adjustment; concatenated digits identify multiple adjustments. See the code list below. |
+| `BurnupError` | Code | Burnup outcome code. `0` means success; nonzero values identify a failure. See the code list below. |
+| `PM10F`, `PM10S` | g/m², lb/acre | PM10 emissions from flaming and total smoldering combustion. |
+| `PM25F`, `PM25S` | g/m², lb/acre | PM2.5 emissions from flaming and total smoldering combustion. |
+| `CH4F`, `CH4S` | g/m², lb/acre | Methane emissions from flaming and total smoldering combustion. |
+| `COF`, `COS` | g/m², lb/acre | Carbon monoxide emissions from flaming and total smoldering combustion. |
+| `CO2F`, `CO2S` | g/m², lb/acre | Carbon dioxide emissions from flaming and total smoldering combustion. |
+| `NOXF`, `NOXS` | g/m², lb/acre | Nitrogen oxides, reported as NO, from flaming and total smoldering combustion. |
+| `SO2F`, `SO2S` | g/m², lb/acre | Sulfur dioxide emissions from flaming and total smoldering combustion. |
+| `PM10S_Duff` | g/m², lb/acre | Duff-only smoldering PM10. Present for `legacy` and `expanded` modes. |
+| `PM25S_Duff` | g/m², lb/acre | Duff-only smoldering PM2.5. Present for `legacy` and `expanded` modes. |
+| `CH4S_Duff` | g/m², lb/acre | Duff-only smoldering methane. Present for `legacy` and `expanded` modes. |
+| `COS_Duff` | g/m², lb/acre | Duff-only smoldering carbon monoxide. Present for `legacy` and `expanded` modes. |
+| `CO2S_Duff` | g/m², lb/acre | Duff-only smoldering carbon dioxide. Present for `legacy` and `expanded` modes. |
+| `NOXS_Duff` | g/m², lb/acre | Duff-only smoldering nitrogen oxides, reported as NO. Present for `legacy` and `expanded` modes. |
+| `SO2S_Duff` | g/m², lb/acre | Duff-only smoldering sulfur dioxide. Present for `legacy` and `expanded` modes. |
+| `Lay0` | °C | Maximum modeled mineral-soil surface temperature. Present only when soil heating is enabled. |
+| `Lay2` | °C | Maximum modeled mineral-soil temperature at 2 cm depth. Present only when soil heating is enabled. |
+| `Lay4` | °C | Maximum modeled mineral-soil temperature at 4 cm depth. Present only when soil heating is enabled. |
+| `Lay6` | °C | Maximum modeled mineral-soil temperature at 6 cm depth. Present only when soil heating is enabled. |
+| `Lay60d` | Layer index | Deepest requested soil layer whose modeled temperature exceeds 60 °C; `-1` means no layer exceeded the threshold. With the default 1-cm depth grid, the index is also the depth in cm. |
+| `Lay275d` | Layer index | Deepest requested soil layer whose modeled temperature exceeds 275 °C; `-1` means no layer exceeded the threshold. With the default 1-cm depth grid, the index is also the depth in cm. |
+
+Units in paired entries are listed in the table header's **SI, Imperial**
+order. The `PM10S`, `PM25S`, `CH4S`, `COS`, `CO2S`, `NOXS`, and `SO2S` values include
+duff smoldering. Their corresponding `*_Duff` values report the duff-only
+portion rather than an additional quantity to add to the total.
 
 ## Examples
 
@@ -129,56 +209,132 @@ emissions pipeline.
 `BurnupError` codes:
 
 - `0`: success
-- `10`: `fistart` below minimum
-- `11`: `ti` below minimum
-- `12`: `u` below minimum
-- `13`: `tamb_c` below minimum
-- `14`: `dfm` above maximum
-- `15`: fire cannot dry fuel
-- `16`: no fuel ignited
-- `20`: `wdry` out of range
-- `21`: `ash` out of range
-- `22`: `htval` out of range
-- `23`: `fmois` out of range
-- `24`: `dendry` out of range
-- `25`: `sigma` out of range
-- `26`: `cheat` out of range
-- `27`: `condry` out of range
-- `28`: `tpig` out of range
-- `29`: `tchar` out of range
-- `90`: no fuel particles
-- `91`: `ntimes <= 0`
+- `10`: `fistart` starting fire intensity, below **40 kW/m²**. The accepted range is
+  **40 to 100,000 kW/m²**, inclusive; values above the maximum are clipped
+  under adjustment code `1`.
+- `11`: `ti` surface fire residence time, below **10 s**. The accepted range
+  is **10 to 200 s**, inclusive; values above the maximum are clipped under
+  adjustment code `2`.
+- `12`: `u` windspeed at the top of the fuel bed, below **0 m/s**. The
+  accepted range is **0 to 5 m/s**, inclusive; values above the maximum are
+  clipped under adjustment code `3`.
+- `13`: `tamb_c` ambient temperature in degrees Celsius, below **-40 °C**.
+  The accepted range is **-40 to 40 °C**, inclusive; values above the maximum
+  are clipped under adjustment code `5`.
+- `14`: `dfm` duff moisture content as a fraction of dry weight, above
+  **1.972** (**197.2%** in the public `duff_moist` input). When duff is
+  present, the accepted range is **0.1 to 1.972** (**10% to 197.2%**),
+  inclusive; values below the minimum are clipped under adjustment code `6`.
+  Duff moisture is not range-checked when the duff load is zero.
+- `15`: fire cannot dry the fuel. This is a calculated physical failure rather
+  than a separate input-range threshold.
+- `16`: no fuel ignited within the residence time. This is a calculated
+  physical failure rather than a separate input-range threshold.
+- `20`: `wdry` oven-dry fuel loading, outside **(1e-8, 1e6) kg/m²**.
+- `21`: `ash` mineral ash content as a dry-mass fraction, outside
+  **(0.0001, 0.1)**.
+- `22`: `htval` low heat of combustion, outside **(1e7, 3e7) J/kg**.
+- `23`: `fmois` fuel moisture content as a fraction of dry weight, outside
+  **(0.01, 3.0)** (**1% to 300%**).
+- `24`: `dendry` oven-dry fuel mass density, outside **(200, 1000) kg/m³**.
+- `25`: `sigma` fuel-particle surface-area-to-volume ratio, outside
+  **(4, 10,000) m⁻¹**.
+- `26`: `cheat` fuel specific heat capacity, outside
+  **(1000, 3000) J/(kg·K)**.
+- `27`: `condry` oven-dry fuel thermal conductivity, outside
+  **(0.025, 0.25) W/(m·K)**.
+- `28`: `tpig` piloted-ignition temperature, outside **(200, 400) °C**.
+- `29`: `tchar` end-of-pyrolysis char temperature, outside
+  **(250, 500) °C**.
+- `90`: no fuel particles; every fuel loading is less than or equal to zero.
+- `91`: `ntimes` maximum number of simulation timesteps, is less than or
+  equal to zero; this is controlled by `burnup_kwargs["max_times"]`.
 - `99`: unexpected burnup exception
+
+Square brackets or the word "inclusive" above indicate valid endpoints. The
+parenthesized fuel-particle ranges for codes `20`-`29` are strict: values equal
+to either endpoint are rejected.
 
 `BurnupLimitAdj` codes are concatenated digits when more than one adjustment is
 applied. For example, `13` means codes `1` and `3` both occurred, and `246`
 means codes `2`, `4`, and `6` occurred.
 
 - `0`: no clipping applied
-- `1`: `fistart` clipped to its maximum
-- `2`: `ti` clipped to its maximum
-- `3`: `u` clipped to its maximum
-- `4`: `d` clipped to its valid range
-- `5`: `tamb_c` clipped to its maximum
-- `6`: `dfm` clipped to its minimum
+- `1`: `fistart` starting fire intensity, above **100,000 kW/m²**; clipped
+  to **100,000 kW/m²**.
+- `2`: `ti` surface fire residence time, above **200 s**; clipped to
+  **200 s**.
+- `3`: `u` windspeed at the top of the fuel bed, above **5 m/s**; clipped to
+  **5 m/s**.
+- `4`: `d` fuel bed depth, below **0.1 m** or above **5 m**; clipped to the
+  nearest endpoint of the inclusive **0.1 to 5 m** range.
+- `5`: `tamb_c` ambient temperature in degrees Celsius, above **40 °C**;
+  clipped to **40 °C**.
+- `6`: `dfm` duff moisture content as a fraction of dry weight, below
+  **0.1** when duff is present; clipped to **0.1** (**10%** in the public
+  `duff_moist` input).
 
 ## Testing
 
-Run the full test suite:
+Run the full supported suite. `pyproject.toml` sets `testpaths = ["tests"]`,
+so plain `pytest` (or `python -m pytest`) collects only the supported
+package suite under `tests/` and does not touch the experimental prototype
+below:
 
 ```bash
-pytest tests/
+python -m pytest
 ```
 
 Run the unified publish-oriented suite (recommended for CI/package checks):
 
 ```bash
+# Fastest, representative pull-request checks
+python tests/run_unified_tests.py --suite ci-smoke
+
 # Fast publish-safe suite
 python tests/run_unified_tests.py --suite core
 
 # Extended suite with parity/comparison tests
 python tests/run_unified_tests.py --suite full
 ```
+
+Run the standalone Lay* soil-heating reference comparison from the repository
+root so its ``tests`` package import resolves correctly:
+
+```bash
+python -m tests.compare_cpp_python_soil_heating
+```
+
+This diagnostic reads the pinned `reference/fofem_cpp/soil.tmp` fixture, exits
+nonzero when a comparison exceeds its embedded tolerance, and is not part of
+the unified test suites.
+
+`.github/workflows/ci.yml` runs these in three tiers: `ci-smoke` on every
+pull request, `core` on pushes to `master`, and `full` (live C++ harness,
+installed-wheel, and golden verification) on a weekly schedule, tagged
+releases, or manual dispatch.
+
+### Experimental prototype: `development/burnup_array`
+
+`development/burnup_array` is a non-production, array-based burnup
+prototype. It is **outside the default/release test gate** — `testpaths`
+does not include it, `run_unified_tests.py` does not run it, and it is not
+part of `core` or `full`.
+
+Its explicit, separate diagnostic invocation:
+
+```bash
+python -m pytest development/burnup_array/tests -q
+```
+
+As of this writing that command **fails during collection**, not just an
+individual test: `test_consumption_calcs_array.py` imports
+`burnup_array_calcs` as a top-level module, but `burnup_array_calcs.py`
+itself uses a relative import (`from .burnup_array_kernel import ...`),
+raising `ImportError: attempted relative import with no known parent
+package`. This is a known, tracked failure — not a skip, and not silently
+part of the supported suite. Maintain it independently of the library's
+supported test suites.
 
 For package-validation workflows where you want to ensure tests are running
 against the installed package (not local `src/`), use:
@@ -210,12 +366,10 @@ test:
 The Conda recipe lives in `conda-recipe/`. See `conda-recipe/README.md` for
 build and test commands.
 
-Key parity checks:
-
-- `tests/test_compare_cpp_python.py` compares Python outputs against C++ multi-case CSV harness results.
-- `tests/test_cpp_comparison.py` compares Python against `reference/fofem_cpp/load.txt` and `emis.txt`.
-- `tests/test_soil_heating_cpp_parity.py` and `tests/compare_cpp_python_soil_heating.py` compare `Lay*` soil-heating outputs against C++ `reference/fofem_cpp/soil.tmp`.
+Reference-validation tooling and deterministic golden-data verification live
+under `tests/cpp_parity_live/`. See [CODEBASE.md](docs/CODEBASE.md) for the
+current test tiers and maintenance guidance.
 
 ## License
 
-MIT. See [LICENSE](LICENSE) when added to this repository.
+PyFOFEM source is licensed under the [MIT License](LICENSE).

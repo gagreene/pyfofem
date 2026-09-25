@@ -14,11 +14,32 @@ Functions:
                      original input was scalar.
     _to_str_arr    – Convert a categorical parameter (str, int, or ndarray)
                      to a 1-D numpy string array via an integer→string LUT.
+
+Constants:
+    _TPAC_TO_KGPM2 – T/ac -> kg/m² conversion factor.
+    _KGPM2_TO_TPAC – kg/m² -> T/ac conversion factor (its reciprocal).
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
 import numpy as np
 from typing import Dict, Union
+
+#: T/ac <-> kg/m² conversion, matching pinned C++'s ONLY such conversion
+#: function, ``TPA_To_KiSq()`` (``fof_util.cpp:543-549``,
+#: ``return f_TPA / 4.46;``). The single canonical value for every
+#: T/ac<->kg/m² conversion in this package -- burnup fuel/duff/herb-shrub
+#: loads, and every ``consm_*()``/``run_fofem_emissions()`` SI<->Imperial
+#: boundary conversion. Previously two different literals existed here
+#: (this package's own ``4.4609``, a more precise T/ac<->Mg/ha-derived
+#: figure, alongside C++'s coarser ``4.46``); no live C++ comparison test
+#: exercises ``units='SI'`` for any consumption equation (every harness
+#: input is Imperial-native), so ``4.4609`` was never actually validated
+#: against a real C++ SI value -- it was an unverified, more-precise-
+#: looking assumption. Unified to the one value C++ itself demonstrably
+#: uses, by explicit user decision 2026-09-23 (see
+#: development/plans/2026-09-23-burnup-duration-divergence-case4.md).
+_TPAC_TO_KGPM2: float = 1.0 / 4.46
+_KGPM2_TO_TPAC: float = 4.46
 
 
 def _is_scalar(x) -> bool:

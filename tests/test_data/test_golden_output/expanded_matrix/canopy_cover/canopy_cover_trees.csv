@@ -1,0 +1,16 @@
+case_id,stand_id,mode,schema_version,outcome,crown_area_ft2,cct_equ_no,ret,err_text,input_sha256
+ccv-p4s1-psme,p4s1,canopy_cover,1,ok,216.9802,16,1,,ff21613359476ba866465bf4d07b3431963cfda5cb181bc6d871b8ebb5b72b28
+ccv-p4s1-pial,p4s1,canopy_cover,1,ok,197.5883,31,1,,b7827e95c9fe8bf518f2c8fbf346208abdbc1fa9c3c2dbd64ec006d97dcdc400
+ccv-p4s1-abba,p4s1,canopy_cover,1,ok,100.6687,2,1,,f50fc4d28f40a485ff3aae21d293ab788e1458aa0b7bf82e55a34e1817165916
+ccv-p4s2-psme-ht46,p4s2,canopy_cover,1,ok,49.5159,16,1,,5ad68af978ece0fda2c73fbf34e68751b8607fae6f0414d353be5e388845e24b
+ccv-p4s2-psme-ht45,p4s2,canopy_cover,1,ok,1.8894,16,1,,d2e520b2c01d7857affd7c72eff7e42c066805ff5927b68be5427af765541295
+ccv-p4s2-psme-ht44,p4s2,canopy_cover,1,ok,1.8894,16,1,,26de55066f0fa73f1340954af41e86e984d3c138a916fbe95332beb815a5fa2a
+ccv-p4s3-quru,p4s3,canopy_cover,1,ok,815.5588,28,1,,f07d7aa02a2d025e32f02b61739922a2d0480b13c52f63408fe2dc9e4cddb89f
+ccv-p4s4-psme-ht0,p4s4,canopy_cover,1,ok,0.0000,16,1,,ecdd2a49bfe1b9306811e98c84d0bd78a6bda96f97c6eafbe0f49289130cd331
+ccv-p4s4-psme-htneg,p4s4,canopy_cover,1,ok,0.0000,16,1,,688ad8872f28851a7a12bfa7337b52829caaf420c0310bf199495a1eb5ecd5fe
+ccv-p4s4-psme-dbh0,p4s4,canopy_cover,1,ok,0.0000,16,1,,076c135fe972036f82d11bb90029780d719bfba2c48aef515bfdaaa1a2e88862
+ccv-p4s5-pico-a,p4s5,canopy_cover,1,ok,267.7778,11,1,,0099cf2a40e65482967bce393309515496d0c21523455327ff72766ff5a673fd
+ccv-p4s5-pico-b,p4s5,canopy_cover,1,ok,267.7778,11,1,,2c9f71eb18526f68ccb82cc7e983ad7ea42786e0db81293aa55cf985f7c53085
+ccv-p4s5-pico-c,p4s5,canopy_cover,1,ok,267.7778,11,1,,0041826212036ed691a04e34da626ea2fe56b7a12eb00544c5a24be8a1b59191
+ccv-p4s5-pico-d,p4s5,canopy_cover,1,ok,267.7778,11,1,,7b41e5fd4595df60738cb5c9d507d0d8222c9fed5d6a50688b4dd16bf05338d4
+ccv-p4s6-unknown,p4s6,canopy_cover,1,expected_model_error,NA,NA,-1,unknown species 'ZZZZ' (SMT_GetIdx < 0),f77590582ee9c4a836226b52326e55bd966930bfd9a209304b5e5247e582f7b4

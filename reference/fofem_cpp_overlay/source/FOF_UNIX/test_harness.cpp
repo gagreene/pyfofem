@@ -1,268 +1,3113 @@
 /*
- * test_harness.cpp - Parameterized FOFEM test harness.
- * Reads a CSV input file, runs CM_Mngr for each row, writes structured CSV output.
+ * test_harness.cpp - Phase 2 pyfofem C++ oracle harness.
  *
- * Usage: fofem_test <input.csv> <output_prefix>
- * Produces: <output_prefix>_components.csv and <output_prefix>_summary.csv
+ * Implements the shared strict harness contract and all seven scientific
+ * modes from development/plans/gate0/05-harness-contract.md:
+ *   consume, litter_eq, shrub_herb_eq, mortality, bark_thick, canopy_cover
+ *   (Phase 2), soil_campbell (Phase 5 — added on top of the same pinned
+ *   upstream SHA; the removed emissions_state mode is not reintroduced
+ *   here — see gate0/05-harness-contract.md §8).
  *
- * Input CSV columns (header row required):
- *   litter,duff,duff_depth,duff_moist,herb,shrub,
- *   crown_fol,crown_bra,pct_crown_burn,
- *   dw10_moist,dw1000_moist,
- *   dw1,dw10,dw100,
- *   snd_dw3,snd_dw6,snd_dw9,snd_dw20,
- *   rot_dw3,rot_dw6,rot_dw9,rot_dw20,
- *   region,season,fuel_cat,
- *   intensity,ig_time,windspeed,depth,ambient_temp,
- *   cri_int
+ * Usage:
+ *   fofem_test <input.csv> <output_prefix> [--species-csv <path>]
+ *
+ * --species-csv is REQUIRED for mortality, bark_thick, and canopy_cover
+ * (species table load + startup qualification happens before any row is
+ * processed — see load_species_table()) and REJECTED for every other mode,
+ * including soil_campbell (none of them touch the species table).
+ *
+ * Input file format (every mode):
+ *   line 1: #fofem-harness,<mode>,<schema_version>
+ *           <schema_version> is PER MODE (see the MODES[] table near
+ *           main()): "1" for consume/litter_eq/shrub_herb_eq/
+ *           bark_thick/canopy_cover/soil_campbell, "2" for mortality.
+ *   line 2: exact column header for that mode
+ *   line 3+: data rows, comma-separated, case_id first, expect_error second
+ *
+ * Every mode's outputs use the four output roles defined in the contract's
+ * §1 (PRIMARY / SECONDARY FAN-OUT / SECONDARY SCIENTIFIC AGGREGATE /
+ * DIAGNOSTIC GROUP STATUS). See per-mode run_* functions below for exact
+ * schemas, each with its gate0/05-harness-contract.md section cited.
+ *
+ * Oracle independence: every mode calls the real pinned FOFEM function(s)
+ * it names. No equation is reimplemented in this file.
+ *
+ * Gate 0 contract correction (Phase 2, direct C++ evidence, Codex-approved):
+ * the originally approved contract specified MRT_InitST() to populate the
+ * species table for mortality/bark_thick/canopy_cover. Direct evidence
+ * (fof_spp.h:10-19; see load_species_table() below) shows MRT_InitST()'s
+ * table uses obsolete species codes real FOFEM does not use for this
+ * purpose. These three modes now require an explicit, real species CSV
+ * (the tracked src/pyfofem/supporting_data/FOFEM6.7/FOF_SPP.CSV) loaded via
+ * the real production entry point MRT_LoadSpe(). Gate 0 correctly
+ * identified the need to initialize the species table; Phase 2 corrected
+ * which initializer is oracle-faithful.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
-#include "fof_sgv.h"
+#include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cerrno>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <vector>
+
+extern "C" {
+#include "fof_ansi.h"
 #include "fof_ci.h"
 #include "fof_co.h"
-#include "fof_co2.h"
 #include "fof_cm.h"
-#include "fof_ansi.h"
-#include "fof_sh.h"
-#include "fof_nes.h"
+#include "fof_co2.h"
 #include "fof_duf.h"
 #include "fof_hsf.h"
+#include "fof_mec.h"
+#include "fof_mis.h"
+#include "fof_mrt.h"
+#include "fof_nes.h"
+#include "fof_pf2.h"
+#include "fof_sgv.h"
+#include "fof_sh.h"
+#include "fof_sha.h"
+#include "fof_smt.h"
+#include "fof_util.h"
+}
 
-/* Max line length for CSV parsing */
-#define MAX_LINE 4096
-#define MAX_FIELD 256
+// fof_cct.h bundles CCT_Get()'s declaration together with a DEFINITION
+// (not just a declaration) of the sr_CCT[] global (fof_cct.h:49). It is
+// designed to be included exactly once, inside fof_mrt.cpp; including it
+// here too would duplicate that global against the copy fof_mrt.cpp
+// already provides and fail to link (confirmed: LNK2005 sr_CCT already
+// defined). Redeclare only the ABI-compatible pieces this harness needs —
+// struct layout and signature verified field-for-field against
+// fof_cct.h:38-44/90.
+extern "C" {
+typedef struct {
+  int i_No;
+  char cr_CC[10];
+  float f_a;
+  float f_b;
+  float f_r;
+} d_CCT;
+int CCT_Get(int i_No, d_CCT *a_CCT);
+}
 
-/* Simple CSV field parser - reads next comma-delimited field */
-static char *next_field(char **cursor) {
-    static char buf[MAX_FIELD];
-    char *start = *cursor;
-    if (!start || *start == '\0') return NULL;
-    char *end = strchr(start, ',');
-    if (end) {
-        int len = (int)(end - start);
-        if (len >= MAX_FIELD) len = MAX_FIELD - 1;
-        strncpy(buf, start, len);
-        buf[len] = '\0';
-        *cursor = end + 1;
-    } else {
-        /* Last field - trim newline */
-        strncpy(buf, start, MAX_FIELD - 1);
-        buf[MAX_FIELD - 1] = '\0';
-        char *nl = strchr(buf, '\n');
-        if (nl) *nl = '\0';
-        nl = strchr(buf, '\r');
-        if (nl) *nl = '\0';
-        *cursor = NULL;
+// ===========================================================================
+// SHA-256 (self-contained; no external dependency). Standard FIPS 180-4
+// algorithm, byte-for-byte per the published constants/spec.
+// ===========================================================================
+namespace sha256_impl {
+
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+static const u32 K[64] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+    0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+    0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+    0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+    0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+    0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+
+static inline u32 rotr(u32 x, u32 n) { return (x >> n) | (x << (32 - n)); }
+
+struct Ctx {
+  u32 h[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+              0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+  u64 total_len = 0;
+  std::vector<unsigned char> buffer;
+
+  void transform(const unsigned char *chunk) {
+    u32 w[64];
+    for (int i = 0; i < 16; ++i) {
+      w[i] = (u32(chunk[i * 4]) << 24) | (u32(chunk[i * 4 + 1]) << 16) |
+             (u32(chunk[i * 4 + 2]) << 8) | u32(chunk[i * 4 + 3]);
     }
-    return buf;
-}
-
-static float field_float(char **cursor) {
-    char *f = next_field(cursor);
-    return f ? (float)atof(f) : 0.0f;
-}
-
-static void field_str(char **cursor, char *dest, int maxlen) {
-    char *f = next_field(cursor);
-    if (f) {
-        strncpy(dest, f, maxlen - 1);
-        dest[maxlen - 1] = '\0';
-    } else {
-        dest[0] = '\0';
+    for (int i = 16; i < 64; ++i) {
+      u32 s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
+      u32 s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >> 10);
+      w[i] = w[i - 16] + s0 + w[i - 7] + s1;
     }
+    u32 a = h[0], b = h[1], c = h[2], d = h[3];
+    u32 e = h[4], f = h[5], g = h[6], hh = h[7];
+    for (int i = 0; i < 64; ++i) {
+      u32 S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      u32 ch = (e & f) ^ ((~e) & g);
+      u32 temp1 = hh + S1 + ch + K[i] + w[i];
+      u32 S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      u32 maj = (a & b) ^ (a & c) ^ (b & c);
+      u32 temp2 = S0 + maj;
+      hh = g;
+      g = f;
+      f = e;
+      e = d + temp1;
+      d = c;
+      c = b;
+      b = a;
+      a = temp1 + temp2;
+    }
+    h[0] += a; h[1] += b; h[2] += c; h[3] += d;
+    h[4] += e; h[5] += f; h[6] += g; h[7] += hh;
+  }
+
+  void update(const unsigned char *data, size_t len) {
+    total_len += len;
+    buffer.insert(buffer.end(), data, data + len);
+    size_t i = 0;
+    while (buffer.size() - i >= 64) {
+      transform(&buffer[i]);
+      i += 64;
+    }
+    buffer.erase(buffer.begin(), buffer.begin() + i);
+  }
+
+  std::string hexdigest() {
+    u64 bit_len = total_len * 8;
+    buffer.push_back(0x80);
+    while (buffer.size() % 64 != 56) buffer.push_back(0x00);
+    for (int i = 7; i >= 0; --i)
+      buffer.push_back((unsigned char)((bit_len >> (i * 8)) & 0xff));
+    for (size_t i = 0; i < buffer.size(); i += 64) transform(&buffer[i]);
+    static const char *hexch = "0123456789abcdef";
+    std::string out;
+    out.reserve(64);
+    for (int i = 0; i < 8; ++i) {
+      for (int j = 3; j >= 0; --j) {
+        unsigned char byte = (unsigned char)((h[i] >> (j * 8)) & 0xff);
+        out.push_back(hexch[byte >> 4]);
+        out.push_back(hexch[byte & 0xf]);
+      }
+    }
+    return out;
+  }
+};
+
+}  // namespace sha256_impl
+
+static std::string sha256_hex(const std::string &data) {
+  sha256_impl::Ctx ctx;
+  ctx.update(reinterpret_cast<const unsigned char *>(data.data()),
+             data.size());
+  return ctx.hexdigest();
 }
 
-int main(int argc, char *argv[])
-{
-    if (argc < 3) {
-        printf("Usage: fofem_test <input.csv> <output_prefix>\n");
+static std::string sha256_hex_file(const std::string &path, bool *ok) {
+  std::ifstream f(path, std::ios::binary);
+  if (!f) {
+    *ok = false;
+    return "";
+  }
+  std::ostringstream ss;
+  ss << f.rdbuf();
+  *ok = true;
+  return sha256_hex(ss.str());
+}
+
+// ===========================================================================
+// Small string utilities
+// ===========================================================================
+
+static std::string trim(const std::string &s) {
+  size_t a = 0, b = s.size();
+  while (a < b && std::isspace((unsigned char)s[a])) ++a;
+  while (b > a && std::isspace((unsigned char)s[b - 1])) --b;
+  return s.substr(a, b - a);
+}
+
+static std::vector<std::string> split_comma(const std::string &line) {
+  std::vector<std::string> out;
+  std::string cur;
+  for (char c : line) {
+    if (c == ',') {
+      out.push_back(cur);
+      cur.clear();
+    } else {
+      cur.push_back(c);
+    }
+  }
+  out.push_back(cur);
+  return out;
+}
+
+// CSV-quote a field for OUTPUT only (err_text may contain commas/quotes from
+// C++ error messages). Contract: "quoted and newline-escaped".
+static std::string csv_quote(const std::string &field) {
+  bool needs_quote = field.find_first_of(",\"\n\r") != std::string::npos;
+  std::string s = field;
+  // Escape embedded newlines/carriage returns as literal \n / \r so the
+  // output stays one physical line per row.
+  std::string escaped;
+  for (char c : s) {
+    if (c == '\n') escaped += "\\n";
+    else if (c == '\r') escaped += "\\r";
+    else escaped += c;
+  }
+  if (!needs_quote && escaped.find('\\') == std::string::npos) return escaped;
+  std::string out = "\"";
+  for (char c : escaped) {
+    if (c == '"') out += "\"\"";
+    else out += c;
+  }
+  out += "\"";
+  return out;
+}
+
+// Bounded copy into a fixed-size char buffer without any CRT function MSVC
+// flags "unsafe" (strncpy/strcpy/strcat) — keeps the harness warning-clean
+// without disabling secure-CRT diagnostics for the target or touching
+// pinned upstream source.
+// Returns false (dst left untouched) if src does not fit — a CSV-derived
+// string is NEVER silently truncated to fit a C buffer. Callers copying
+// user/CSV-derived data must check the return value and fail closed (audit
+// finding #3).
+template <size_t N>
+static bool safe_copy(char (&dst)[N], const std::string &src) {
+  if (src.size() > N - 1) return false;
+  std::memcpy(dst, src.data(), src.size());
+  dst[src.size()] = '\0';
+  return true;
+}
+
+// For copying a value the harness itself controls (a fixed macro literal
+// or an empty string) into a buffer already known by inspection to be large
+// enough — never used for CSV-derived data. Asserts rather than silently
+// truncating if that invariant is ever violated by a future edit.
+template <size_t N>
+static void safe_copy_literal(char (&dst)[N], const std::string &src) {
+  bool ok = safe_copy(dst, src);
+  assert(ok && "safe_copy_literal: internal literal does not fit destination buffer");
+  (void)ok;
+}
+
+// ===========================================================================
+// Strict field parsers (harness contract §1 "Parsing")
+// ===========================================================================
+
+// Strict double: full-consumption strtod, no blank, no nan/inf, no hex float.
+static bool parse_strict_double(const std::string &raw, double *out,
+                                 std::string *err) {
+  std::string s = trim(raw);
+  if (s.empty()) {
+    *err = "blank numeric field";
+    return false;
+  }
+  std::string lower = s;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                  [](unsigned char c) { return (char)std::tolower(c); });
+  if (lower.find("nan") != std::string::npos ||
+      lower.find("inf") != std::string::npos) {
+    *err = "nan/inf not permitted";
+    return false;
+  }
+  if (lower.find("0x") != std::string::npos) {
+    *err = "hex float not permitted";
+    return false;
+  }
+  const char *cs = s.c_str();
+  char *endp = nullptr;
+  errno = 0;
+  double v = std::strtod(cs, &endp);
+  int strtod_errno = errno;
+  if (endp != cs + s.size()) {
+    *err = "trailing junk after numeric field";
+    return false;
+  }
+  if (endp == cs) {
+    *err = "no digits parsed";
+    return false;
+  }
+  // strtod sets ERANGE on overflow (returns +/-HUGE_VAL) and, per the C
+  // standard and MSVC's documented behaviour, also on severe underflow
+  // (returns a value <= the smallest normalized nonzero double, including
+  // exactly 0.0). Reject both explicitly rather than accepting a silently
+  // clamped/flushed magnitude.
+  if (strtod_errno == ERANGE) {
+    *err = "numeric field out of representable double range "
+           "(overflow or underflow)";
+    return false;
+  }
+  // Backstop independent of errno/ERANGE portability: never accept a
+  // non-finite result merely because the source text did not literally
+  // contain "inf" (e.g. "1e999" has no such substring but overflows).
+  if (!std::isfinite(v)) {
+    *err = "numeric field parsed to a non-finite value";
+    return false;
+  }
+  *out = v;
+  return true;
+}
+
+// case_id: [A-Za-z0-9_.-]{1,64}
+static bool parse_case_id(const std::string &raw, std::string *err) {
+  if (raw.empty() || raw.size() > 64) {
+    *err = "case_id length out of [1,64]";
+    return false;
+  }
+  for (char c : raw) {
+    bool ok = std::isalnum((unsigned char)c) || c == '_' || c == '.' ||
+              c == '-';
+    if (!ok) {
+      *err = "case_id contains a disallowed character";
+      return false;
+    }
+  }
+  return true;
+}
+
+// expect_error: exactly "0" or "1"
+static bool parse_expect_error(const std::string &raw, bool *out,
+                                std::string *err) {
+  if (raw == "0") { *out = false; return true; }
+  if (raw == "1") { *out = true; return true; }
+  *err = "expect_error must be exactly 0 or 1";
+  return false;
+}
+
+// emission-factor group id: canonical single digit "1".."8" (no sign, no
+// leading zero, no decimal point, no whitespace). See harness-contract §2.
+static bool parse_group_id(const std::string &raw, std::string *canonical,
+                            std::string *err) {
+  if (raw.size() != 1 || raw[0] < '1' || raw[0] > '8') {
+    *err = "group id must be a single canonical digit 1-8";
+    return false;
+  }
+  *canonical = raw;
+  return true;
+}
+
+// i_Eq* batch-override columns: integer, "-1" sentinel for "not set".
+static bool parse_eq_override(const std::string &raw, int *out,
+                               std::string *err) {
+  std::string s = trim(raw);
+  if (s.empty()) { *err = "blank eq override field"; return false; }
+  const char *cs = s.c_str();
+  char *endp = nullptr;
+  errno = 0;
+  long v = std::strtol(cs, &endp, 10);
+  int strtol_errno = errno;
+  if (endp != cs + s.size() || endp == cs) {
+    *err = "eq override must be a plain integer";
+    return false;
+  }
+  if (strtol_errno == ERANGE) {
+    *err = "eq override integer out of representable long range";
+    return false;
+  }
+  if (v < static_cast<long>(std::numeric_limits<int>::min()) ||
+      v > static_cast<long>(std::numeric_limits<int>::max())) {
+    *err = "eq override integer out of int range";
+    return false;
+  }
+  *out = static_cast<int>(v);
+  return true;
+}
+
+// ===========================================================================
+// Row/outcome bookkeeping (harness contract §1 "Execution" / "Outcome
+// policy")
+// ===========================================================================
+
+enum class Outcome { OK, EXPECTED_MODEL_ERROR, UNEXPECTED_FAILURE };
+
+static const char *outcome_str(Outcome o) {
+  switch (o) {
+    case Outcome::OK: return "ok";
+    case Outcome::EXPECTED_MODEL_ERROR: return "expected_model_error";
+    default: return "unexpected_failure";
+  }
+}
+
+// Two-sided expect_error classification (harness contract §1).
+static Outcome classify(bool expect_error, bool model_errored) {
+  if (expect_error) {
+    return model_errored ? Outcome::EXPECTED_MODEL_ERROR
+                          : Outcome::UNEXPECTED_FAILURE;
+  }
+  return model_errored ? Outcome::UNEXPECTED_FAILURE : Outcome::OK;
+}
+
+// ===========================================================================
+// Input file reading: magic/version line + header validation
+// ===========================================================================
+
+struct InputFile {
+  std::string mode;
+  std::string schema_version;
+  std::vector<std::string> header;
+  std::vector<std::vector<std::string>> rows;  // raw fields, one vec per row
+  std::vector<std::string> row_hashes;         // input_sha256 per row
+  // Directory containing the input CSV, WITHOUT a trailing separator (or
+  // "." if the input path has no directory component). Only soil_campbell
+  // uses this (its two side-file path columns are resolved relative to
+  // it — see harness-contract §7 "Side files are part of the input
+  // identity"); every other mode ignores it.
+  std::string input_dir;
+};
+
+static bool read_input_file(const std::string &path,
+                             const std::vector<std::string> &expected_header,
+                             InputFile *out, std::string *err) {
+  std::ifstream f(path);
+  if (!f) {
+    *err = "cannot open input file: " + path;
+    return false;
+  }
+  {
+    size_t slash = path.find_last_of("/\\");
+    out->input_dir = (slash == std::string::npos) ? "." : path.substr(0, slash);
+  }
+  std::string magic_line;
+  if (!std::getline(f, magic_line)) {
+    *err = "empty input file (no magic/version line)";
+    return false;
+  }
+  // strip CR if present (CRLF files)
+  if (!magic_line.empty() && magic_line.back() == '\r') magic_line.pop_back();
+  std::vector<std::string> magic_fields = split_comma(magic_line);
+  if (magic_fields.size() != 3 || magic_fields[0] != "#fofem-harness") {
+    *err = "malformed magic/version line: " + magic_line;
+    return false;
+  }
+  out->mode = magic_fields[1];
+  out->schema_version = magic_fields[2];
+
+  std::string header_line;
+  if (!std::getline(f, header_line)) {
+    *err = "missing header line (file has only a magic line)";
+    return false;
+  }
+  if (!header_line.empty() && header_line.back() == '\r') header_line.pop_back();
+  out->header = split_comma(header_line);
+  if (out->header.size() != expected_header.size()) {
+    *err = "header field count mismatch: got " +
+           std::to_string(out->header.size()) + ", expected " +
+           std::to_string(expected_header.size());
+    return false;
+  }
+  for (size_t i = 0; i < expected_header.size(); ++i) {
+    std::string got = trim(out->header[i]);
+    if (got != expected_header[i]) {
+      *err = "header column " + std::to_string(i) + " is '" + got +
+             "', expected '" + expected_header[i] + "'";
+      return false;
+    }
+  }
+
+  std::set<std::string> seen_ids;
+  std::string line;
+  while (std::getline(f, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    if (line.empty()) continue;
+    std::vector<std::string> fields = split_comma(line);
+    if (fields.size() != expected_header.size()) {
+      *err = "row field count mismatch on row " +
+             std::to_string(out->rows.size() + 1) + ": got " +
+             std::to_string(fields.size()) + ", expected " +
+             std::to_string(expected_header.size());
+      return false;
+    }
+    std::string cid_err;
+    if (!parse_case_id(fields[0], &cid_err)) {
+      *err = "row " + std::to_string(out->rows.size() + 1) +
+             " case_id invalid: " + cid_err;
+      return false;
+    }
+    if (seen_ids.count(fields[0])) {
+      *err = "duplicate case_id: " + fields[0];
+      return false;
+    }
+    seen_ids.insert(fields[0]);
+    // Normalize (trim) every field EXACTLY ONCE, then use that same
+    // trimmed vector for both execution (stored into out->rows, which
+    // every run_* function reads and copies/parses from) and input_sha256.
+    // Previously the hash was computed from a locally trimmed copy while
+    // out->rows kept the raw (untrimmed) fields — a string field with
+    // incidental leading/trailing whitespace would then execute
+    // differently (e.g. safe_copy'd as-is into a fixed struct buffer,
+    // changing C++-side string comparisons) than what the hash certified,
+    // so two genuinely different executed inputs could share one
+    // input_sha256. Trimming once here closes that gap: hash and
+    // execution now always see the identical representation.
+    std::vector<std::string> normalized_fields;
+    normalized_fields.reserve(fields.size());
+    std::string normalised;
+    for (size_t i = 0; i < fields.size(); ++i) {
+      std::string t = trim(fields[i]);
+      normalized_fields.push_back(t);
+      if (i) normalised += ",";
+      normalised += t;
+    }
+    out->rows.push_back(normalized_fields);
+    out->row_hashes.push_back(sha256_hex(normalised));
+  }
+  if (out->rows.empty()) {
+    *err = "no data rows (header-only input) — at least one data row is required";
+    return false;
+  }
+  return true;
+}
+
+// ===========================================================================
+// Output file writer helper
+// ===========================================================================
+
+// Fails closed on: a row whose width differs from the declared header, a
+// stream write failure, or a flush/close failure. Every run_* function
+// must check `.failed` (set by any of those three) before its final
+// return, in addition to calling `.close_and_check()` once after its last
+// row — a caller that ignores `.failed` would silently accept a
+// truncated/malformed output file as a successful golden.
+struct CsvWriter {
+  std::ofstream f;
+  bool ok = false;
+  bool failed = false;
+  size_t expected_width = 0;
+  bool width_set = false;
+
+  explicit CsvWriter(const std::string &path) {
+    f.open(path, std::ios::binary);
+    ok = (bool)f;
+    if (!ok) failed = true;
+  }
+
+  void header(const std::vector<std::string> &cols) {
+    expected_width = cols.size();
+    width_set = true;
+    write_line(cols);
+  }
+
+  void row(const std::vector<std::string> &vals) {
+    if (width_set && vals.size() != expected_width) {
+      failed = true;
+      return;
+    }
+    write_line(vals);
+  }
+
+  // Must be called once, after the last row, before treating the file as
+  // successfully produced.
+  bool close_and_check() {
+    f.flush();
+    if (!f) failed = true;
+    f.close();
+    if (f.fail()) failed = true;
+    return !failed;
+  }
+
+ private:
+  void write_line(const std::vector<std::string> &vals) {
+    for (size_t i = 0; i < vals.size(); ++i) {
+      if (i) f << ",";
+      f << vals[i];
+    }
+    f << "\n";
+    if (!f) failed = true;
+  }
+};
+
+// Set by fmt() whenever it is asked to format a non-finite value on a
+// declared-successful ("ok") row. Every run_* function resets this to
+// false at the top of its per-row loop and checks it before writing that
+// row's outcome as "ok" — a real successful computation should never
+// legitimately produce NaN/Inf, and the harness must fail closed rather
+// than silently emit "nan"/"inf" text (not the documented NA sentinel)
+// into a CSV a downstream comparison would parse as a float.
+static bool g_output_nonfinite = false;
+
+template <typename T>
+static std::string fmt(T v, int precision = 6) {
+  double d = (double)v;
+  if (!std::isfinite(d)) {
+    g_output_nonfinite = true;
+    return "NONFINITE";
+  }
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%.*f", precision, d);
+  return std::string(buf);
+}
+
+// ===========================================================================
+// Mode: consume  (gate0/05-harness-contract.md §2, §2a)
+// ===========================================================================
+
+static const std::vector<std::string> CONSUME_HEADER = {
+    "case_id", "expect_error",
+    "litter_tac", "duff_tac", "duff_depth_in", "duff_moist_pct",
+    "herb_tac", "shrub_tac", "crown_fol_tac", "crown_bra_tac", "pct_crown_burn",
+    "dw10_moist_pct", "dw1000_moist_pct", "litter_moist_pct",
+    "dw1_tac", "dw10_tac", "dw100_tac", "dw1000_tac", "pct_rot",
+    "snd_dw3_tac", "snd_dw6_tac", "snd_dw9_tac", "snd_dw20_tac",
+    "rot_dw3_tac", "rot_dw6_tac", "rot_dw9_tac", "rot_dw20_tac",
+    "region", "season", "fuel_cat", "cover_group", "cover_class",
+    "duff_moist_method",
+    "intensity_kw_m", "ig_time_s", "windspeed_m_s", "depth_ft",
+    "ambient_temp_c",
+    "critical_intensity_kw_m", "ef_flame_group", "ef_smolder_group",
+    "ef_duff_group",
+    "batch_equ", "eq_lit", "eq_duf_loa", "eq_duf_dep", "eq_mse", "eq_herb",
+    "eq_shrub"};
+
+static const std::vector<std::string> CONSUME_SUMMARY_META = {
+    "case_id", "mode", "schema_version", "outcome", "ret_code", "err_text",
+    "input_sha256"};
+
+static const std::vector<std::string> CONSUME_SCIENTIFIC = {
+    "LitPre", "LitCon", "LitPos",
+    "DW1Pre", "DW1Con", "DW1Pos",
+    "DW10Pre", "DW10Con", "DW10Pos",
+    "DW100Pre", "DW100Con", "DW100Pos",
+    "SndDW1kPre", "SndDW1kCon", "SndDW1kPos",
+    "RotDW1kPre", "RotDW1kCon", "RotDW1kPos",
+    "DufPre", "DufCon", "DufPos", "DufPer",
+    "HerPre", "HerCon", "HerPos",
+    "ShrPre", "ShrCon", "ShrPos",
+    "FolPre", "FolCon", "FolPos",
+    "BraPre", "BraCon", "BraPos",
+    "TotPre", "TotCon", "TotPos",
+    "FlaCon", "SmoCon", "FlaDur", "SmoDur",
+    "PM25F", "PM25S", "PM10F", "PM10S", "CH4F", "CH4S", "COF", "COS",
+    "CO2F", "CO2S", "NOXF", "NOXS", "SO2F", "SO2S",
+    "PM25S_Duff", "PM10S_Duff", "CH4S_Duff", "COS_Duff", "CO2S_Duff",
+    "NOXS_Duff", "SO2S_Duff",
+    "MSE", "DufDepPre", "DufDepCon", "DufDepPos"};
+
+static const std::vector<std::string> CONSUME_COMPONENTS_HEADER = {
+    "case_id", "component", "pre_tac", "con_tac", "pos_tac", "pct_con",
+    "equation", "input_sha256"};
+
+static const std::vector<std::string> CONSUME_COMPONENT_NAMES = {
+    "Litter", "DW1", "DW10", "DW100", "SndDW1k", "RotDW1k", "Duff", "Herb",
+    "Shrub", "Foliage", "Branch"};
+
+// Sentinel for "not applicable" free-text/override fields the mode allows to
+// be absent. Documented once here; applied uniformly across every mode in
+// this file (Phase 2 implementation decision — the plan authorises a
+// per-column sentinel without pinning its literal spelling).
+static const char *NA_SENTINEL = "NA";
+
+static bool nes_read_once(std::string *factor_table_sha256_out) {
+  char err_buf[3000];
+  err_buf[0] = '\0';
+  int ret = NES_Read((char *)"", err_buf);
+  bool hash_ok = false;
+  std::string h = sha256_hex_file("Emission_Factors.csv", &hash_ok);
+  if (hash_ok) *factor_table_sha256_out = h;
+  if (ret != 1) {
+    std::cerr << "[fofem_test] FATAL: NES_Read failed (ret=" << ret
+              << "): " << err_buf << "\n";
+    return false;
+  }
+  if (!hash_ok) {
+    std::cerr << "[fofem_test] FATAL: could not hash Emission_Factors.csv "
+                 "for provenance (CWD must be FOF_UNIX/)\n";
+    return false;
+  }
+  return true;
+}
+
+// Load one 7-field emission-factor block (harness-contract §2a step 5).
+// Returns false (fatal) if the lookup fails or the block is all-zero.
+static bool load_factor_block(const std::string &group_canonical,
+                               float *CO, float *CO2, float *CH4,
+                               float *PM25, float *PM10, float *NOX,
+                               float *SO2, std::string *err) {
+  char grp[8];
+  snprintf(grp, sizeof(grp), "%s", group_canonical.c_str());
+  *CO = *CO2 = *CH4 = *PM25 = *PM10 = *NOX = *SO2 = 0.0f;
+  int ret = NES_Get_MajFactor(grp, CO, CO2, CH4, PM25, PM10, NOX, SO2);
+  if (ret != 1) {
+    *err = "NES_Get_MajFactor failed for group '" + group_canonical + "'";
+    return false;
+  }
+  if (*CO == 0.0f && *CO2 == 0.0f && *CH4 == 0.0f && *PM25 == 0.0f &&
+      *PM10 == 0.0f && *NOX == 0.0f && *SO2 == 0.0f) {
+    *err = "factor block for group '" + group_canonical +
+           "' is wholly zero (gate 4 backstop)";
+    return false;
+  }
+  return true;
+}
+
+static int run_consume(const InputFile &in, const std::string &prefix) {
+  std::string factor_table_sha256;
+  if (!nes_read_once(&factor_table_sha256)) return 1;
+  std::cout << "FACTOR_TABLE_SHA256=" << factor_table_sha256 << "\n";
+
+  CsvWriter summary(prefix + "_summary.csv");
+  CsvWriter components(prefix + "_components.csv");
+  if (!summary.ok || !components.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output files\n";
+    return 1;
+  }
+  std::vector<std::string> summary_header = CONSUME_SUMMARY_META;
+  summary_header.insert(summary_header.end(), CONSUME_SCIENTIFIC.begin(),
+                         CONSUME_SCIENTIFIC.end());
+  summary.header(summary_header);
+  components.header(CONSUME_COMPONENTS_HEADER);
+
+  bool any_unexpected = false;
+  size_t ok_rows = 0;
+  size_t components_rows_written = 0;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+
+    // d_CI/d_CO are large pinned struct types (2900 + 240632 bytes) that
+    // previously lived on this function's own stack frame, which /analyze
+    // flags as C6262 ("Function uses N bytes of stack") — a real, honest
+    // measurement of these two structs' combined size, not a /RTC1
+    // analysis artifact. Heap-allocating them here (harness-owned code,
+    // not the pinned scientific structs/functions themselves) removes the
+    // large-stack warning at the source; every `ci.`/`co.` access below is
+    // unchanged since both are still plain d_CI&/d_CO& references.
+    auto ci_storage = std::make_unique<d_CI>();
+    auto co_storage = std::make_unique<d_CO>();
+    d_CI &ci = *ci_storage;
+    d_CO &co = *co_storage;
+    CI_Init(&ci);
+    CO_Init(&co);
+
+    double dv;
+#define REQ_DOUBLE(idx, target)                                            \
+  if (!parse_strict_double(f[idx], &dv, &row_err)) {                       \
+    std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"          \
+              << CONSUME_HEADER[idx] << "': " << row_err << "\n";          \
+    return 1;                                                              \
+  }                                                                         \
+  (target) = (float)dv;
+
+    REQ_DOUBLE(2, ci.f_Lit);
+    REQ_DOUBLE(3, ci.f_Duff);
+    REQ_DOUBLE(4, ci.f_DufDep);
+    REQ_DOUBLE(5, ci.f_MoistDuff);
+    REQ_DOUBLE(6, ci.f_Herb);
+    REQ_DOUBLE(7, ci.f_Shrub);
+    REQ_DOUBLE(8, ci.f_CroFol);
+    REQ_DOUBLE(9, ci.f_CroBra);
+    REQ_DOUBLE(10, ci.f_Pc_CroBrn);
+    REQ_DOUBLE(11, ci.f_MoistDW10);
+    REQ_DOUBLE(12, ci.f_MoistDW1000);
+    REQ_DOUBLE(13, ci.f_LitMoi);
+    REQ_DOUBLE(14, ci.f_DW1);
+    REQ_DOUBLE(15, ci.f_DW10);
+    REQ_DOUBLE(16, ci.f_DW100);
+    REQ_DOUBLE(17, ci.f_DW1000);
+    REQ_DOUBLE(18, ci.f_pcRot);
+    REQ_DOUBLE(19, ci.f_Snd_DW3);
+    REQ_DOUBLE(20, ci.f_Snd_DW6);
+    REQ_DOUBLE(21, ci.f_Snd_DW9);
+    REQ_DOUBLE(22, ci.f_Snd_DW20);
+    REQ_DOUBLE(23, ci.f_Rot_DW3);
+    REQ_DOUBLE(24, ci.f_Rot_DW6);
+    REQ_DOUBLE(25, ci.f_Rot_DW9);
+    REQ_DOUBLE(26, ci.f_Rot_DW20);
+
+#define REQ_STR(idx, target)                                                \
+  if (!safe_copy((target), f[idx])) {                                      \
+    std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"          \
+              << CONSUME_HEADER[idx] << "': value exceeds destination "    \
+                 "buffer capacity (" << (sizeof(target) - 1)               \
+              << " chars) — not truncated\n";                              \
+    return 1;                                                              \
+  }
+    REQ_STR(27, ci.cr_Region);
+    REQ_STR(28, ci.cr_Season);
+    REQ_STR(29, ci.cr_FuelCategory);
+    REQ_STR(30, ci.cr_CoverGroup);
+    REQ_STR(31, ci.cr_CoverClass);
+    REQ_STR(32, ci.cr_DufMoiMet);
+
+    REQ_DOUBLE(33, ci.f_INTENSITY);
+    REQ_DOUBLE(34, ci.f_IG_TIME);
+    REQ_DOUBLE(35, ci.f_WINDSPEED);
+    REQ_DOUBLE(36, ci.f_DEPTH);
+    REQ_DOUBLE(37, ci.f_AMBIENT_TEMP);
+    REQ_DOUBLE(38, ci.f_CriInt);
+#undef REQ_DOUBLE
+
+    std::string g_fla, g_smo, g_duf;
+    if (!parse_group_id(f[39], &g_fla, &row_err) ||
+        !parse_group_id(f[40], &g_smo, &row_err) ||
+        !parse_group_id(f[41], &g_duf, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": ef_*_group: " << row_err << "\n";
+      return 1;
+    }
+    // §2a: reset per row, then repopulate all 21 factor fields, always
+    // (reproducibility requirement — legacy rows still load and carry them).
+    if (!load_factor_block(g_fla, &ci.f_fCO, &ci.f_fCO2, &ci.f_fCH4,
+                            &ci.f_fPM25, &ci.f_fPM10, &ci.f_fNOX, &ci.f_fSO2,
+                            &row_err) ||
+        !load_factor_block(g_smo, &ci.f_sCO, &ci.f_sCO2, &ci.f_sCH4,
+                            &ci.f_sPM25, &ci.f_sPM10, &ci.f_sNOX, &ci.f_sSO2,
+                            &row_err) ||
+        !load_factor_block(g_duf, &ci.f_dCO, &ci.f_dCO2, &ci.f_dCH4,
+                            &ci.f_dPM25, &ci.f_dPM10, &ci.f_dNOX, &ci.f_dSO2,
+                            &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err
+                << "\n";
+      return 1;
+    }
+
+    std::string batch = trim(f[42]);
+    if (!safe_copy(ci.cr_BatchEqu, batch)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'batch_equ': value exceeds destination buffer "
+                   "capacity (" << (sizeof(ci.cr_BatchEqu) - 1)
+                << " chars) — not truncated\n";
+      return 1;
+    }
+    int eq_int;
+#define REQ_EQOVR(idx, target)                                             \
+  if (!parse_eq_override(f[idx], &eq_int, &row_err)) {                     \
+    std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"          \
+              << CONSUME_HEADER[idx] << "': " << row_err << "\n";          \
+    return 1;                                                              \
+  }                                                                         \
+  (target) = eq_int;
+    REQ_EQOVR(43, ci.i_EqLit);
+    REQ_EQOVR(44, ci.i_EgDufLoa);
+    REQ_EQOVR(45, ci.i_EqDufDep);
+    REQ_EQOVR(46, ci.i_EqMSE);
+    REQ_EQOVR(47, ci.i_EqHerb);
+    REQ_EQOVR(48, ci.i_EqShrub);
+#undef REQ_EQOVR
+#undef REQ_STR
+
+    safe_copy_literal(ci.cr_LoadFN, std::string());
+    safe_copy_literal(ci.cr_EmiFN, std::string());
+
+    char cm_err[3000];
+    cm_err[0] = '\0';
+    int ret = CM_Mngr(&ci, &co, cm_err);
+    // Outcome classification for consume: ret==1 -> model succeeded.
+    // ret==0 (real error) or ret==2 (no ignition) both count as the row's
+    // model error for expect_error purposes (harness-contract §2:
+    // "Expected model errors to exercise ... CM_Mngr return 2").
+    bool model_errored = (ret != 1);
+    std::string err_text = cm_err;
+    if (ret == 2 && err_text.empty()) err_text = "Burnup did not ignite";
+
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+
+    std::vector<std::string> row = {
+        f[0], "consume", in.schema_version, outcome_str(oc),
+        std::to_string(ret), csv_quote(err_text), in.row_hashes[r]};
+    if (oc == Outcome::OK) {
+      const float *vals[] = {
+          &co.f_LitPre, &co.f_LitCon, &co.f_LitPos,
+          &co.f_DW1Pre, &co.f_DW1Con, &co.f_DW1Pos,
+          &co.f_DW10Pre, &co.f_DW10Con, &co.f_DW10Pos,
+          &co.f_DW100Pre, &co.f_DW100Con, &co.f_DW100Pos,
+          &co.f_Snd_DW1kPre, &co.f_Snd_DW1kCon, &co.f_Snd_DW1kPos,
+          &co.f_Rot_DW1kPre, &co.f_Rot_DW1kCon, &co.f_Rot_DW1kPos,
+          &co.f_DufPre, &co.f_DufCon, &co.f_DufPos, &co.f_DufPer,
+          &co.f_HerPre, &co.f_HerCon, &co.f_HerPos,
+          &co.f_ShrPre, &co.f_ShrCon, &co.f_ShrPos,
+          &co.f_FolPre, &co.f_FolCon, &co.f_FolPos,
+          &co.f_BraPre, &co.f_BraCon, &co.f_BraPos,
+          &co.f_TotPre, &co.f_TotCon, &co.f_TotPos,
+          &co.f_FlaCon, &co.f_SmoCon, &co.f_FlaDur, &co.f_SmoDur,
+          &co.f_PM25F, &co.f_PM25S, &co.f_PM10F, &co.f_PM10S,
+          &co.f_CH4F, &co.f_CH4S, &co.f_COF, &co.f_COS,
+          &co.f_CO2F, &co.f_CO2S, &co.f_NOXF, &co.f_NOXS,
+          &co.f_SO2F, &co.f_SO2S,
+          &co.f_PM25S_Duff, &co.f_PM10S_Duff, &co.f_CH4S_Duff,
+          &co.f_COS_Duff, &co.f_CO2S_Duff, &co.f_NOXS_Duff, &co.f_SO2S_Duff,
+          &co.f_MSEPer, &co.f_DufDepPre, &co.f_DufDepCon, &co.f_DufDepPos};
+      for (const float *v : vals) row.push_back(fmt(*v));
+    } else {
+      for (size_t i = 0; i < CONSUME_SCIENTIFIC.size(); ++i)
+        row.push_back(NA_SENTINEL);
+    }
+    if (oc == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": consume produced a non-finite scientific value on a "
+                   "successful row\n";
+      return 1;
+    }
+    summary.row(row);
+
+    if (oc == Outcome::OK) {
+      ++ok_rows;
+      struct Comp {
+        const char *name;
+        float pre, con, pos, per;
+        int equ;
+      };
+      Comp comps[] = {
+          {"Litter", co.f_LitPre, co.f_LitCon, co.f_LitPos, co.f_LitPer, co.i_LitEqu},
+          {"DW1", co.f_DW1Pre, co.f_DW1Con, co.f_DW1Pos, co.f_DW1Per, co.i_DW1Equ},
+          {"DW10", co.f_DW10Pre, co.f_DW10Con, co.f_DW10Pos, co.f_DW10Per, co.i_DW10Equ},
+          {"DW100", co.f_DW100Pre, co.f_DW100Con, co.f_DW100Pos, co.f_DW100Per, co.i_DW100Equ},
+          {"SndDW1k", co.f_Snd_DW1kPre, co.f_Snd_DW1kCon, co.f_Snd_DW1kPos, co.f_Snd_DW1kPer, co.i_Snd_DW1kEqu},
+          {"RotDW1k", co.f_Rot_DW1kPre, co.f_Rot_DW1kCon, co.f_Rot_DW1kPos, co.f_Rot_DW1kPer, co.i_Rot_DW1kEqu},
+          {"Duff", co.f_DufPre, co.f_DufCon, co.f_DufPos, co.f_DufPer, co.i_DufEqu},
+          {"Herb", co.f_HerPre, co.f_HerCon, co.f_HerPos, co.f_HerPer, co.i_HerEqu},
+          {"Shrub", co.f_ShrPre, co.f_ShrCon, co.f_ShrPos, co.f_ShrPer, co.i_ShrEqu},
+          {"Foliage", co.f_FolPre, co.f_FolCon, co.f_FolPos, co.f_FolPer, co.i_FolEqu},
+          {"Branch", co.f_BraPre, co.f_BraCon, co.f_BraPos, co.f_BraPer, co.i_BraEqu},
+      };
+      for (const auto &c : comps) {
+        components.row({f[0], c.name, fmt(c.pre), fmt(c.con), fmt(c.pos),
+                         fmt(c.per, 4), std::to_string(c.equ),
+                         in.row_hashes[r]});
+        ++components_rows_written;
+      }
+    }
+  }
+
+  // Final reconciliation (harness-contract §2b / self-test 11b): the
+  // constant-fan-out invariant is exactly 11 component rows per ok row,
+  // never more, never fewer.
+  if (components_rows_written != 11 * ok_rows) {
+    std::cerr << "[fofem_test] FATAL: consume component-row reconciliation "
+                 "failed: wrote " << components_rows_written
+              << " component rows for " << ok_rows
+              << " ok rows (expected " << (11 * ok_rows) << ")\n";
+    return 1;
+  }
+  if (!summary.close_and_check() || !components.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: consume output write/flush/close failed\n";
+    return 1;
+  }
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
+// Mode: litter_eq  (gate0/05-harness-contract.md §3)
+// ===========================================================================
+
+static const std::vector<std::string> LITTER_EQ_HEADER = {
+    "case_id", "expect_error", "equ", "load_tac", "dw10_moist_pct"};
+
+static int run_litter_eq(const InputFile &in, const std::string &prefix) {
+  CsvWriter out(prefix + ".csv");
+  if (!out.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output file\n";
+    return 1;
+  }
+  out.header({"case_id", "mode", "schema_version", "outcome", "con_tac",
+              "equ_num", "ret", "err_text", "input_sha256"});
+  bool any_unexpected = false;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+    std::string equ = trim(f[2]);
+    double load_d;
+    if (!parse_strict_double(f[3], &load_d, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field 'load_tac': "
+                << row_err << "\n";
+      return 1;
+    }
+    float load = (float)load_d;
+
+    bool model_errored = false;
+    float con_tac = 0.0f;
+    int equ_num = 0;
+    int ret = 1;
+    std::string err_text;
+
+    if (equ == "997") {
+      double moist_d;
+      if (f[4] == NA_SENTINEL) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": equ=997 requires dw10_moist_pct, got NA sentinel\n";
         return 1;
+      }
+      if (!parse_strict_double(f[4], &moist_d, &row_err)) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << " field 'dw10_moist_pct': " << row_err << "\n";
+        return 1;
+      }
+      con_tac = PFW_Litter_Eq997(load, (float)moist_d, &equ_num);
+    } else if (equ == "998") {
+      if (f[4] != NA_SENTINEL) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": equ=998 takes no moisture; dw10_moist_pct must be the "
+                  << NA_SENTINEL << " sentinel\n";
+        return 1;
+      }
+      con_tac = LitterSouthEast(load, &equ_num);
+    } else {
+      // Harness-level dispatch error: no C++ function is bound to this
+      // token. Not a fabricated C++ behaviour — there is genuinely nothing
+      // to call.
+      model_errored = true;
+      ret = -1;
+      err_text = "unknown equ value '" + equ + "' (expected 997 or 998)";
     }
 
-    char *in_path = argv[1];
-    char *out_prefix = argv[2];
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
 
-    FILE *fin = fopen(in_path, "r");
-    if (!fin) { printf("Cannot open %s\n", in_path); return 1; }
+    std::string con_tac_fmt = oc == Outcome::OK ? fmt(con_tac) : NA_SENTINEL;
+    if (oc == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": litter_eq produced a non-finite value on a "
+                   "successful row\n";
+      return 1;
+    }
+    out.row({f[0], "litter_eq", in.schema_version, outcome_str(oc),
+             con_tac_fmt,
+             oc == Outcome::OK ? std::to_string(equ_num) : NA_SENTINEL,
+             std::to_string(ret), csv_quote(err_text), in.row_hashes[r]});
+  }
+  if (!out.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: litter_eq output write/flush/close failed\n";
+    return 1;
+  }
+  return any_unexpected ? 1 : 0;
+}
 
-    /* Build output file paths */
-    char comp_path[512], summ_path[512];
-    sprintf(comp_path, "%s_components.csv", out_prefix);
-    sprintf(summ_path, "%s_summary.csv", out_prefix);
+// ===========================================================================
+// Mode: shrub_herb_eq  (gate0/05-harness-contract.md §4)
+// ===========================================================================
 
-    FILE *fcomp = fopen(comp_path, "w");
-    FILE *fsumm = fopen(summ_path, "w");
-    if (!fcomp || !fsumm) { printf("Cannot open output files\n"); return 1; }
+static const std::vector<std::string> SHRUB_HERB_EQ_HEADER = {
+    "case_id", "expect_error", "region", "cover_group", "season", "fuel_cat",
+    "shrub_tac", "herb_tac", "litter_tac", "duff_tac", "duff_moist_pct",
+    "crown_fol_tac", "crown_bra_tac", "pct_crown_burn", "force_shrub_equ"};
 
-    /* Component output header */
-    fprintf(fcomp, "case,component,pre_tac,con_tac,pos_tac,pct_con,equation\n");
+static int run_shrub_herb_eq(const InputFile &in, const std::string &prefix) {
+  CsvWriter out(prefix + ".csv");
+  if (!out.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output file\n";
+    return 1;
+  }
+  out.header({"case_id", "mode", "schema_version", "outcome",
+              "shrub_con_tac", "shrub_post_tac", "shrub_pct", "shrub_equ",
+              "herb_con_tac", "herb_post_tac", "herb_pct", "herb_equ",
+              "fol_con_tac", "fol_post_tac", "fol_pct", "fol_equ",
+              "bra_con_tac", "bra_post_tac", "bra_pct", "bra_equ",
+              "ret", "err_text", "input_sha256"});
+  bool any_unexpected = false;
 
-    /* Summary output header */
-    fprintf(fsumm, "case,"
-        "LitPre,LitCon,LitPos,"
-        "DW1Pre,DW1Con,DW1Pos,"
-        "DW10Pre,DW10Con,DW10Pos,"
-        "DW100Pre,DW100Con,DW100Pos,"
-        "SndDW1kPre,SndDW1kCon,SndDW1kPos,"
-        "RotDW1kPre,RotDW1kCon,RotDW1kPos,"
-        "DufPre,DufCon,DufPos,DufPer,"
-        "HerPre,HerCon,HerPos,"
-        "ShrPre,ShrCon,ShrPos,"
-        "FolPre,FolCon,FolPos,"
-        "BraPre,BraCon,BraPos,"
-        "TotPre,TotCon,TotPos,"
-        "FlaCon,SmoCon,FlaDur,SmoDur,"
-        "PM25F,PM25S,PM10F,PM10S,CH4F,CH4S,COF,COS,CO2F,CO2S,NOXF,NOXS,SO2F,SO2S,"
-        "MSE,DufDepPre,DufDepCon,DufDepPos,"
-        "ret_code\n");
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+    d_CI ci;
+    CI_Init(&ci);
+#define REQ_STR(idx, target)                                               \
+  if (!safe_copy((target), f[idx])) {                                      \
+    std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"          \
+              << SHRUB_HERB_EQ_HEADER[idx] << "': value exceeds "          \
+                 "destination buffer capacity (" << (sizeof(target) - 1)   \
+              << " chars) — not truncated\n";                              \
+    return 1;                                                              \
+  }
+    REQ_STR(2, ci.cr_Region);
+    REQ_STR(3, ci.cr_CoverGroup);
+    REQ_STR(4, ci.cr_Season);
+    REQ_STR(5, ci.cr_FuelCategory);
+#undef REQ_STR
 
-    /* Skip header line */
-    char line[MAX_LINE];
-    if (!fgets(line, MAX_LINE, fin)) { printf("Empty input\n"); return 1; }
+    double dv;
+#define REQ_DOUBLE(idx, target)                                            \
+  if (!parse_strict_double(f[idx], &dv, &row_err)) {                       \
+    std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"          \
+              << SHRUB_HERB_EQ_HEADER[idx] << "': " << row_err << "\n";    \
+    return 1;                                                              \
+  }                                                                         \
+  (target) = (float)dv;
+    REQ_DOUBLE(6, ci.f_Shrub);
+    REQ_DOUBLE(7, ci.f_Herb);
+    REQ_DOUBLE(8, ci.f_Lit);
+    REQ_DOUBLE(9, ci.f_Duff);
+    REQ_DOUBLE(10, ci.f_MoistDuff);
+    REQ_DOUBLE(11, ci.f_CroFol);
+    REQ_DOUBLE(12, ci.f_CroBra);
+    REQ_DOUBLE(13, ci.f_Pc_CroBrn);
+#undef REQ_DOUBLE
 
-    int case_num = 0;
-    while (fgets(line, MAX_LINE, fin)) {
-        case_num++;
-        char *cursor = line;
-
-        d_CI s_CI;
-        d_CO s_CO;
-        char cr_ErrMes[3000];
-
-        CI_Init(&s_CI);
-        CO_Init(&s_CO);
-
-        /* Parse CSV fields */
-        s_CI.f_Lit           = field_float(&cursor);
-        s_CI.f_Duff          = field_float(&cursor);
-        s_CI.f_DufDep        = field_float(&cursor);
-        s_CI.f_MoistDuff     = field_float(&cursor);
-        s_CI.f_Herb          = field_float(&cursor);
-        s_CI.f_Shrub         = field_float(&cursor);
-        s_CI.f_CroFol        = field_float(&cursor);
-        s_CI.f_CroBra        = field_float(&cursor);
-        s_CI.f_Pc_CroBrn     = field_float(&cursor);
-        s_CI.f_MoistDW10     = field_float(&cursor);
-        s_CI.f_MoistDW1000   = field_float(&cursor);
-        s_CI.f_DW1           = field_float(&cursor);
-        s_CI.f_DW10          = field_float(&cursor);
-        s_CI.f_DW100         = field_float(&cursor);
-        s_CI.f_Snd_DW3       = field_float(&cursor);
-        s_CI.f_Snd_DW6       = field_float(&cursor);
-        s_CI.f_Snd_DW9       = field_float(&cursor);
-        s_CI.f_Snd_DW20      = field_float(&cursor);
-        s_CI.f_Rot_DW3       = field_float(&cursor);
-        s_CI.f_Rot_DW6       = field_float(&cursor);
-        s_CI.f_Rot_DW9       = field_float(&cursor);
-        s_CI.f_Rot_DW20      = field_float(&cursor);
-
-        char region[50], season[50], fuel_cat[50];
-        field_str(&cursor, region, 50);
-        field_str(&cursor, season, 50);
-        field_str(&cursor, fuel_cat, 50);
-
-        strcpy(s_CI.cr_Region, region);
-        strcpy(s_CI.cr_Season, season);
-        strcpy(s_CI.cr_FuelCategory, fuel_cat);
-        strcpy(s_CI.cr_DufMoiMet, ENTIRE);
-
-        /* Fire environment overrides (use CI_Init defaults if <= 0) */
-        float v;
-        v = field_float(&cursor); if (v > 0) s_CI.f_INTENSITY = v;
-        v = field_float(&cursor); if (v > 0) s_CI.f_IG_TIME = v;
-        v = field_float(&cursor); if (v >= 0) s_CI.f_WINDSPEED = v;
-        v = field_float(&cursor); if (v > 0) s_CI.f_DEPTH = v;
-        v = field_float(&cursor); if (v != 0) s_CI.f_AMBIENT_TEMP = v;
-
-        /* Emission mode: -1 = original, 15 = expanded */
-        float cri = field_float(&cursor);
-        s_CI.f_CriInt = cri;
-
-        /* Don't write output files per case */
-        strcpy(s_CI.cr_LoadFN, "");
-        strcpy(s_CI.cr_EmiFN, "");
-
-        /* Run */
-        int ret = CM_Mngr(&s_CI, &s_CO, cr_ErrMes);
-
-        /* Write component outputs */
-        fprintf(fcomp, "%d,Litter,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_LitPre, s_CO.f_LitCon, s_CO.f_LitPos, s_CO.f_LitPer, s_CO.i_LitEqu);
-        fprintf(fcomp, "%d,DW1,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_DW1Pre, s_CO.f_DW1Con, s_CO.f_DW1Pos, s_CO.f_DW1Per, s_CO.i_DW1Equ);
-        fprintf(fcomp, "%d,DW10,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_DW10Pre, s_CO.f_DW10Con, s_CO.f_DW10Pos, s_CO.f_DW10Per, s_CO.i_DW10Equ);
-        fprintf(fcomp, "%d,DW100,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_DW100Pre, s_CO.f_DW100Con, s_CO.f_DW100Pos, s_CO.f_DW100Per, s_CO.i_DW100Equ);
-        fprintf(fcomp, "%d,SndDW1k,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_Snd_DW1kPre, s_CO.f_Snd_DW1kCon, s_CO.f_Snd_DW1kPos, s_CO.f_Snd_DW1kPer, s_CO.i_Snd_DW1kEqu);
-        fprintf(fcomp, "%d,RotDW1k,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_Rot_DW1kPre, s_CO.f_Rot_DW1kCon, s_CO.f_Rot_DW1kPos, s_CO.f_Rot_DW1kPer, s_CO.i_Rot_DW1kEqu);
-        fprintf(fcomp, "%d,Duff,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_DufPre, s_CO.f_DufCon, s_CO.f_DufPos, s_CO.f_DufPer, s_CO.i_DufEqu);
-        fprintf(fcomp, "%d,Herb,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_HerPre, s_CO.f_HerCon, s_CO.f_HerPos, s_CO.f_HerPer, s_CO.i_HerEqu);
-        fprintf(fcomp, "%d,Shrub,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_ShrPre, s_CO.f_ShrCon, s_CO.f_ShrPos, s_CO.f_ShrPer, s_CO.i_ShrEqu);
-        fprintf(fcomp, "%d,Foliage,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_FolPre, s_CO.f_FolCon, s_CO.f_FolPos, s_CO.f_FolPer, s_CO.i_FolEqu);
-        fprintf(fcomp, "%d,Branch,%.6f,%.6f,%.6f,%.4f,%d\n", case_num,
-            s_CO.f_BraPre, s_CO.f_BraCon, s_CO.f_BraPos, s_CO.f_BraPer, s_CO.i_BraEqu);
-
-        /* Write summary row */
-        fprintf(fsumm, "%d,"
-            "%.6f,%.6f,%.6f,"   /* Lit */
-            "%.6f,%.6f,%.6f,"   /* DW1 */
-            "%.6f,%.6f,%.6f,"   /* DW10 */
-            "%.6f,%.6f,%.6f,"   /* DW100 */
-            "%.6f,%.6f,%.6f,"   /* SndDW1k */
-            "%.6f,%.6f,%.6f,"   /* RotDW1k */
-            "%.6f,%.6f,%.6f,%.4f,"  /* Duf + pct */
-            "%.6f,%.6f,%.6f,"   /* Her */
-            "%.6f,%.6f,%.6f,"   /* Shr */
-            "%.6f,%.6f,%.6f,"   /* Fol */
-            "%.6f,%.6f,%.6f,"   /* Bra */
-            "%.6f,%.6f,%.6f,"   /* Tot */
-            "%.6f,%.6f,%.1f,%.1f,"  /* FlaCon SmoCon FlaDur SmoDur */
-            "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"  /* emissions */
-            "%.4f,%.4f,%.4f,%.4f,"  /* MSE DufDep */
-            "%d\n",
-            case_num,
-            s_CO.f_LitPre, s_CO.f_LitCon, s_CO.f_LitPos,
-            s_CO.f_DW1Pre, s_CO.f_DW1Con, s_CO.f_DW1Pos,
-            s_CO.f_DW10Pre, s_CO.f_DW10Con, s_CO.f_DW10Pos,
-            s_CO.f_DW100Pre, s_CO.f_DW100Con, s_CO.f_DW100Pos,
-            s_CO.f_Snd_DW1kPre, s_CO.f_Snd_DW1kCon, s_CO.f_Snd_DW1kPos,
-            s_CO.f_Rot_DW1kPre, s_CO.f_Rot_DW1kCon, s_CO.f_Rot_DW1kPos,
-            s_CO.f_DufPre, s_CO.f_DufCon, s_CO.f_DufPos, s_CO.f_DufPer,
-            s_CO.f_HerPre, s_CO.f_HerCon, s_CO.f_HerPos,
-            s_CO.f_ShrPre, s_CO.f_ShrCon, s_CO.f_ShrPos,
-            s_CO.f_FolPre, s_CO.f_FolCon, s_CO.f_FolPos,
-            s_CO.f_BraPre, s_CO.f_BraCon, s_CO.f_BraPos,
-            s_CO.f_TotPre, s_CO.f_TotCon, s_CO.f_TotPos,
-            s_CO.f_FlaCon, s_CO.f_SmoCon, s_CO.f_FlaDur, s_CO.f_SmoDur,
-            s_CO.f_PM25F, s_CO.f_PM25S, s_CO.f_PM10F, s_CO.f_PM10S,
-            s_CO.f_CH4F, s_CO.f_CH4S, s_CO.f_COF, s_CO.f_COS,
-            s_CO.f_CO2F, s_CO.f_CO2S, s_CO.f_NOXF, s_CO.f_NOXS,
-            s_CO.f_SO2F, s_CO.f_SO2S,
-            s_CO.f_MSEPer, s_CO.f_DufDepPre, s_CO.f_DufDepCon, s_CO.f_DufDepPos,
-            ret);
-
-        if (ret == 0)
-            printf("Case %d: ERROR - %s\n", case_num, cr_ErrMes);
-        else if (ret == 2)
-            printf("Case %d: No ignition\n", case_num);
-        else
-            printf("Case %d: OK (TotCon=%.4f T/ac)\n", case_num, s_CO.f_TotCon);
+    int force_shrub_equ = -1;
+    if (!parse_eq_override(f[14], &force_shrub_equ, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'force_shrub_equ': " << row_err << "\n";
+      return 1;
     }
 
-    fclose(fin);
-    fclose(fcomp);
-    fclose(fsumm);
-    printf("\nWrote %s and %s (%d cases)\n", comp_path, summ_path, case_num);
+    float shrub_con = 0, shrub_post = 0, shrub_pct = 0;
+    int shrub_equ;
+    if (force_shrub_equ >= 0) {
+      shrub_con = Shrub_Equ(&ci, force_shrub_equ);
+      shrub_equ = force_shrub_equ;
+      if (ci.f_Shrub != 0) {
+        shrub_post = ci.f_Shrub - shrub_con;
+        shrub_pct = (shrub_con / ci.f_Shrub) * 100.0f;
+      }
+    } else {
+      shrub_equ = Calc_Shrub(&ci, &shrub_con, &shrub_post, &shrub_pct);
+    }
+    bool model_errored = (shrub_con < 0.0f);  // Shrub_Equ's -1 error sentinel
+
+    float herb_con = 0, herb_post = 0, herb_pct = 0;
+    int herb_equ = Calc_Herb(&ci, &herb_con, &herb_post, &herb_pct);
+
+    float fol_con = 0, fol_post = 0, fol_pct = 0;
+    int fol_equ = Calc_CrownFoliage(&ci, &fol_con, &fol_post, &fol_pct);
+
+    float bra_con = 0, bra_post = 0, bra_pct = 0;
+    int bra_equ = Calc_CrownBranch(&ci, &bra_con, &bra_post, &bra_pct);
+
+    std::string err_text;
+    int ret = 1;
+    if (model_errored) {
+      ret = -1;
+      err_text = "Shrub_Equ: shrub equation " +
+                  std::to_string(force_shrub_equ) + " not implemented";
+    }
+
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+
+    if (oc == Outcome::OK) {
+      std::string shrub_con_s = fmt(shrub_con), shrub_post_s = fmt(shrub_post),
+                  shrub_pct_s = fmt(shrub_pct, 4);
+      std::string herb_con_s = fmt(herb_con), herb_post_s = fmt(herb_post),
+                  herb_pct_s = fmt(herb_pct, 4);
+      std::string fol_con_s = fmt(fol_con), fol_post_s = fmt(fol_post),
+                  fol_pct_s = fmt(fol_pct, 4);
+      std::string bra_con_s = fmt(bra_con), bra_post_s = fmt(bra_post),
+                  bra_pct_s = fmt(bra_pct, 4);
+      if (g_output_nonfinite) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": shrub_herb_eq produced a non-finite value on a "
+                     "successful row\n";
+        return 1;
+      }
+      out.row({f[0], "shrub_herb_eq", in.schema_version, outcome_str(oc),
+               shrub_con_s, shrub_post_s, shrub_pct_s,
+               std::to_string(shrub_equ),
+               herb_con_s, herb_post_s, herb_pct_s,
+               std::to_string(herb_equ),
+               fol_con_s, fol_post_s, fol_pct_s,
+               std::to_string(fol_equ),
+               bra_con_s, bra_post_s, bra_pct_s,
+               std::to_string(bra_equ),
+               std::to_string(ret), csv_quote(err_text), in.row_hashes[r]});
+    } else {
+      out.row({f[0], "shrub_herb_eq", in.schema_version, outcome_str(oc),
+               NA_SENTINEL, NA_SENTINEL, NA_SENTINEL, NA_SENTINEL,
+               NA_SENTINEL, NA_SENTINEL, NA_SENTINEL, NA_SENTINEL,
+               NA_SENTINEL, NA_SENTINEL, NA_SENTINEL, NA_SENTINEL,
+               NA_SENTINEL, NA_SENTINEL, NA_SENTINEL, NA_SENTINEL,
+               std::to_string(ret), csv_quote(err_text), in.row_hashes[r]});
+    }
+  }
+  if (!out.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: shrub_herb_eq output write/flush/close failed\n";
+    return 1;
+  }
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
+// Species table loading (mortality / bark_thick / canopy_cover)
+//
+// Gate 0 contract correction (Phase 2, direct C++ evidence, Codex-approved).
+// The originally approved contract specified MRT_InitST() here. Direct
+// evidence contradicts that as the parity/golden initializer:
+//
+//   - fof_spp.h:10-19 (the sr_MSMT[] table MRT_InitST() copies from):
+//     "FOFEM Does Not use this table because the species codes are the old
+//      FOFEM5 six letter codes... FuelCalc uses this table..."
+//   - sr_MSMT uses codes like "PSEMEN"; the tracked, real production table
+//     (src/pyfofem/supporting_data/FOFEM6.7/FOF_SPP.CSV) uses current codes
+//     like "PSME", matching pyfofem's own species convention.
+//   - Real production callers load species via MRT_LoadSpe(path, "", err)
+//     (FOF_DLL/ANSI_MAI.CPP:210-214; FOF_GUI/Wnd_Mort.cpp:481).
+//   - MRT_LoadSpe (fof_mrt.h:114/122/130) is a trivial forwarding wrapper
+//     around MRT_LoadSpeCSV (fof_mrt.cpp:1139-1145: "i = MRT_LoadSpeCSV
+//     (cr_Pth, cr_ErrMes); return i;").
+//
+// MRT_InitST() remains the sanctioned upstream *empty-path* fallback
+// inside MRT_LoadSpeCSV itself (fof_mrt.cpp:993-995: `if (!strcmp(cr_Pth,
+// "")) { MRT_InitST(); return 1; }`), but every accepted parity/golden run
+// requires an explicit, real species CSV — no empty-path fallback here.
+// Gate 0 correctly identified the need to initialize sr_SMT; Phase 2
+// direct evidence corrected which initializer is oracle-faithful.
+// ===========================================================================
+
+static std::string g_species_table_path;
+
+// Loads the species table via the real production entry point and proves
+// (without reimplementing any equation) that it behaves as required before
+// any mortality/bark_thick/canopy_cover row is processed.
+static bool load_species_table(const std::string &path, std::string *err) {
+  if (trim(path).empty()) {
+    *err = "species CSV path must not be blank";
+    return false;
+  }
+  {
+    std::ifstream probe(path, std::ios::binary);
+    if (!probe) {
+      *err = "species CSV is not a readable file: " + path;
+      return false;
+    }
+  }
+  bool hash_ok = false;
+  std::string table_sha256 = sha256_hex_file(path, &hash_ok);
+  if (!hash_ok) {
+    *err = "could not hash species CSV for provenance: " + path;
+    return false;
+  }
+
+  std::vector<char> path_buf(path.begin(), path.end());
+  path_buf.push_back('\0');
+  std::vector<char> ver_buf(1, '\0');
+  char load_err_buf[3000];
+  load_err_buf[0] = '\0';
+  int ret = MRT_LoadSpe(path_buf.data(), ver_buf.data(), load_err_buf);
+  std::string load_err = load_err_buf;
+  if (ret == 0 || !load_err.empty()) {
+    *err = "MRT_LoadSpe failed for '" + path + "': " +
+           (load_err.empty() ? std::string("(no message; ret=0)") : load_err);
+    return false;
+  }
+
+  // --- Startup qualification (Phase 2 amendment §4). None of these calls
+  //     reimplement an equation; they only prove the real loaded table and
+  //     real pinned lookups behave as required. ---
+  const char *qspe = "PSME";  // a current, tracked FOF_SPP.CSV species code
+
+  // (a) a current 4-character code resolves.
+  if (SMT_GetIdx((char *)qspe) < 0) {
+    *err = std::string("species qualification failed: '") + qspe +
+           "' did not resolve after loading " + path;
+    return false;
+  }
+
+  // (b) SMT_CalcBarkThick succeeds for a known species/DBH, with no
+  // unexpected error text left behind even on the success path.
+  {
+    std::vector<char> spe_buf(qspe, qspe + strlen(qspe));
+    spe_buf.push_back('\0');
+    char bt_err[3000];
+    bt_err[0] = '\0';
+    float bark = SMT_CalcBarkThick(spe_buf.data(), 12.0f, bt_err);
+    std::string bt_err_text = bt_err;
+    if (bark < 0.0f) {
+      *err = std::string("species qualification failed: SMT_CalcBarkThick('") +
+             qspe + "', 12) returned -1: " + bt_err_text;
+      return false;
+    }
+    if (!bt_err_text.empty()) {
+      *err = std::string("species qualification failed: SMT_CalcBarkThick('") +
+             qspe + "', 12) left unexpected error text despite success: " +
+             bt_err_text;
+      return false;
+    }
+  }
+
+  // (c) canopy equation lookup succeeds for a known species — checked via
+  // SMT_Get's own found/not-found return code (not just its output struct
+  // contents), and independently confirmed through the real CCT_Get lookup
+  // SMT_CalcCrnCov itself relies on (fof_mrt.cpp:1611-1640), not just a
+  // nonzero-area heuristic.
+  {
+    int idx = SMT_GetIdx((char *)qspe);
+    d_SMT smt;
+    memset(&smt, 0, sizeof(smt));
+    int smt_get_ret = SMT_Get(idx, &smt);
+    if (smt_get_ret != 1) {
+      *err = std::string("species qualification failed: SMT_Get(") +
+             std::to_string(idx) + ") for '" + qspe +
+             "' returned " + std::to_string(smt_get_ret) + " (not found)";
+      return false;
+    }
+    if (smt.i_No < 0) {
+      *err = std::string("species qualification failed: '") + qspe +
+             "' has no valid canopy-cover equation index";
+      return false;
+    }
+    d_CCT cct;
+    memset(&cct, 0, sizeof(cct));
+    int cct_get_ret = CCT_Get(smt.i_No, &cct);
+    if (cct_get_ret != 1) {
+      *err = std::string("species qualification failed: CCT_Get(") +
+             std::to_string(smt.i_No) + ") for '" + qspe +
+             "' returned " + std::to_string(cct_get_ret) +
+             " (canopy-cover coefficient row not found)";
+      return false;
+    }
+    std::vector<char> spe_buf(qspe, qspe + strlen(qspe));
+    spe_buf.push_back('\0');
+    float area = SMT_CalcCrnCov(spe_buf.data(), 12.0f, 60.0f);
+    if (!(area > 0.0f)) {
+      *err = std::string("species qualification failed: SMT_CalcCrnCov('") +
+             qspe + "', 12, 60) returned a non-positive area";
+      return false;
+    }
+  }
+
+  // (d) mortality dispatch accepts a current-code scenario.
+  {
+    d_MIS mis;
+    memset(&mis, 0, sizeof(mis));
+    safe_copy_literal(mis.cr_Spe, std::string(qspe));
+    safe_copy_literal(mis.cr_EquTyp, std::string(e_CroSco));
+    mis.f_DBH = 12.0f;
+    mis.f_Hgt = 60.0f;
+    mis.f_CR = 50.0f;
+    mis.f_FS = 4.0f;
+    safe_copy_literal(mis.cr_FS, std::string(e_Flame));
+    mis.f_BolCha = 0.0f;
+    safe_copy_literal(mis.cr_FirSev, std::string());
+    mis.f_CKR = 0.0f;
+    mis.f_CrnDam = 0.0f;
+    safe_copy_literal(mis.cr_BeeDam, std::string(e_BtlNo));
+    d_MO mo;
+    MO_Init(&mo);
+    char mrt_err[3000];
+    mrt_err[0] = '\0';
+    float prob = MRT_CalcMngr(&mis, &mo, mrt_err);
+    std::string mrt_err_text = mrt_err;
+    if (!mrt_err_text.empty()) {
+      *err = std::string("species qualification failed: MRT_CalcMngr('") +
+             qspe + "', CroSco) left unexpected error text: " + mrt_err_text;
+      return false;
+    }
+    if (!(prob >= 0.0f && prob <= 1.0f) || !std::isfinite(prob)) {
+      *err = std::string("species qualification failed: MRT_CalcMngr('") +
+             qspe + "', CroSco) returned a non-finite or out-of-[0,1] "
+                    "probability (" + std::to_string(prob) + ")";
+      return false;
+    }
+  }
+
+  // (e) an obsolete fallback-only code must not substitute for the
+  // requested current code — proves this is really the CSV-loaded table,
+  // not a leftover/blended MRT_InitST() table.
+  const char *obsolete_only = "PSEMEN";
+  if (SMT_GetIdx((char *)obsolete_only) >= 0) {
+    *err = std::string("species qualification failed: obsolete code '") +
+           obsolete_only +
+           "' resolved after loading the real species CSV";
+    return false;
+  }
+
+  g_species_table_path = path;
+  std::cout << "SPECIES_TABLE_PATH=" << path << "\n";
+  std::cout << "SPECIES_TABLE_SHA256=" << table_sha256 << "\n";
+  std::cout << "SPECIES_LOADER=MRT_LoadSpe\n";
+  std::cout << "SPECIES_LOADER_SOURCE=FOF_UNIX/fof_mrt.cpp:1139-1145\n";
+  std::cout << "SPECIES_TABLE_ROLE=FOFEM mortality/species equation table\n";
+  return true;
+}
+
+// ===========================================================================
+// Mode: mortality  (gate0/05-harness-contract.md §5)
+// ===========================================================================
+
+// Schema v2 (gate0/05-harness-contract.md section 5). Two changes from v1:
+//   * "ckr_pct" renamed to "ckr_rating". The field fills d_MIS.f_CKR,
+//     which the pinned source documents as the cambium kill RATING 0-4
+//     (fof_mrt.cpp:1937 "a_MIS->f_CKR....cambium kill ratio 0-4") and
+//     validates as 0-4 (fof_mrt.cpp:1849-1851), not as a percent. The
+//     v1 name was a misnomer.
+//   * "density_tpa" ADDED, wired to d_MIS.f_Den. ValidInput requires
+//     1 <= f_Den <= 20000 (fof_mrt.cpp:1854-1856) for every CroDam
+//     (PFI_Calc) row; v1 had no such column, so f_Den stayed 0 from
+//     this mode's own memset and every CroDam row failed validation.
+static const std::vector<std::string> MORTALITY_HEADER = {
+    "case_id", "expect_error", "species", "equ_type", "dbh_in", "ht_ft",
+    "crown_ratio_x10", "fs_value_ft", "fs_kind", "bole_char_ft",
+    "fire_severity", "ckr_rating", "cvk_pct", "beetles", "density_tpa"};
+
+static int run_mortality(const InputFile &in, const std::string &prefix) {
+  // Species table is loaded and qualified once in main() before dispatch
+  // (see load_species_table() above).
+  CsvWriter out(prefix + ".csv");
+  if (!out.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output file\n";
+    return 1;
+  }
+  out.header({"case_id", "mode", "schema_version", "outcome", "prob",
+              "mort_equ", "ret", "err_text", "input_sha256"});
+  bool any_unexpected = false;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+
+    d_MIS mis;
+    memset(&mis, 0, sizeof(mis));
+    if (!safe_copy(mis.cr_Spe, f[2])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'species': value exceeds destination buffer "
+                   "capacity (" << (sizeof(mis.cr_Spe) - 1)
+                << " chars) — not truncated\n";
+      return 1;
+    }
+
+    std::string equ_type = trim(f[3]);
+    if (equ_type == "CroSco") safe_copy_literal(mis.cr_EquTyp, std::string(e_CroSco));
+    else if (equ_type == "CroDam") safe_copy_literal(mis.cr_EquTyp, std::string(e_CroDam));
+    else if (equ_type == "BolCha") safe_copy_literal(mis.cr_EquTyp, std::string(e_BolCha));
+    else {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": equ_type must be CroSco, CroDam, or BolCha, got '"
+                << equ_type << "'\n";
+      return 1;
+    }
+
+    double dv;
+#define REQ_DOUBLE(idx, target)                                            \
+  if (!parse_strict_double(f[idx], &dv, &row_err)) {                       \
+    std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"          \
+              << MORTALITY_HEADER[idx] << "': " << row_err << "\n";        \
+    return 1;                                                              \
+  }                                                                         \
+  (target) = (float)dv;
+    REQ_DOUBLE(4, mis.f_DBH);
+    REQ_DOUBLE(5, mis.f_Hgt);
+    REQ_DOUBLE(6, mis.f_CR);
+    REQ_DOUBLE(7, mis.f_FS);
+#undef REQ_DOUBLE
+
+    std::string fs_kind = trim(f[8]);
+    if (fs_kind == "Flame") safe_copy_literal(mis.cr_FS, std::string(e_Flame));
+    else if (fs_kind == "Scorch") safe_copy_literal(mis.cr_FS, std::string(e_Scorch));
+    else {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": fs_kind must be Flame or Scorch, got '" << fs_kind
+                << "'\n";
+      return 1;
+    }
+
+    if (!parse_strict_double(f[9], &dv, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'bole_char_ft': " << row_err << "\n";
+      return 1;
+    }
+    mis.f_BolCha = (float)dv;
+
+    std::string fire_sev = trim(f[10]);
+    if (fire_sev == NA_SENTINEL) fire_sev = "";
+    if (!safe_copy(mis.cr_FirSev, fire_sev)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'fire_severity': value exceeds destination "
+                   "buffer capacity (" << (sizeof(mis.cr_FirSev) - 1)
+                << " chars) — not truncated\n";
+      return 1;
+    }
+
+    if (!parse_strict_double(f[11], &dv, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'ckr_rating': " << row_err << "\n";
+      return 1;
+    }
+    mis.f_CKR = (float)dv;
+
+    if (!parse_strict_double(f[12], &dv, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'cvk_pct': " << row_err << "\n";
+      return 1;
+    }
+    mis.f_CrnDam = (float)dv;
+
+    std::string beetles_raw = trim(f[13]);
+    if (beetles_raw != "0" && beetles_raw != "1") {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": beetles must be exactly 0 or 1\n";
+      return 1;
+    }
+    safe_copy_literal(mis.cr_BeeDam, std::string(beetles_raw == "1" ? e_BtlYes : e_BtlNo));
+
+    // density_tpa -> d_MIS.f_Den (schema v2). Only PFI_Calc's ValidInput
+    // reads it for validation (fof_mrt.cpp:1854-1856); MRT_Calc and
+    // BC_Calc use it solely through MRT_Total's stand accumulators
+    // (fof_mrt.cpp:818-875), none of which this mode emits. The harness
+    // deliberately does NOT pre-validate the range: the whole point of
+    // the column is to let the pinned C++ validator make that decision
+    // and report it through cr_ErrMes.
+    if (!parse_strict_double(f[14], &dv, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field 'density_tpa': " << row_err << "\n";
+      return 1;
+    }
+    mis.f_Den = (float)dv;
+
+    d_MO mo;
+    MO_Init(&mo);
+    char err_buf[3000];
+    err_buf[0] = '\0';
+    float prob = MRT_CalcMngr(&mis, &mo, err_buf);
+    // Schema v2 error rule. v1 tested `prob < 0` alone, which is the
+    // sentinel MRT_Calc/BC_Calc/MRT_CalcMngr use - but NOT the one
+    // PFI_Calc uses: on a ValidInput rejection PFI_Calc returns 0 with a
+    // NONEMPTY cr_ErrMes (fof_mrt.cpp:1800-1801, 1868-1870), and 0 is
+    // also a perfectly ordinary successful probability. MRT_Calc's own
+    // header block says so explicitly ("Check for an Error by checking
+    // the cr_ErrMes, it will be "" if no errors occured",
+    // fof_mrt.cpp:270-271). Either signal is therefore a model error.
+    bool model_errored = (prob < 0.0f) || (err_buf[0] != '\0');
+    int ret = model_errored ? -1 : 1;
+
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+
+    std::string prob_fmt = oc == Outcome::OK ? fmt(prob, 6) : NA_SENTINEL;
+    if (oc == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": mortality produced a non-finite probability on a "
+                   "successful row\n";
+      return 1;
+    }
+    // A row declared successful must ALSO carry a value that really is
+    // a probability. Combined with the empty-err_text requirement above,
+    // "ok" now means both: no error text AND a finite prob in [0, 1].
+    // Fails closed rather than writing an out-of-domain number that a
+    // downstream comparison would consume as a scientific result.
+    if (oc == Outcome::OK && !(std::isfinite((double)prob) &&
+                               prob >= 0.0f && prob <= 1.0f)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": mortality declared a successful row whose "
+                   "probability is not finite and within [0, 1]\n";
+      return 1;
+    }
+    out.row({f[0], "mortality", in.schema_version, outcome_str(oc),
+             prob_fmt,
+             oc == Outcome::OK ? std::string(mo.cr_MortEqu) : NA_SENTINEL,
+             std::to_string(ret), csv_quote(err_buf), in.row_hashes[r]});
+  }
+  if (!out.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: mortality output write/flush/close failed\n";
+    return 1;
+  }
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
+// Mode: bark_thick  (gate0/05-harness-contract.md §5a)
+// ===========================================================================
+
+static const std::vector<std::string> BARK_THICK_HEADER = {
+    "case_id", "expect_error", "species", "dbh_in"};
+
+static int run_bark_thick(const InputFile &in, const std::string &prefix) {
+  // Species table is loaded and qualified once in main() before dispatch
+  // (see load_species_table() above).
+  CsvWriter out(prefix + ".csv");
+  if (!out.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output file\n";
+    return 1;
+  }
+  out.header({"case_id", "mode", "schema_version", "outcome", "bark_thick_in",
+              "ret", "err_text", "input_sha256"});
+  bool any_unexpected = false;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+    double dbh_d;
+    if (!parse_strict_double(f[3], &dbh_d, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field 'dbh_in': "
+                << row_err << "\n";
+      return 1;
+    }
+    std::vector<char> spe(f[2].begin(), f[2].end());
+    spe.push_back('\0');
+    char err_buf[3000];
+    err_buf[0] = '\0';
+    float bark = SMT_CalcBarkThick(spe.data(), (float)dbh_d, err_buf);
+    bool model_errored = (bark < 0.0f);
+    int ret = model_errored ? -1 : 1;
+
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+
+    std::string bark_fmt = oc == Outcome::OK ? fmt(bark, 6) : NA_SENTINEL;
+    if (oc == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": bark_thick produced a non-finite value on a "
+                   "successful row\n";
+      return 1;
+    }
+    out.row({f[0], "bark_thick", in.schema_version, outcome_str(oc),
+             bark_fmt,
+             std::to_string(ret), csv_quote(err_buf), in.row_hashes[r]});
+  }
+  if (!out.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: bark_thick output write/flush/close failed\n";
+    return 1;
+  }
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
+// Mode: canopy_cover  (gate0/05-harness-contract.md §6)
+// ===========================================================================
+
+static const std::vector<std::string> CANOPY_COVER_HEADER = {
+    "case_id", "expect_error", "stand_id", "species", "dbh_in", "ht_ft"};
+
+struct TreeRow {
+  std::string case_id, stand_id;
+  Outcome outcome;
+  float crown_area_ft2 = 0.0f;
+  int cct_equ_no = -1;
+  int ret = 1;
+  std::string err_text;
+  std::string input_hash;
+};
+
+static int run_canopy_cover(const InputFile &in, const std::string &prefix) {
+  // Species table is loaded and qualified once in main() before dispatch
+  // (see load_species_table() above).
+  CsvWriter trees(prefix + "_trees.csv");
+  CsvWriter stands(prefix + "_stands.csv");
+  CsvWriter groups(prefix + "_groups.csv");
+  if (!trees.ok || !stands.ok || !groups.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output files\n";
+    return 1;
+  }
+  trees.header({"case_id", "stand_id", "mode", "schema_version", "outcome",
+                "crown_area_ft2", "cct_equ_no", "ret", "err_text",
+                "input_sha256"});
+  stands.header({"stand_id", "mode", "schema_version", "n_trees",
+                  "total_area_ft2", "pct_cover", "stand_sha256"});
+  groups.header({"stand_id", "mode", "schema_version", "n_members", "n_ok",
+                  "n_expected_model_error", "n_unexpected_failure",
+                  "aggregate_emitted", "suppression_reason", "group_sha256"});
+
+  bool any_unexpected = false;
+  std::vector<TreeRow> processed;
+
+  // Contiguity check (self-test 19): stand_id runs must not be interleaved.
+  std::map<std::string, bool> seen_stand_closed;
+  std::string last_stand;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+    std::string stand_id = f[2];
+    if (!last_stand.empty() && stand_id != last_stand) {
+      seen_stand_closed[last_stand] = true;
+    }
+    if (seen_stand_closed.count(stand_id)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": stand_id '" << stand_id
+                << "' rows are not contiguous\n";
+      return 1;
+    }
+    last_stand = stand_id;
+
+    double dbh_d, ht_d;
+    if (!parse_strict_double(f[4], &dbh_d, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field 'dbh_in': "
+                << row_err << "\n";
+      return 1;
+    }
+    if (!parse_strict_double(f[5], &ht_d, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field 'ht_ft': "
+                << row_err << "\n";
+      return 1;
+    }
+
+    TreeRow tr;
+    tr.case_id = f[0];
+    tr.stand_id = stand_id;
+    tr.input_hash = in.row_hashes[r];
+
+    std::vector<char> spe(f[3].begin(), f[3].end());
+    spe.push_back('\0');
+    int idx = SMT_GetIdx(spe.data());
+    bool model_errored = false;
+    if (idx < 0) {
+      // Harness-side guard: SMT_CalcCrnCov does not itself check iX<0 before
+      // indexing sr_SMT[iX] (fof_mrt.cpp:1611-1640) — calling it with an
+      // unresolved species would read out of bounds. The harness must not
+      // call it in that case; this is a fail-closed harness contract, not a
+      // fabricated C++ behaviour.
+      model_errored = true;
+      tr.ret = -1;
+      tr.err_text = "unknown species '" + f[3] + "' (SMT_GetIdx < 0)";
+    } else {
+      tr.crown_area_ft2 = SMT_CalcCrnCov(spe.data(), (float)dbh_d, (float)ht_d);
+      d_SMT smt;
+      memset(&smt, 0, sizeof(smt));
+      SMT_Get(idx, &smt);
+      tr.cct_equ_no = smt.i_No;
+      tr.ret = 1;
+    }
+
+    tr.outcome = classify(expect_error, model_errored);
+    if (tr.outcome == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+    processed.push_back(tr);
+
+    std::string area_fmt = tr.outcome == Outcome::OK ? fmt(tr.crown_area_ft2, 4) : NA_SENTINEL;
+    if (tr.outcome == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": canopy_cover produced a non-finite crown area on a "
+                   "successful row\n";
+      return 1;
+    }
+    trees.row({tr.case_id, tr.stand_id, "canopy_cover", in.schema_version,
+               outcome_str(tr.outcome),
+               area_fmt,
+               tr.outcome == Outcome::OK ? std::to_string(tr.cct_equ_no) : NA_SENTINEL,
+               std::to_string(tr.ret), csv_quote(tr.err_text), tr.input_hash});
+  }
+
+  // Group by stand_id, preserving first-seen order (rows are contiguous per
+  // stand, enforced above).
+  std::vector<std::string> stand_order;
+  std::map<std::string, std::vector<size_t>> stand_members;
+  for (size_t i = 0; i < processed.size(); ++i) {
+    const std::string &sid = processed[i].stand_id;
+    if (!stand_members.count(sid)) stand_order.push_back(sid);
+    stand_members[sid].push_back(i);
+  }
+
+  // Self-test-only fault injection (self-test row 11g): FOFEM_TEST_FAULT
+  // must never be set in a real run. It lets the self-test suite actually
+  // *inject* an inconsistent aggregate/membership state and prove the
+  // reconciliation pass below rejects it, rather than merely observing
+  // the two states the normal code path can construct on its own
+  // (all-ok and mixed) — which cannot demonstrate rejection of a state the
+  // normal code path can never produce.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)  // getenv is fine for a read-only test-only flag
+#endif
+  const char *fault_env = std::getenv("FOFEM_TEST_FAULT");
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+  bool inject_aggregate_mismatch =
+      fault_env && std::string(fault_env) == "canopy_aggregate_mismatch";
+
+  struct GroupResult {
+    std::string sid, group_sha, suppression_reason;
+    int n_members = 0, n_ok = 0, n_eme = 0, n_uf = 0;
+    bool emit_aggregate = false;
+    float total_area = 0.0f, pct_cover = 0.0f;
+  };
+  std::vector<GroupResult> group_results;
+
+  for (size_t stand_ix = 0; stand_ix < stand_order.size(); ++stand_ix) {
+    const std::string &sid = stand_order[stand_ix];
+    const auto &member_idx = stand_members[sid];
+    GroupResult gr;
+    gr.sid = sid;
+    std::string concat_hashes;
+    for (size_t i : member_idx) {
+      const TreeRow &tr = processed[i];
+      if (tr.outcome == Outcome::OK) { ++gr.n_ok; gr.total_area += tr.crown_area_ft2; }
+      else if (tr.outcome == Outcome::EXPECTED_MODEL_ERROR) ++gr.n_eme;
+      else ++gr.n_uf;
+      concat_hashes += tr.input_hash;
+    }
+    gr.group_sha = sha256_hex(concat_hashes);
+    gr.n_members = (int)member_idx.size();
+    gr.emit_aggregate = (gr.n_ok == gr.n_members);
+
+    if (inject_aggregate_mismatch && stand_ix == 0) {
+      // Deliberately violate the invariant for the reconciliation
+      // self-test below: force emit_aggregate=true even though not every
+      // member is ok (only possible if this group actually has a
+      // non-ok member; the self-test that sets this env var supplies
+      // input guaranteeing that).
+      gr.emit_aggregate = true;
+    }
+
+    gr.suppression_reason = "none";
+    if (!gr.emit_aggregate) {
+      gr.suppression_reason = (gr.n_uf > 0) ? "unexpected_failure_member"
+                                             : "expected_model_error_member";
+    }
+    if (gr.emit_aggregate) {
+      gr.pct_cover = 100.0f * (1.0f - expf(-(gr.total_area / 43560.0f)));
+    }
+    group_results.push_back(gr);
+  }
+
+  // Final reconciliation (harness-contract §1, self-test 11g): every
+  // group's emit_aggregate MUST equal (n_ok == n_members) exactly, and
+  // total per-group membership must reconcile against the processed tree
+  // count. Any violation is a hard failure — no output is trusted.
+  int total_members_reconciled = 0;
+  for (const GroupResult &gr : group_results) {
+    bool invariant_holds = (gr.emit_aggregate == (gr.n_ok == gr.n_members));
+    if (!invariant_holds) {
+      std::cerr << "[fofem_test] FATAL: canopy_cover group '" << gr.sid
+                << "' failed aggregate-reconciliation: emit_aggregate="
+                << gr.emit_aggregate << " but n_ok=" << gr.n_ok
+                << " n_members=" << gr.n_members << "\n";
+      return 1;
+    }
+    if (gr.n_ok + gr.n_eme + gr.n_uf != gr.n_members) {
+      std::cerr << "[fofem_test] FATAL: canopy_cover group '" << gr.sid
+                << "' member-count reconciliation failed: "
+                << gr.n_ok << "+" << gr.n_eme << "+" << gr.n_uf
+                << " != " << gr.n_members << "\n";
+      return 1;
+    }
+    total_members_reconciled += gr.n_members;
+  }
+  if (total_members_reconciled != (int)processed.size()) {
+    std::cerr << "[fofem_test] FATAL: canopy_cover total group membership ("
+              << total_members_reconciled << ") does not reconcile against "
+              << "total processed tree rows (" << processed.size() << ")\n";
+    return 1;
+  }
+
+  for (const GroupResult &gr : group_results) {
+    if (gr.emit_aggregate) {
+      stands.row({gr.sid, "canopy_cover", in.schema_version,
+                  std::to_string(gr.n_members), fmt(gr.total_area, 4),
+                  fmt(gr.pct_cover, 4), gr.group_sha});
+      if (g_output_nonfinite) {
+        std::cerr << "[fofem_test] FATAL: canopy_cover group '" << gr.sid
+                  << "' produced a non-finite aggregate value\n";
+        return 1;
+      }
+    }
+    groups.row({gr.sid, "canopy_cover", in.schema_version,
+                std::to_string(gr.n_members), std::to_string(gr.n_ok),
+                std::to_string(gr.n_eme), std::to_string(gr.n_uf),
+                gr.emit_aggregate ? "1" : "0", gr.suppression_reason, gr.group_sha});
+  }
+
+  if (!trees.close_and_check() || !stands.close_and_check() || !groups.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: canopy_cover output write/flush/close failed\n";
+    return 1;
+  }
+
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
+// Mode: soil_campbell  (gate0/05-harness-contract.md section 7, Phase 5)
+//
+// Entry point: SH_Mngr (fof_sh.cpp:42). Item-1 audit findings this
+// implementation depends on (full source citations in the Phase 5 report):
+//   - d_SI fields f_DufLoaPre / f_DufConPer / f_DufMoi are read by
+//     SD_Init() (fof_sd.cpp:258-261) on the Duff route but are NOT
+//     initialised by SI_Init() (fof_sh.cpp:221-231) and are absent from
+//     the harness-contract-approved 13-column schema. This is a real,
+//     evidenced contract gap (reported, not silently absorbed): three
+//     columns (duff_load_tac, duff_consumed_pct, duff_moist_pct) are
+//     appended here as columns 13-15 to make the Duff route
+//     scientifically well-defined and reproducible.
+//   - d_SI.f_SoilDuffEff is also left uninitialised by SI_Init(); this
+//     harness always sets it to -1.0 (the documented "use built-in
+//     default" sentinel SD_Init() itself already implements at
+//     fof_sd.cpp:263-266), never garbage.
+//   - d_SI.ar_FI is dead: nothing in fof_sh.cpp/fof_sd.cpp/fof_se.cpp
+//     ever reads it. The real fire-intensity arrays travel exclusively
+//     through SH_Mngr's own fr_FI[]/fr_FIhs[] parameters.
+//   - cr_TmpFN ("" or a diagnostic dump-file path) is never populated
+//     here -- passing "" makes SD_Mngr_New/SE_Mngr_Array skip ALL
+//     temp-file I/O (fof_sd.cpp:64-66, fof_se.cpp:69-71), so this mode
+//     never creates a stray file and needs no cleanup logic for one.
+//   - d_SO.cr_Model is set by SH_Mngr on the Duff/ZDuff branches only
+//     ("Duff" / e_SM_Duff, or "Zero-Duff" / e_SM_ZDuff -- NOT "ZDuff").
+//     On the no-ignition early-return path SH_Mngr never touches it;
+//     this harness memsets the whole d_SO struct to 0 before every
+//     call, so a no-ignition row deterministically reports model=""
+//     (empty string), faithfully reflecting real unmodified C++ state.
+//   - d_SO.ir_Temp[14] is declared int (fof_sh.h:130) and populated
+//     from a float r_Max via implicit truncation (fof_sh.cpp:138) -- the
+//     per-layer maxima are integer degrees C, unlike the field.csv
+//     fan-out (SHA_Get returns float directly, fof_sha.cpp:235).
+//   - d_SO.ir_TimSec[14] is genuinely SECONDS (fof_sh.cpp:139:
+//     i_Time * SHA_GetInc(); SHA_GetInc() returns "# seconds between
+//     temp recordings", fof_sha.cpp:22/37-40) despite SO_Load's own
+//     header comment claiming "Minutes" (fof_sh.cpp:104-105) -- the
+//     unused ToMinutes() helper (fof_sha.cpp:296-302) is never called
+//     on this path. This corrects the approved harness-contract's
+//     crosswalk row 23 "Units: ... minutes" claim.
+//   - field.csv's per-row `time_s` column (Phase 5 correction pass item-2)
+//     is `time_index * SHA_GetInc()`, read directly from the SAME
+//     SHA_GetInc() accessor cited above, immediately after the row's own
+//     SH_Mngr() call returns -- SD_Mngr_New/SE_Mngr_Array each call
+//     SHA_SetInc(a_SD->i_dt)/SHA_SetInc(a_SE->i_dt) internally
+//     (fof_sd.cpp:118, fof_se.cpp:80) and the no-ignition path's
+//     SHA_Init_0() calls SHA_SetInc(60) (fof_sha.cpp:161), so this is the
+//     real per-row recording interval as C++ itself set it for that row,
+//     never an assumed/inferred constant.
+//   - eC_Lay == e_mplus1 == 14 always (fof_sha.h:9, fof_sh.h:50-51) -- a
+//     fixed compile-time constant, never variable per row.
+//   - n_time_indices has no public C++ getter (gi_SHA_TimX is a private
+//     fof_sha.cpp static with no accessor); derived here by scanning
+//     SHA_Get(1, iX) for the first iX returning the e_SHA_Init sentinel,
+//     exploiting that every real layer (rr_node[1..14] are all 1,
+//     fof_sh.cpp:165-166) is written in lockstep every simulation step.
+//   - Neither SD_Mngr_New nor SE_Mngr_Array's outer stepping loop has a
+//     hard iteration cap independent of SHA_Get's own eC_Tim(10000)
+//     table bound; the harness process-level timeout
+//     (_harness_support.TIMEOUT_HARNESS_RUN_S) is therefore a load-
+//     bearing safety net for this mode specifically, more so than for
+//     the other six. Self-test rows below use short, clearly-decaying
+//     fire-intensity series to avoid triggering this in qualification.
+//   - Schema v2 (soil-heating Campbell duff-forcing correction pass) adds
+//     three summary columns exposing the pinned DuffBurn() intensity/
+//     duration/consumed-rate outputs directly, computed from the SAME
+//     duff_load_tac/duff_consumed_pct/duff_moist_pct inputs SD_Mngr_New
+//     itself uses (fof_sd.cpp:98-107) -- TPA_To_KiSq(duff_load_tac) and
+//     duff_moist_pct/100.0, exactly. DuffBurn is declared in bur_brn.h
+//     (bur_brn.h:208) but that header cannot be #included here: it
+//     unconditionally #defines bool/true/false to int/1/0 (bur_brn.h:
+//     131-133, no #ifdef __cplusplus guard), which broke this file's own
+//     real C++ bool usage elsewhere (confirmed directly: including it
+//     produced a real C2440 "cannot convert from std::ofstream to int"
+//     at this file's `ok = (bool)f;` CsvWriter constructor). DuffBurn is
+//     therefore forward-declared below with the exact pinned signature
+//     instead, matching its real C linkage (bur_brn.h's whole content is
+//     wrapped in `extern "C" { ... }`).
+// ===========================================================================
+
+extern "C" {
+// Forward declaration only -- see the schema v2 note above for why
+// bur_brn.h itself cannot be #included here. Signature verified
+// character-for-character against bur_brn.h:208-209 /
+// bur_brn.cpp:1950-1951.
+void DuffBurn(double wdf, double dfm, double *dfi, double *tdf,
+              float f_DufConPerCent, double *ad_Duf_CPTS);
+}
+
+// ===========================================================================
+// F-70 diagnostic pass: intermediate soil-solver state observability.
+//
+// fof_soi.cpp declares its per-node solver-state arrays (rr_tn/rr_t/
+// rr_wn/rr_w/rr_p/rr_h/rr_psat/rr_kh/rr_kv/rr_enh, each float[e_mplus1+1]
+// = float[15]) at file scope with ordinary C++ external linkage -- NOT
+// `static`, NOT wrapped in `extern "C"` (verified directly: fof_soi.cpp:
+// 40-54; only the FUNCTIONS in fof_soi.h are wrapped in `extern "C"`).
+// Because both this file and fof_soi.cpp are compiled as C++ within the
+// SAME `fofem_test` target, an ordinary (non-`extern "C"`) `extern`
+// re-declaration here binds to the REAL global objects fof_soi.cpp's own
+// `soiltemp_step()` mutates on every Newton iteration -- this is genuine
+// observability of the real execution path, not a copy or a
+// reimplementation of any equation. No pinned file is modified to make
+// this work.
+//
+// What this CANNOT expose, and why (documented per the task's explicit
+// instruction not to invent substitutes):
+//   - Per-timestep snapshots of rr_p/rr_h/rr_psat/rr_kh/rr_kv/rr_enh.
+//     These arrays are overwritten in place on every Newton sub-iteration
+//     AND every outer clock tick; nothing in the pinned fof_sd.cpp/
+//     fof_se.cpp (which own the per-tick loop) ever calls back out to
+//     save a per-tick copy of them anywhere observable. Only their FINAL
+//     (last-committed-timestep) values are readable after SH_Mngr()
+//     returns. Modifying fof_sd.cpp/fof_se.cpp/fof_soi.cpp to add a
+//     per-tick hook would touch the pinned submodule, which this pass
+//     must not do.
+//   - The Newton sub-iteration count and residual (`i_its`/`iN_SoilBug`
+//     inside `soiltemp_step()`) and the per-tick `*ai_success` flag: all
+//     three are LOCAL variables inside `soiltemp_step()` with no global
+//     accessor and no return-path that surfaces them; `SD_Mngr_New`/
+//     `SE_Mngr_Array` only observe soiltemp_step's boolean return value
+//     for control flow and never save the count/residual anywhere. Not
+//     observable without modifying the pinned files.
+//   - Per-node, per-timestep TEMPERATURE is real and IS available,
+//     unlike the above: it is exactly what `_field.csv` (SHA_Get) and
+//     the new "timestep" diagnostic rows below both read (the pinned
+//     code's own per-tick `SHA_Put(i, rr_t[i])`, one real global table
+//     filled once per tick by the pinned execution path itself).
+//   - Per-timestep, aggregate (not per-node) TOTAL SURFACE FLUX and
+//     (duff route only) heat fraction ARE real and available: the
+//     pinned `SD_Mngr_New`/`SE_Mngr_Array` already call
+//     `SHA_TP_Put(i_ClockSec, pc_or_100, r_Rabsub)` once per tick
+//     (fof_sd.cpp:143, fof_se.cpp:122) into a real global table, read
+//     back here via the existing `SHA_TP_Get()` accessor -- not new
+//     C++, not reimplemented physics.
+//
+// Emission is entirely output-only and opt-in via the environment
+// variable FOFEM_TEST_SOIL_DIAG (a comma-separated case_id allowlist, or
+// "*" for every case_id in the current invocation) -- the normal v2
+// summary/field schema and every existing golden CSV are completely
+// unaffected whether or not this variable is set. No input-schema
+// change, no MODE_SCHEMA_VERSIONS bump required.
+extern float rr_tn[15];
+extern float rr_t[15];
+extern float rr_wn[15];
+extern float rr_w[15];
+extern float rr_p[15];
+extern float rr_h[15];
+extern float rr_psat[15];
+extern float rr_kh[15];
+extern float rr_kv[15];
+extern float rr_enh[15];
+
+//: Representative soil nodes for the "final_node" diagnostic rows --
+//: 1-based fof_soi.cpp node index, matching SOIL_CAMPBELL's own
+//: summary-column layer indexing (node i -> summary/field layer i-1):
+//: surface (1), 1cm (2), 4cm (5), and the fixed deep boundary (14).
+static const int kSoilDiagNodes[] = {1, 2, 5, 14};
+static const int kSoilDiagNodeCount =
+    (int)(sizeof(kSoilDiagNodes) / sizeof(kSoilDiagNodes[0]));
+
+//: Parse the given env var once per call; "*" or a case_id match enables
+//: emission for that row. Absent/empty disables it entirely (the
+//: default -- zero behavior change for every existing test/golden run).
+//: Shared by both FOFEM_TEST_SOIL_DIAG (per-tick flux/final-node-only,
+//: prior F-70 pass) and FOFEM_TEST_SOIL_STATE_DIAG (full per-timestep
+//: coupled state, this pass) -- two independent, separately-gated
+//: opt-in diagnostics, deliberately not merged into one file/schema.
+static bool diag_env_enabled_for(const char *env_var, const std::string &case_id) {
+  const char *raw = std::getenv(env_var);
+  if (raw == nullptr || raw[0] == '\0') return false;
+  std::string spec(raw);
+  if (spec == "*") return true;
+  size_t start = 0;
+  while (start <= spec.size()) {
+    size_t comma = spec.find(',', start);
+    std::string tok = spec.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+    if (tok == case_id) return true;
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  return false;
+}
+
+static bool soil_diag_enabled_for(const std::string &case_id) {
+  return diag_env_enabled_for("FOFEM_TEST_SOIL_DIAG", case_id);
+}
+
+//: F-70 second diagnostic pass: full per-timestep, per-node coupled
+//: solver state, gated independently from the (per-tick flux/
+//: final-node-only) FOFEM_TEST_SOIL_DIAG above. Requires the
+//: fofem_test_soidiag diagnostic-observer BINARY (built from
+//: fof_soi_instr.cpp) -- if this env var is set but the CURRENTLY
+//: RUNNING binary was built from the real fof_soi.cpp (the normal
+//: fofem_test target), SoiDiagRecordTimestep() is simply never called
+//: by that binary's own soiltemp_step(), so no _soistate.csv rows (and
+//: no error) result. See test_soil_state_diag_requires_the_diagnostic_binary
+//: for the executable proof of exactly this fail-quiet-not-fail-closed
+//: behavior, and why it is documented rather than hidden.
+static bool soil_state_diag_enabled_for(const std::string &case_id) {
+  return diag_env_enabled_for("FOFEM_TEST_SOIL_STATE_DIAG", case_id);
+}
+
+//: Global sink the F-70 SoiDiagRecordTimestep() hook (called from deep
+//: inside soiltemp_step(), with no access to the current CSV row's
+//: case_id/writer) writes into. Set by run_soil_campbell() immediately
+//: before each SH_Mngr() call that requests state diagnostics, and
+//: cleared immediately after -- never left dangling across rows.
+struct SoiStateDiagSink {
+  CsvWriter *writer = nullptr;
+  CsvWriter *subiter_writer = nullptr;
+  CsvWriter *surfup_writer = nullptr;
+  std::string case_id;
+  std::string row_hash;
+  int step_index = 0;
+  size_t rows_written = 0;
+  size_t subiter_rows_written = 0;
+  size_t surfup_rows_written = 0;
+};
+static SoiStateDiagSink *g_soi_state_diag_sink = nullptr;
+
+//: Defined here (shared, unmodified, by BOTH the normal fofem_test target
+//: and the fofem_test_soidiag diagnostic-observer target); declared
+//: `extern "C"` in fof_soi_instr.cpp with a matching signature. The
+//: normal target's own fof_soi.cpp never calls this symbol, so its mere
+//: presence has zero effect on normal fofem_test output -- see the "F-70
+//: diagnostic-observer instrumentation" comment in fof_soi_instr.cpp for
+//: the full byte-diff proof this is the ONLY difference from the real
+//: pinned fof_soi.cpp.
+extern "C" void SoiDiagRecordTimestep(
+    int node_count, const float *tn, const float *t_true,
+    const float *wn, const float *w_true, const float *p, const float *h,
+    const float *psat, const float *kh, const float *kv, const float *enh,
+    float r_sev, float r_seh, int n_subiter, float r_rabs_in) {
+  if (g_soi_state_diag_sink == nullptr || g_soi_state_diag_sink->writer == nullptr) {
+    return;
+  }
+  int step = g_soi_state_diag_sink->step_index++;
+  for (int node = 0; node < node_count; ++node) {
+    g_soi_state_diag_sink->writer->row({
+        g_soi_state_diag_sink->case_id, std::to_string(step), std::to_string(node),
+        fmt(tn[node]), fmt(t_true[node]),
+        fmt(wn[node], 8), fmt(w_true[node], 8),
+        fmt(p[node], 4), fmt(h[node], 8), fmt(psat[node], 4),
+        fmt(kh[node], 8), fmt(kv[node], 12), fmt(enh[node], 8),
+        fmt(r_sev, 8), fmt(r_seh, 4), std::to_string(n_subiter),
+        fmt(r_rabs_in, 6),
+        g_soi_state_diag_sink->row_hash});
+    ++g_soi_state_diag_sink->rows_written;
+  }
+}
+
+//: Second, finer-grained F-70 hook (same pass, added once the
+//: per-timestep hook alone proved insufficient to localise a large
+//: first-timestep divergence found in the non-duff route): fires once
+//: per Newton SUB-ITERATION (surface node only), gated by the SAME
+//: sink/case_id/row_hash as SoiDiagRecordTimestep -- reuses
+//: g_soi_state_diag_sink rather than a second global, since both hooks
+//: are always active/inactive together for one row. Writes to a
+//: SEPARATE CsvWriter (subiter_writer) set alongside writer on the same
+//: sink, so the per-timestep and per-sub-iteration traces stay in
+//: independent files with independent schemas.
+extern "C" void SoiDiagRecordSubIteration(
+    int n_subiter, float tn1, float p1, float r_sev, float r_seh) {
+  if (g_soi_state_diag_sink == nullptr ||
+      g_soi_state_diag_sink->subiter_writer == nullptr) {
+    return;
+  }
+  g_soi_state_diag_sink->subiter_writer->row({
+      g_soi_state_diag_sink->case_id,
+      std::to_string(g_soi_state_diag_sink->step_index),
+      std::to_string(n_subiter), fmt(tn1), fmt(p1, 4), fmt(r_sev, 8),
+      fmt(r_seh, 4), g_soi_state_diag_sink->row_hash});
+  ++g_soi_state_diag_sink->subiter_rows_written;
+}
+
+//: Third, MOST-detailed F-70 hook (same pass, third round): the full
+//: surface-node-update crosswalk record. Field layout MUST match
+//: fof_soi_instr.cpp's own SoiSurfaceUpdateDiag definition exactly --
+//: both are plain PODs of 48 floats in the same declared order, defined
+//: identically in each translation unit (no shared header exists for
+//: overlay-only diagnostic types, matching this file's own established
+//: pattern for the first two hooks). Written to a THIRD, independent
+//: CsvWriter/schema (surfup_writer), gated by the same sink.
+struct SoiSurfaceUpdateDiag {
+  float old_tn1, new_tn1;
+  float old_p1, new_p1;
+  float old_wn1, new_wn1;
+  float old_h1, new_h1;
+  float psat0, h0;
+  float psat1;
+  float psat2, h2;
+  float s1, hvap1;
+  float kh1, enh1, kv1;
+  float kh2, kv2;
+  float ke0, ke1;
+  float kev0, kev1;
+  float conv1, vcon1, cp1;
+  float d_jv, d_jvdt, d_jvdp;
+  float dC_before_boundary;
+  float dC_after_boundary;
+  float dv;
+  float dCdp, dvdp;
+  float dCdt_before_boundary;
+  float dCdt_after_boundary;
+  float dvdt;
+  float r_rabs_in;
+  float stefan_term;
+  float tk_old;
+  float dtn_temperature_raw;
+  float dtn_temperature_clamped;
+  float dtn_matric_raw;
+  float p1_before_range_clamp;
+  float p1_clamp_branch;
+  float r_sev_running, r_seh_running;
+};
+
+//: Column order matches SoiSurfaceUpdateDiag's field order exactly
+//: (checked by test_soil_surfup_diag_header_matches_declared_columns).
+static const std::vector<std::string> SOIL_SURFUP_DIAG_COLUMNS = {
+    "case_id", "step_index", "n_subiter",
+    "old_tn1", "new_tn1", "old_p1", "new_p1", "old_wn1", "new_wn1",
+    "old_h1", "new_h1", "psat0", "h0", "psat1", "psat2", "h2",
+    "s1", "hvap1", "kh1", "enh1", "kv1", "kh2", "kv2",
+    "ke0", "ke1", "kev0", "kev1", "conv1", "vcon1", "cp1",
+    "d_jv", "d_jvdt", "d_jvdp",
+    "dC_before_boundary", "dC_after_boundary", "dv",
+    "dCdp", "dvdp", "dCdt_before_boundary", "dCdt_after_boundary", "dvdt",
+    "r_rabs_in", "stefan_term", "tk_old",
+    "dtn_temperature_raw", "dtn_temperature_clamped", "dtn_matric_raw",
+    "p1_before_range_clamp", "p1_clamp_branch",
+    "r_sev_running", "r_seh_running", "input_sha256"};
+
+extern "C" void SoiDiagRecordSurfaceUpdate(int n_subiter, const SoiSurfaceUpdateDiag *d) {
+  if (g_soi_state_diag_sink == nullptr ||
+      g_soi_state_diag_sink->surfup_writer == nullptr) {
+    return;
+  }
+  g_soi_state_diag_sink->surfup_writer->row({
+      g_soi_state_diag_sink->case_id,
+      std::to_string(g_soi_state_diag_sink->step_index),
+      std::to_string(n_subiter),
+      fmt(d->old_tn1), fmt(d->new_tn1), fmt(d->old_p1, 4), fmt(d->new_p1, 4),
+      fmt(d->old_wn1, 8), fmt(d->new_wn1, 8), fmt(d->old_h1, 8), fmt(d->new_h1, 8),
+      fmt(d->psat0, 4), fmt(d->h0, 8), fmt(d->psat1, 4), fmt(d->psat2, 4), fmt(d->h2, 8),
+      fmt(d->s1, 8), fmt(d->hvap1, 4), fmt(d->kh1, 8), fmt(d->enh1, 8), fmt(d->kv1, 12),
+      fmt(d->kh2, 8), fmt(d->kv2, 12),
+      fmt(d->ke0, 8), fmt(d->ke1, 8), fmt(d->kev0, 12), fmt(d->kev1, 12),
+      fmt(d->conv1, 8), fmt(d->vcon1, 12), fmt(d->cp1, 8),
+      fmt(d->d_jv, 8), fmt(d->d_jvdt, 8), fmt(d->d_jvdp, 8),
+      fmt(d->dC_before_boundary, 6), fmt(d->dC_after_boundary, 6), fmt(d->dv, 8),
+      fmt(d->dCdp, 8), fmt(d->dvdp, 8),
+      fmt(d->dCdt_before_boundary, 6), fmt(d->dCdt_after_boundary, 6), fmt(d->dvdt, 8),
+      fmt(d->r_rabs_in, 6), fmt(d->stefan_term, 6), fmt(d->tk_old, 4),
+      fmt(d->dtn_temperature_raw, 6), fmt(d->dtn_temperature_clamped, 1),
+      fmt(d->dtn_matric_raw, 4),
+      fmt(d->p1_before_range_clamp, 4), fmt(d->p1_clamp_branch, 1),
+      fmt(d->r_sev_running, 8), fmt(d->r_seh_running, 4),
+      g_soi_state_diag_sink->row_hash});
+  ++g_soi_state_diag_sink->surfup_rows_written;
+}
+
+static const std::vector<std::string> SOIL_CAMPBELL_HEADER = {
+    "case_id", "expect_error", "brn_ignited", "soil_type", "moist_cond",
+    "duff_dep_pre_in", "duff_dep_pos_in", "soil_moist_pct",
+    "wl_efficiency", "hs_efficiency", "n_steps",
+    "fi_series_path", "fi_hs_series_path",
+    "duff_load_tac", "duff_consumed_pct", "duff_moist_pct"};
+
+static const int kSoilCampbellNLayers = 14;     // eC_Lay == e_mplus1, fixed
+static const int kSoilCampbellMaxSteps = 6000;  // eC_sfi, fof_co.h:222
+
+// SoiDiagRecordTimestep()'s own node_count parameter is always
+// e_mplus1 + 1 == kSoilCampbellNLayers + 1 (rr_*[] arrays are sized [15]
+// against e_mplus1==14, one extra for the fixed lower-boundary node) --
+// see fof_soi_instr.cpp's hook call site.
+static const int kSoilStateDiagNodeCount = kSoilCampbellNLayers + 1;
+
+// n_steps: strict positive integer in [1, eC_sfi]. Not a real d_SI field --
+// a harness-only bookkeeping value bounding how many side-file entries are
+// meaningful (see fr_FI/fr_FIhs sizing below).
+static bool parse_step_count(const std::string &raw, int *out, std::string *err) {
+  std::string s = trim(raw);
+  if (s.empty()) { *err = "blank n_steps field"; return false; }
+  const char *cs = s.c_str();
+  char *endp = nullptr;
+  errno = 0;
+  long v = std::strtol(cs, &endp, 10);
+  if (endp != cs + s.size() || endp == cs) {
+    *err = "n_steps must be a plain integer";
+    return false;
+  }
+  if (errno == ERANGE || v < 1 || v > kSoilCampbellMaxSteps) {
+    *err = "n_steps out of range [1, " + std::to_string(kSoilCampbellMaxSteps) + "]";
+    return false;
+  }
+  *out = static_cast<int>(v);
+  return true;
+}
+
+// Rejects an absolute path, a drive-letter path, or any traversal
+// segment (two dots) -- harness-contract section 7's "reject
+// ambiguous/unsafe paths" / item-2's "absolute paths that would make
+// manifests non-portable".
+static bool is_unsafe_relative_path(const std::string &p) {
+  if (p.empty()) return true;
+  if (p[0] == '/' || p[0] == '\\') return true;
+  if (p.size() >= 2 && std::isalpha((unsigned char)p[0]) && p[1] == ':') return true;
+  std::vector<std::string> parts;
+  std::string cur;
+  for (char c : p) {
+    if (c == '/' || c == '\\') { parts.push_back(cur); cur.clear(); }
+    else cur.push_back(c);
+  }
+  parts.push_back(cur);
+  for (const auto &part : parts) {
+    if (part.size() == 2 && part[0] == '.' && part[1] == '.') return true;
+  }
+  return false;
+}
+
+// Reads a side file: one finite numeric value per non-blank line, exactly
+// n_steps lines. Rejects missing/unreadable/empty/malformed/non-finite/
+// wrong-length content (harness-contract section 7). *sha_out receives the
+// file's own raw-bytes SHA-256 (used to replace the path column in
+// input_sha256 -- "side files are part of the input identity").
+static bool read_numeric_series_file(const std::string &dir, const std::string &rel_path,
+                                      int n_steps, std::vector<float> *values,
+                                      std::string *sha_out, std::string *err) {
+  if (is_unsafe_relative_path(rel_path)) {
+    *err = "side-file path must be relative, with no drive letter and no "
+           "two-dot traversal segment: " + rel_path;
+    return false;
+  }
+  std::string full = dir + "/" + rel_path;
+  bool hash_ok = false;
+  std::string h = sha256_hex_file(full, &hash_ok);
+  if (!hash_ok) {
+    *err = "side file missing or unreadable: " + rel_path;
+    return false;
+  }
+  std::ifstream f(full);
+  if (!f) {
+    *err = "side file missing or unreadable: " + rel_path;
+    return false;
+  }
+  std::vector<float> out;
+  std::string line;
+  while (std::getline(f, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    std::string t = trim(line);
+    if (t.empty()) continue;
+    double dv;
+    std::string perr;
+    if (!parse_strict_double(t, &dv, &perr)) {
+      *err = "side file " + rel_path + " line " +
+             std::to_string(out.size() + 1) + ": " + perr;
+      return false;
+    }
+    out.push_back((float)dv);
+  }
+  if (out.empty()) {
+    *err = "side file is empty: " + rel_path;
+    return false;
+  }
+  if ((int)out.size() != n_steps) {
+    *err = "side file " + rel_path + " has " + std::to_string(out.size()) +
+           " values, declared n_steps is " + std::to_string(n_steps);
+    return false;
+  }
+  *values = out;
+  *sha_out = h;
+  return true;
+}
+
+static int run_soil_campbell(const InputFile &in, const std::string &prefix) {
+  CsvWriter summary(prefix + "_summary.csv");
+  CsvWriter field(prefix + "_field.csv");
+  if (!summary.ok || !field.ok) {
+    std::cerr << "[fofem_test] FATAL: cannot open output files\n";
+    return 1;
+  }
+
+  std::vector<std::string> summary_header = {
+      "case_id", "mode", "schema_version", "outcome", "model",
+      "n_layers", "n_time_indices", "ret", "err_text", "input_sha256"};
+  for (int i = 0; i < kSoilCampbellNLayers; ++i) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "lay%02d_max_temp_c", i);
+    summary_header.push_back(buf);
+  }
+  for (int i = 0; i < kSoilCampbellNLayers; ++i) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "lay%02d_max_time_s", i);
+    summary_header.push_back(buf);
+  }
+  summary_header.push_back("duf_pre_cm");
+  summary_header.push_back("duf_post_cm");
+  summary_header.push_back("heat_frac");
+  summary_header.push_back("lay_max_deg1_index");
+  summary_header.push_back("lay_max_deg2_index");
+  // Schema v2: direct DuffBurn() outputs -- see the "Schema v2" note above.
+  summary_header.push_back("duff_burn_intensity_kw");
+  summary_header.push_back("duff_burn_duration_s");
+  summary_header.push_back("duff_burn_consumed_per_sec");
+  summary.header(summary_header);
+  field.header({"case_id", "layer_index", "time_index", "time_s", "temp_c",
+                "input_sha256"});
+
+  // F-70 diagnostic pass: opt-in only, via FOFEM_TEST_SOIL_DIAG. See the
+  // "F-70 diagnostic pass" comment block above (near the rr_tn/.../rr_enh
+  // extern declarations) for exactly what is and is not observable and
+  // why. The normal summary/field schema above is completely unaffected
+  // whether or not this is enabled.
+  const char *soil_diag_env = std::getenv("FOFEM_TEST_SOIL_DIAG");
+  bool soil_diag_requested = (soil_diag_env != nullptr && soil_diag_env[0] != '\0');
+  std::unique_ptr<CsvWriter> soidiag;
+  size_t soidiag_rows_written = 0;
+  size_t soidiag_rows_expected = 0;
+  if (soil_diag_requested) {
+    soidiag.reset(new CsvWriter(prefix + "_soidiag.csv"));
+    if (!soidiag->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil diagnostic output file\n";
+      return 1;
+    }
+    soidiag->header({
+        "case_id", "record_kind", "time_index", "time_s", "node_index",
+        "temp_tn_c", "temp_t_c", "water_content_wn", "water_content_w",
+        "matric_potential_p", "humidity_h", "vapor_pressure_psat_pa",
+        "cond_kh", "cond_kv", "cond_enh", "surface_flux_w", "heat_frac_pc",
+        "ambient_rabs_w", "fire_forcing_w", "input_sha256"});
+  }
+
+  // F-70 second diagnostic pass: opt-in only, via FOFEM_TEST_SOIL_STATE_DIAG,
+  // independent of FOFEM_TEST_SOIL_DIAG above. Every field comes from a
+  // real SoiDiagRecordTimestep() call (see its own definition above) --
+  // only ever populated when the CURRENTLY RUNNING binary was built from
+  // fof_soi_instr.cpp (the fofem_test_soidiag target). Running the
+  // NORMAL fofem_test binary with this env var set opens the file, writes
+  // only the header, and closes it cleanly (zero rows, zero error) --
+  // documented, not hidden; see soil_state_diag_enabled_for()'s own
+  // comment and the executable proof in
+  // test_soil_state_diag_requires_the_diagnostic_binary.
+  const char *soil_state_diag_env = std::getenv("FOFEM_TEST_SOIL_STATE_DIAG");
+  bool soil_state_diag_requested =
+      (soil_state_diag_env != nullptr && soil_state_diag_env[0] != '\0');
+  std::unique_ptr<CsvWriter> soistate;
+  if (soil_state_diag_requested) {
+    soistate.reset(new CsvWriter(prefix + "_soistate.csv"));
+    if (!soistate->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil state diagnostic output file\n";
+      return 1;
+    }
+    soistate->header({
+        "case_id", "step_index", "node_index", "temp_tn_c", "temp_t_true_c",
+        "water_content_wn", "water_content_w_true", "matric_potential_p",
+        "humidity_h", "vapor_pressure_psat_pa", "cond_kh", "cond_kv",
+        "cond_enh", "resid_water_r_sev", "resid_heat_r_seh", "n_subiter",
+        "surface_flux_w_rabs_in", "input_sha256"});
+  }
+
+  // F-70 second same-pass addition: per-Newton-sub-iteration trace
+  // (surface node only), gated by the SAME FOFEM_TEST_SOIL_STATE_DIAG
+  // env var as soistate above -- always opened/closed together with it,
+  // never independently requestable. See SoiDiagRecordSubIteration's own
+  // comment for why this exists (the per-TIMESTEP trace alone could not
+  // localise a large first-timestep divergence in the non-duff route).
+  std::unique_ptr<CsvWriter> soisubiter;
+  if (soil_state_diag_requested) {
+    soisubiter.reset(new CsvWriter(prefix + "_soisubiter.csv"));
+    if (!soisubiter->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil sub-iteration diagnostic output file\n";
+      return 1;
+    }
+    soisubiter->header({"case_id", "step_index", "n_subiter", "temp_tn1_c",
+                         "matric_potential_p1", "resid_water_r_sev",
+                         "resid_heat_r_seh", "input_sha256"});
+  }
+
+  // F-70 third same-pass addition: the full surface-node-update
+  // crosswalk record (SoiSurfaceUpdateDiag, 48 fields) -- gated by the
+  // SAME env var as soistate/soisubiter above, always opened/closed
+  // together. See SoiDiagRecordSurfaceUpdate's own comment for why this
+  // exists (the 5-field soisubiter trace alone could not isolate WHICH
+  // named quantity first diverges within one sub-iteration).
+  std::unique_ptr<CsvWriter> soisurfup;
+  if (soil_state_diag_requested) {
+    soisurfup.reset(new CsvWriter(prefix + "_soisurfup.csv"));
+    if (!soisurfup->ok) {
+      std::cerr << "[fofem_test] FATAL: cannot open soil surface-update diagnostic output file\n";
+      return 1;
+    }
+    soisurfup->header(SOIL_SURFUP_DIAG_COLUMNS);
+  }
+
+  bool any_unexpected = false;
+  size_t ok_rows = 0;
+  size_t field_rows_written = 0;
+  size_t expected_field_rows = 0;
+  size_t soisubiter_rows_written_total = 0;
+  size_t soisurfup_rows_written_total = 0;
+
+  for (size_t r = 0; r < in.rows.size(); ++r) {
+    const auto &f = in.rows[r];
+    g_output_nonfinite = false;  // reset per row; fmt() sets this if called
+    std::string row_err;
+
+    bool expect_error = false;
+    if (!parse_expect_error(f[1], &expect_error, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << ": " << row_err << "\n";
+      return 1;
+    }
+
+    if (f[2] != "YES" && f[2] != "NO") {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field brn_ignited: must be exactly YES or NO, got "
+                << f[2] << "\n";
+      return 1;
+    }
+
+    double dv;
+#define REQ_SOIL_DOUBLE(idx, target)                                       \
+    if (!parse_strict_double(f[idx], &dv, &row_err)) {                     \
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field '"        \
+                << SOIL_CAMPBELL_HEADER[idx] << "': " << row_err << "\n";   \
+      return 1;                                                            \
+    }                                                                       \
+    (target) = (float)dv;
+
+    float duff_dep_pre_in, duff_dep_pos_in, soil_moist_pct;
+    float wl_efficiency, hs_efficiency;
+    float duff_load_tac, duff_consumed_pct, duff_moist_pct;
+    REQ_SOIL_DOUBLE(5, duff_dep_pre_in);
+    REQ_SOIL_DOUBLE(6, duff_dep_pos_in);
+    REQ_SOIL_DOUBLE(7, soil_moist_pct);
+    REQ_SOIL_DOUBLE(8, wl_efficiency);
+    REQ_SOIL_DOUBLE(9, hs_efficiency);
+    REQ_SOIL_DOUBLE(13, duff_load_tac);
+    REQ_SOIL_DOUBLE(14, duff_consumed_pct);
+    REQ_SOIL_DOUBLE(15, duff_moist_pct);
+#undef REQ_SOIL_DOUBLE
+    if (duff_load_tac < 0.0f) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field duff_load_tac: must be >= 0\n";
+      return 1;
+    }
+
+    // Schema v2: direct DuffBurn() outputs, computed from the SAME
+    // conversions SD_Mngr_New itself applies (fof_sd.cpp:98-107) before
+    // calling DuffBurn -- TPA_To_KiSq(duff_load_tac), duff_moist_pct/100.0
+    // -- and using duff_consumed_pct exactly as SD_Mngr_New passes its own
+    // f_DufConPer (fof_sd.cpp:106), unconverted. Computed unconditionally
+    // (independent of whether SH_Mngr below succeeds): DuffBurn is a pure
+    // function of these three already-validated inputs.
+    double duff_burn_wdf = (double)TPA_To_KiSq(duff_load_tac);
+    double duff_burn_dfm = (double)duff_moist_pct / 100.0;
+    double duff_burn_dfi = 0.0, duff_burn_tdf = 0.0, duff_burn_amt_sec = 0.0;
+    DuffBurn(duff_burn_wdf, duff_burn_dfm, &duff_burn_dfi, &duff_burn_tdf,
+             duff_consumed_pct, &duff_burn_amt_sec);
+    if (!std::isfinite(duff_burn_dfi) || !std::isfinite(duff_burn_tdf) ||
+        !std::isfinite(duff_burn_amt_sec)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": DuffBurn() produced a non-finite output\n";
+      return 1;
+    }
+
+    int n_steps;
+    if (!parse_step_count(f[10], &n_steps, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1 << " field n_steps: "
+                << row_err << "\n";
+      return 1;
+    }
+
+    std::vector<float> fi_wl, fi_hs;
+    std::string sha_wl, sha_hs;
+    if (!read_numeric_series_file(in.input_dir, f[11], n_steps, &fi_wl, &sha_wl, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field fi_series_path: " << row_err << "\n";
+      return 1;
+    }
+    if (!read_numeric_series_file(in.input_dir, f[12], n_steps, &fi_hs, &sha_hs, &row_err)) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field fi_hs_series_path: " << row_err << "\n";
+      return 1;
+    }
+
+    // input_sha256: normalised fields with the two path columns replaced
+    // by the referenced files' own content hash (harness-contract sec 7).
+    std::string normalised;
+    for (size_t i = 0; i < f.size(); ++i) {
+      if (i) normalised += ",";
+      if (i == 11) normalised += sha_wl;
+      else if (i == 12) normalised += sha_hs;
+      else normalised += f[i];
+    }
+    std::string row_hash = sha256_hex(normalised);
+
+    // Fixed-size arrays sized to eC_sfi+1 (fof_co.h:222), matching
+    // Burnup's own fr_SFI[]/fr_SFIhs[] convention and SH_Mngr's real
+    // safety bound (fof_se.cpp:241 rejects any index >= eC_sfi) -- never
+    // undersized, never read past what was validated above.
+    std::vector<float> fr_FI(kSoilCampbellMaxSteps + 1, 0.0f);
+    std::vector<float> fr_FIhs(kSoilCampbellMaxSteps + 1, 0.0f);
+    for (int i = 0; i < n_steps; ++i) { fr_FI[i] = fi_wl[i]; fr_FIhs[i] = fi_hs[i]; }
+
+    d_SI si;
+    d_SO so;
+    std::memset(&si, 0, sizeof(si));
+    std::memset(&so, 0, sizeof(so));
+    SI_Init(&si);
+    // SI_Init() leaves f_DufLoaPre/f_DufConPer/f_DufMoi/f_SoilDuffEff
+    // uninitialised (fof_sh.cpp:221-231) -- set every one explicitly so
+    // no row ever runs on garbage memory (item-1 audit finding).
+    // f[2] is CSV-derived (already validated above as exactly "YES" or
+    // "NO"), so it is copied with the fail-closed safe_copy(), not
+    // safe_copy_literal() -- the latter is reserved for harness-controlled
+    // literals per its own doc comment.
+    if (!safe_copy(si.cr_BrnIg, f[2])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field brn_ignited: value exceeds destination buffer "
+                   "capacity (" << (sizeof(si.cr_BrnIg) - 1) << " chars)\n";
+      return 1;
+    }
+    if (!safe_copy(si.cr_SoilType, f[3])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field soil_type: value exceeds destination buffer "
+                   "capacity (" << (sizeof(si.cr_SoilType) - 1) << " chars)\n";
+      return 1;
+    }
+    if (!safe_copy(si.cr_MoistCond, f[4])) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << " field moist_cond: value exceeds destination buffer "
+                   "capacity (" << (sizeof(si.cr_MoistCond) - 1) << " chars)\n";
+      return 1;
+    }
+    si.f_DufDepPre = duff_dep_pre_in;
+    si.f_DufDepPos = duff_dep_pos_in;
+    si.f_SoilMoist = soil_moist_pct;
+    si.f_SoilWlEff = wl_efficiency;
+    si.f_SoilHsEff = hs_efficiency;
+    si.f_DufLoaPre = duff_load_tac;
+    si.f_DufConPer = duff_consumed_pct;
+    si.f_DufMoi = duff_moist_pct;
+    si.f_SoilDuffEff = -1.0f;   // "use built-in default", fof_sd.cpp:263-266
+    si.ar_FI = nullptr;        // dead field -- never read by SH_Mngr's path
+
+    char err_buf[3000];
+    err_buf[0] = '\0';
+    // "" (never a real path) -- makes SD_Mngr_New/SE_Mngr_Array skip ALL
+    // temp-file I/O (fof_sd.cpp:64-66, fof_se.cpp:69-71); a local mutable
+    // buffer, not a cast string literal, since cr_TmpFN[] is non-const.
+    char tmp_fn[1] = {'\0'};
+
+    // F-70 second diagnostic pass: activate the global sink ONLY for this
+    // row's own SH_Mngr() call, ONLY when this exact case_id was requested
+    // via FOFEM_TEST_SOIL_STATE_DIAG. step_index resets to 0 per row (a
+    // fresh soiltemp_step() sequence each SH_Mngr() call) so (case_id,
+    // step_index, node_index) stays a unique key even across multiple rows
+    // in one input file. Never left set across rows -- cleared
+    // unconditionally immediately after the call returns, regardless of
+    // outcome, so a failed/errored row can never leak a dangling sink into
+    // the NEXT row's unrelated SH_Mngr() call.
+    SoiStateDiagSink state_sink;
+    bool state_sink_active = (soistate && soil_state_diag_enabled_for(f[0]));
+    if (state_sink_active) {
+      state_sink.writer = soistate.get();
+      state_sink.subiter_writer = soisubiter.get();
+      state_sink.surfup_writer = soisurfup.get();
+      state_sink.case_id = f[0];
+      state_sink.row_hash = row_hash;
+      state_sink.step_index = 0;
+      g_soi_state_diag_sink = &state_sink;
+    }
+    int ret = SH_Mngr(&si, &so, fr_FI.data(), fr_FIhs.data(), tmp_fn, err_buf);
+    g_soi_state_diag_sink = nullptr;
+    if (state_sink_active) {
+      // Every SoiDiagRecordTimestep() call writes exactly node_count
+      // (kSoilStateDiagNodeCount) rows -- one full solver step's worth of
+      // per-node state, never a partial write. A total that is not an
+      // exact multiple means either the hook or this reconciliation logic
+      // itself is broken; fail closed rather than silently accept a
+      // truncated diagnostic trace. A count of exactly 0 is NOT an error
+      // here -- it is the documented fail-quiet behavior of running the
+      // NORMAL (non-instrumented) fofem_test binary with this env var set.
+      if (state_sink.rows_written % (size_t)kSoilStateDiagNodeCount != 0) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": soil state diagnostic reconciliation failed: wrote "
+                  << state_sink.rows_written << " rows, not a multiple of "
+                  << kSoilStateDiagNodeCount << " nodes\n";
+        return 1;
+      }
+      soisubiter_rows_written_total += state_sink.subiter_rows_written;
+      soisurfup_rows_written_total += state_sink.surfup_rows_written;
+    }
+    bool model_errored = (ret != 1);
+
+    Outcome oc = classify(expect_error, model_errored);
+    if (oc == Outcome::UNEXPECTED_FAILURE) any_unexpected = true;
+
+    std::string model_str(so.cr_Model);
+    int n_time_indices = 0;
+    if (oc == Outcome::OK) {
+      while (n_time_indices < eC_Tim &&
+             SHA_Get(1, n_time_indices) != (float)e_SHA_Init) {
+        ++n_time_indices;
+      }
+    }
+
+    std::vector<std::string> row = {
+        f[0], "soil_campbell", in.schema_version, outcome_str(oc),
+        oc == Outcome::OK ? model_str : std::string(NA_SENTINEL),
+        oc == Outcome::OK ? std::to_string(kSoilCampbellNLayers) : std::string(NA_SENTINEL),
+        oc == Outcome::OK ? std::to_string(n_time_indices) : std::string(NA_SENTINEL),
+        std::to_string(ret), csv_quote(err_buf), row_hash};
+
+    if (oc == Outcome::OK) {
+      for (int i = 0; i < kSoilCampbellNLayers; ++i)
+        row.push_back(std::to_string(so.ir_Temp[i]));
+      for (int i = 0; i < kSoilCampbellNLayers; ++i)
+        row.push_back(std::to_string(so.ir_TimSec[i]));
+      row.push_back(fmt(so.f_cDufPre));
+      row.push_back(fmt(so.f_cDufPost));
+      row.push_back(fmt(so.f_Heatpc, 6));
+      row.push_back(std::to_string(so.i_LayMaxDeg1));
+      row.push_back(std::to_string(so.i_LayMaxDeg2));
+    } else {
+      for (int i = 0; i < 2 * kSoilCampbellNLayers + 5; ++i)
+        row.push_back(NA_SENTINEL);
+    }
+    if (oc == Outcome::OK && g_output_nonfinite) {
+      std::cerr << "[fofem_test] FATAL row " << r + 1
+                << ": soil_campbell produced a non-finite scientific value "
+                   "on a successful row\n";
+      return 1;
+    }
+    // Schema v2: DuffBurn() outputs are independent of the SH_Mngr()
+    // outcome above (DuffBurn is a pure function of the three already-
+    // validated inputs) -- always real values, never NA_SENTINEL.
+    // Finiteness was already checked (and FATAL-raised on failure) right
+    // after computing them, above.
+    row.push_back(fmt(duff_burn_dfi, 6));
+    row.push_back(fmt(duff_burn_tdf, 6));
+    row.push_back(fmt(duff_burn_amt_sec, 9));
+    summary.row(row);
+
+    if (oc == Outcome::OK) {
+      ++ok_rows;
+      expected_field_rows += (size_t)kSoilCampbellNLayers * (size_t)n_time_indices;
+      // Real per-row recording interval, read directly from SHA_GetInc()
+      // right after this row's own SH_Mngr() call -- see the "Mode:
+      // soil_campbell" header comment's time_s note above. Never an
+      // assumed constant: SD_Mngr_New/SE_Mngr_Array/SHA_Init_0 each set it
+      // themselves inside the SH_Mngr() call this row just made.
+      int inc_s = SHA_GetInc();
+      for (int lay = 0; lay < kSoilCampbellNLayers; ++lay) {
+        for (int t = 0; t < n_time_indices; ++t) {
+          float temp = SHA_Get(lay + 1, t);
+          field.row({f[0], std::to_string(lay), std::to_string(t),
+                     std::to_string(t * inc_s), fmt(temp), row_hash});
+          ++field_rows_written;
+        }
+      }
+      if (g_output_nonfinite) {
+        std::cerr << "[fofem_test] FATAL row " << r + 1
+                  << ": soil_campbell field harvest produced a non-finite "
+                     "temperature on a successful row\n";
+        return 1;
+      }
+
+      // F-70 diagnostic pass: "timestep" rows (real per-tick surface
+      // flux/heat-fraction from the pinned SHA_TP table, joined with the
+      // real per-tick per-node temperature already read above via
+      // SHA_Get) plus "final_node" rows (the real fof_soi.cpp module
+      // globals, final-converged-timestep state only -- see the header
+      // comment near their extern declarations for exactly why no
+      // earlier snapshot is observable). Emitted only for this row's
+      // case_id when FOFEM_TEST_SOIL_DIAG requests it; a row that
+      // succeeded (oc == Outcome::OK) but was not requested writes
+      // nothing here, matching the "opt-in only" contract.
+      if (soidiag && soil_diag_enabled_for(f[0])) {
+        // A trivial, already-independently-verified (F-69) constant,
+        // computed from the FIXED family-table starting temperature
+        // (e_StaSoiTem = 21 degC, fof_sh2.h:17 -- soil_campbell has no
+        // start_temp input column; every scenario uses this same fixed
+        // family default). NOT read from any C++ variable: fof_sd.cpp's/
+        // fof_se.cpp's own r_Rabs is a local, unexposed variable, so
+        // restating its known constant formula here is not
+        // reimplementing solver physics, only labeling an already-cited
+        // one-line constant for readability.
+        const float kSoilDiagStartTempC = 21.0f;
+        const float kSoilDiagTk4 =
+            (kSoilDiagStartTempC + 273.0f) * (kSoilDiagStartTempC + 273.0f) *
+            (kSoilDiagStartTempC + 273.0f) * (kSoilDiagStartTempC + 273.0f);
+        const float ambient_rabs = 5.67e-8f * kSoilDiagTk4;
+
+        for (int t = 0; t < n_time_indices; ++t) {
+          int tp_tim = -1;
+          float tp_pc = -1.0f, tp_wts = -1.0f;
+          bool have_tp = (SHA_TP_Get(t, &tp_tim, &tp_pc, &tp_wts) != 0);
+          std::string surface_flux_str(NA_SENTINEL);
+          std::string heat_frac_str(NA_SENTINEL);
+          std::string ambient_str(NA_SENTINEL);
+          std::string fire_forcing_str(NA_SENTINEL);
+          if (have_tp) {
+            surface_flux_str = fmt(tp_wts, 6);
+            heat_frac_str = fmt(tp_pc, 6);
+            ambient_str = fmt(ambient_rabs, 6);
+            fire_forcing_str = fmt(tp_wts - ambient_rabs, 6);
+          }
+          for (int ni = 0; ni < kSoilDiagNodeCount; ++ni) {
+            int node = kSoilDiagNodes[ni];
+            float temp_tn = SHA_Get(node, t);
+            soidiag->row({f[0], "timestep", std::to_string(t),
+                          std::to_string(t * inc_s), std::to_string(node),
+                          fmt(temp_tn),
+                          // 8 NA placeholders: temp_t_c, water_content_wn,
+                          // water_content_w, matric_potential_p, humidity_h,
+                          // vapor_pressure_psat_pa, cond_kh, cond_kv --
+                          // "final_node"-only fields, never available per
+                          // timestep (see the header comment above).
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                          // cond_enh -- also "final_node"-only.
+                          std::string(NA_SENTINEL),
+                          surface_flux_str, heat_frac_str, ambient_str,
+                          fire_forcing_str, row_hash});
+            ++soidiag_rows_written;
+          }
+        }
+        soidiag_rows_expected += (size_t)n_time_indices * (size_t)kSoilDiagNodeCount;
+
+        for (int ni = 0; ni < kSoilDiagNodeCount; ++ni) {
+          int node = kSoilDiagNodes[ni];
+          soidiag->row({f[0], "final_node", std::string(NA_SENTINEL),
+                        std::string(NA_SENTINEL), std::to_string(node),
+                        fmt(rr_tn[node]), fmt(rr_t[node]),
+                        fmt(rr_wn[node], 8), fmt(rr_w[node], 8),
+                        fmt(rr_p[node], 4), fmt(rr_h[node], 8),
+                        fmt(rr_psat[node], 4), fmt(rr_kh[node], 8),
+                        fmt(rr_kv[node], 12), fmt(rr_enh[node], 8),
+                        std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                        std::string(NA_SENTINEL), std::string(NA_SENTINEL),
+                        row_hash});
+          ++soidiag_rows_written;
+        }
+        soidiag_rows_expected += (size_t)kSoilDiagNodeCount;
+      }
+    }
+  }
+
+  // Final reconciliation (harness-contract section 7 / self-test 11c):
+  // variable per-row multiplicity k(case_id) = n_layers*n_time_indices for
+  // ok rows, zero for everything else.
+  if (field_rows_written != expected_field_rows) {
+    std::cerr << "[fofem_test] FATAL: soil_campbell field-row reconciliation "
+                 "failed: wrote " << field_rows_written
+              << " field rows, expected " << expected_field_rows
+              << " (sum of n_layers*n_time_indices over " << ok_rows
+              << " ok rows)\n";
+    return 1;
+  }
+  if (!summary.close_and_check() || !field.close_and_check()) {
+    std::cerr << "[fofem_test] FATAL: soil_campbell output write/flush/close failed\n";
+    return 1;
+  }
+  if (soidiag) {
+    if (soidiag_rows_written != soidiag_rows_expected) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell diagnostic row "
+                   "reconciliation failed: wrote " << soidiag_rows_written
+                << " rows, expected " << soidiag_rows_expected << "\n";
+      return 1;
+    }
+    if (!soidiag->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell diagnostic output "
+                   "write/flush/close failed\n";
+      return 1;
+    }
+  }
+  if (soistate) {
+    // No a-priori "expected" count exists here (unlike soidiag's
+    // n_time_indices*node_count, the internal Newton-step count is not
+    // knowable before the solver actually runs) -- each row's own
+    // multiple-of-node-count check above is the real reconciliation; this
+    // is a pure write/flush/close proof.
+    if (!soistate->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell state diagnostic "
+                   "output write/flush/close failed\n";
+      return 1;
+    }
+  }
+  if (soisubiter) {
+    // Same reasoning as soistate above: no a-priori expected count (the
+    // real Newton sub-iteration count is not knowable in advance); this
+    // is a pure write/flush/close proof, not a fresh reconciliation.
+    if (!soisubiter->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell sub-iteration "
+                   "diagnostic output write/flush/close failed\n";
+      return 1;
+    }
+  }
+  if (soisurfup) {
+    // Unlike soistate/soisubiter, THIS reconciliation IS knowable a
+    // priori: SoiDiagRecordSubIteration() and SoiDiagRecordSurfaceUpdate()
+    // are called EXACTLY once each, from the same i==1 pass of the same
+    // sub-iteration loop -- their cumulative row counts across the
+    // entire run must be identical, or one of the two hooks has a real
+    // bug (fired for a row/case the other didn't, or vice versa).
+    if (soisubiter && soisubiter_rows_written_total != soisurfup_rows_written_total) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell surface-update "
+                   "diagnostic reconciliation failed: soisubiter wrote "
+                << soisubiter_rows_written_total << " rows, soisurfup wrote "
+                << soisurfup_rows_written_total << "\n";
+      return 1;
+    }
+    if (!soisurfup->close_and_check()) {
+      std::cerr << "[fofem_test] FATAL: soil_campbell surface-update "
+                   "diagnostic output write/flush/close failed\n";
+      return 1;
+    }
+  }
+  return any_unexpected ? 1 : 0;
+}
+
+// ===========================================================================
+// Mode dispatch table
+// ===========================================================================
+
+// `schema_version` is PER MODE, not global. gate0/05-harness-contract.md
+// declares each mode's schema independently (section 2 "Mode consume
+// (schema v1)", section 5 "Mode mortality (schema v2)", ...), so a
+// revision to one mode must not silently redefine what an archived CSV
+// of another mode's v1 means. main() validates the magic line's version
+// against the SELECTED mode's declared version, and every run_* function
+// echoes the input file's own version into its output rows.
+struct ModeSpec {
+  const char *name;
+  const char *schema_version;
+  const std::vector<std::string> *header;
+  int (*run)(const InputFile &, const std::string &);
+};
+
+static const ModeSpec MODES[] = {
+    {"consume", "1", &CONSUME_HEADER, run_consume},
+    {"litter_eq", "1", &LITTER_EQ_HEADER, run_litter_eq},
+    {"shrub_herb_eq", "1", &SHRUB_HERB_EQ_HEADER, run_shrub_herb_eq},
+    {"mortality", "2", &MORTALITY_HEADER, run_mortality},
+    {"bark_thick", "1", &BARK_THICK_HEADER, run_bark_thick},
+    {"canopy_cover", "1", &CANOPY_COVER_HEADER, run_canopy_cover},
+    {"soil_campbell", "2", &SOIL_CAMPBELL_HEADER, run_soil_campbell},
+};
+
+int main(int argc, char **argv) {
+  // Hidden self-test mode (audit finding #5): print SHA-256 known vectors
+  // for independent cross-checking against a trusted implementation
+  // (e.g. Python hashlib), and optionally a file digest. Not part of the
+  // documented six-mode harness contract.
+  if (argc >= 2 && std::string(argv[1]) == "--selftest-sha256") {
+    std::cout << "SHA256_EMPTY=" << sha256_hex("") << "\n";
+    std::cout << "SHA256_ABC=" << sha256_hex("abc") << "\n";
+    if (argc >= 3) {
+      bool ok = false;
+      std::string h = sha256_hex_file(argv[2], &ok);
+      if (!ok) {
+        std::cerr << "[fofem_test] FATAL: cannot hash file: " << argv[2]
+                  << "\n";
+        return 1;
+      }
+      std::cout << "SHA256_FILE=" << h << "\n";
+    }
     return 0;
+  }
+
+  if (argc < 3) {
+    std::cerr << "Usage: fofem_test <input.csv> <output_prefix> "
+                 "[--species-csv <path>]\n";
+    return 1;
+  }
+  std::string input_path = argv[1];
+  std::string output_prefix = argv[2];
+
+  // Parse the optional --species-csv <path> flag. Applicability (required
+  // for mortality/bark_thick/canopy_cover, rejected for every other mode)
+  // is checked below once the mode is known.
+  bool have_species_csv = false;
+  std::string species_csv_path;
+  for (int i = 3; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg == "--species-csv") {
+      if (have_species_csv) {
+        std::cerr << "[fofem_test] FATAL: --species-csv given more than once\n";
+        return 1;
+      }
+      if (i + 1 >= argc) {
+        std::cerr << "[fofem_test] FATAL: --species-csv requires a path "
+                     "argument\n";
+        return 1;
+      }
+      species_csv_path = argv[++i];
+      have_species_csv = true;
+    } else {
+      std::cerr << "[fofem_test] FATAL: unknown option '" << arg << "'\n";
+      return 1;
+    }
+  }
+
+  // Peek the magic line to find the declared mode before we know which
+  // header to validate against.
+  std::ifstream peek(input_path);
+  if (!peek) {
+    std::cerr << "[fofem_test] FATAL: cannot open input file: " << input_path
+              << "\n";
+    return 1;
+  }
+  std::string magic_line;
+  if (!std::getline(peek, magic_line)) {
+    std::cerr << "[fofem_test] FATAL: empty input file (no magic/version line)\n";
+    return 1;
+  }
+  peek.close();
+  if (!magic_line.empty() && magic_line.back() == '\r') magic_line.pop_back();
+  std::vector<std::string> magic_fields = split_comma(magic_line);
+  if (magic_fields.size() != 3 || magic_fields[0] != "#fofem-harness") {
+    std::cerr << "[fofem_test] FATAL: malformed magic/version line: "
+              << magic_line << "\n";
+    return 1;
+  }
+  std::string mode = magic_fields[1];
+
+  // Resolve the mode FIRST: the accepted schema version is a property
+  // of the mode, so it cannot be checked before the mode is known.
+  const ModeSpec *spec = nullptr;
+  for (const auto &m : MODES) {
+    if (mode == m.name) { spec = &m; break; }
+  }
+  if (!spec) {
+    std::cerr << "[fofem_test] FATAL: unknown mode '" << mode << "'\n";
+    return 1;
+  }
+  if (magic_fields[2] != spec->schema_version) {
+    std::cerr << "[fofem_test] FATAL: unsupported schema_version '"
+              << magic_fields[2] << "' for mode '" << mode
+              << "' (only '" << spec->schema_version
+              << "' is defined for this mode)\n";
+    return 1;
+  }
+
+  bool mode_needs_species =
+      (mode == "mortality" || mode == "bark_thick" || mode == "canopy_cover");
+  if (mode_needs_species && !have_species_csv) {
+    std::cerr << "[fofem_test] FATAL: mode '" << mode
+              << "' requires --species-csv <path>\n";
+    return 1;
+  }
+  if (!mode_needs_species && have_species_csv) {
+    std::cerr << "[fofem_test] FATAL: mode '" << mode
+              << "' does not accept --species-csv\n";
+    return 1;
+  }
+  if (mode_needs_species) {
+    std::string species_err;
+    if (!load_species_table(species_csv_path, &species_err)) {
+      std::cerr << "[fofem_test] FATAL: " << species_err << "\n";
+      return 1;
+    }
+  }
+
+  InputFile infile;
+  std::string err;
+  if (!read_input_file(input_path, *spec->header, &infile, &err)) {
+    std::cerr << "[fofem_test] FATAL: " << err << "\n";
+    return 1;
+  }
+
+  return spec->run(infile, output_prefix);
 }

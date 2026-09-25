@@ -1,0 +1,7 @@
+stand_id,mode,schema_version,n_members,n_ok,n_expected_model_error,n_unexpected_failure,aggregate_emitted,suppression_reason,group_sha256
+p4s1,canopy_cover,1,3,3,0,0,1,none,ef7f3dd2f450fc7474e6b121e25909e917625b87916d7d39a8b692e0550ee2cd
+p4s2,canopy_cover,1,3,3,0,0,1,none,93c9afb19cf98152514f5b0b6f167eaba34dbca2e6046ab4d149a5f70fe217cb
+p4s3,canopy_cover,1,1,1,0,0,1,none,c6732ff23e3e60b5e088c232201861e68446bafb1cf195462977539b76be1ab7
+p4s4,canopy_cover,1,3,3,0,0,1,none,dd348ebcec2b440ecffba349b03b5d80fed17c6f0cb06d81b8b6384bc12a7f14
+p4s5,canopy_cover,1,4,4,0,0,1,none,57650dac7a2e0a0d40dea5ded5c628e2373c41e353b2097bb9f127e3e16ecddd
+p4s6,canopy_cover,1,1,0,1,0,0,expected_model_error_member,498ac7beeb2dfd096d2fe205861012065f1653417375ed2799bacb0ccd7bf3c7
