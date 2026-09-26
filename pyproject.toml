@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyfofem-fire-effects"
-version = "0.1.1rc2"
+version = "0.1.1"
 description = "A Python implementation of the FOFEM fire-effects model"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.11"
