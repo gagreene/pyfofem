@@ -564,6 +564,7 @@ def test_packaging_metadata_uses_current_license_release_and_python_support_reco
 
     assert config["build-system"]["requires"] == ["setuptools>=77", "wheel"]
     project = config["project"]
+    assert project["name"] == "pyfofem-fire-effects"
     assert project["license"] == "MIT"
     assert project["license-files"] == ["LICENSE", "THIRD_PARTY_NOTICES.md"]
     assert project["requires-python"] == ">=3.11"

@@ -50,6 +50,16 @@ Python 3.12 on pull requests. It runs the core suite on Ubuntu for every
 supported version on updates to `master`.
 ## Installation
 
+Install the published distribution with pip or uv:
+
+```bash
+python -m pip install pyfofem-fire-effects
+# or
+uv pip install pyfofem-fire-effects
+`$([Environment]::NewLine)
+The distribution name differs from the Python import package. Use
+`import pyfofem` in Python code.
+
 Install [uv](https://docs.astral.sh/uv/) and create the project environment:
 
 ```bash

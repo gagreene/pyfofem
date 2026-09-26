@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/pyfofem
+      url: https://test.pypi.org/p/pyfofem-fire-effects
     permissions:
       id-token: write
     steps:
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/pyfofem
+      url: https://pypi.org/p/pyfofem-fire-effects
     permissions:
       id-token: write
     steps:
