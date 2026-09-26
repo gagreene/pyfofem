@@ -1,5 +1,5 @@
 {% set name = "pyfofem" %}
-{% set version = "0.1.1rc1" %}
+{% set version = "0.1.1rc2" %}
 package:
   name: {{ name|lower }}
   version: {{ version }}
