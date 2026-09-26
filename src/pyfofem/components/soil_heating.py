@@ -760,7 +760,7 @@ def _campbell_ambient_radiation(start_temp: float) -> float:
 
 def _campbell_fire_intensity(clock_sec: float, series, inc_s: float = 15.0) -> float:
     """
-    Port of C++ ``_Get_FirInt()`` (``fof_se.cpp:234-246``): a ZERO-ORDER
+    C++ reference correspondence for ``_Get_FirInt()`` (``fof_se.cpp:234-246``): a ZERO-ORDER
     HOLD sample from a fixed-increment array via INTEGER index division —
     NOT linear interpolation (a real divergence source the prior
     ``interp1d``-based non-duff flux construction did not replicate).
@@ -782,7 +782,7 @@ def _campbell_fire_intensity(clock_sec: float, series, inc_s: float = 15.0) -> f
 
 def _campbell_humidity(p: float, t: float) -> tuple:
     """
-    Port of C++ ``humidity()`` (``fof_soi.cpp:346-354``): relative
+    C++ reference correspondence for ``humidity()`` (``fof_soi.cpp:346-354``): relative
     humidity of soil pore air as a function of matric potential *p* and
     temperature *t* (Kelvin equation).
 
@@ -798,7 +798,7 @@ def _campbell_humidity(p: float, t: float) -> tuple:
 
 def _campbell_latent_heat(t: float) -> float:
     """
-    Port of C++ ``Hv()`` (``fof_soi.cpp:394-397``): latent heat of
+    C++ reference correspondence for ``Hv()`` (``fof_soi.cpp:394-397``): latent heat of
     vaporization (J/kg).
 
     :param t: Temperature (degC).
@@ -809,7 +809,7 @@ def _campbell_latent_heat(t: float) -> float:
 
 def _campbell_vapor_conductivity(t: float, p: float) -> float:
     """
-    Port of C++ ``Kvap()`` (``fof_soi.cpp:403-415``): vapor conductivity
+    C++ reference correspondence for ``Kvap()`` (``fof_soi.cpp:403-415``): vapor conductivity
     (kg/(m s Pa)).
 
     :param t: Temperature (degC).
@@ -828,7 +828,7 @@ def _campbell_vapor_conductivity(t: float, p: float) -> float:
 
 def _campbell_vapor_pressure_slope(t: float, p: float) -> float:
     """
-    Port of C++ ``slope()`` (``fof_soi.cpp:380-388``): d(vapor
+    C++ reference correspondence for ``slope()`` (``fof_soi.cpp:380-388``): d(vapor
     pressure)/dT at temperature *t*, vapor pressure *p*.
 
     :param t: Temperature (degC).
@@ -860,7 +860,7 @@ def _campbell_soil_depths_mm(depth_layers: list) -> list:
 
 def _campbell_signed_power(x: float, y: float) -> float:
     """
-    Port of C++ ``sPOW()`` (``fof_soi.cpp:425-439``): ``x`` raised to
+    C++ reference correspondence for ``sPOW()`` (``fof_soi.cpp:425-439``): ``x`` raised to
     ``y``, treating ``x`` as its absolute value (the Pascal-derived
     original), returning 0.0 for ``x == 0`` rather than raising.
 
@@ -879,7 +879,7 @@ def _campbell_thermal_conductivity(
         xwo: float, cop: float, p: float, s: float,
 ) -> tuple:
     """
-    Port of C++ ``tcond()`` (``fof_soi.cpp:218-255``): effective thermal
+    C++ reference correspondence for ``tcond()`` (``fof_soi.cpp:218-255``): effective thermal
     conductivity of the soil (de Vries-type mixing model with a
     moisture-dependent liquid-recirculation enhancement), plus the vapor
     conductivity enhancement factor.
@@ -928,7 +928,7 @@ def _campbell_thermal_conductivity(
 
 def _campbell_vapor_pressure(tn: float) -> float:
     """
-    Port of C++ ``vaporpressure()`` (``fof_soi.cpp:361-374``).
+    C++ reference correspondence for ``vaporpressure()`` (``fof_soi.cpp:361-374``).
 
     :param tn: Temperature (degC, but scaled by 1000 per the source's own
         ``r_t = r_tin * 1000`` — a Pascal-derived idiosyncrasy preserved
@@ -945,7 +945,7 @@ def _campbell_vapor_pressure(tn: float) -> float:
 
 def _campbell_water_content(p: float, xo: float) -> tuple:
     """
-    Port of C++ ``watercontent()`` (``fof_soi.cpp:325-340``): volumetric
+    C++ reference correspondence for ``watercontent()`` (``fof_soi.cpp:325-340``): volumetric
     water content as a function of matric potential *p*.
 
     :param p: Matric potential (J/kg, always negative in practice — a
@@ -1013,7 +1013,7 @@ def _duff_burn_profile(duff_params: dict) -> dict:
         (C++'s own fallback for an out-of-range percent,
         ``bur_brn.cpp:1974-1975``, exists only for a standalone-Burnup-
         without-FOFEM code path this Campbell contract has no equivalent
-        of, so it is rejected rather than silently ported).
+        of, so it is rejected rather than silently accepted).
     """
     if duff_params.get("duff_load") is None:
         raise ValueError(
@@ -1119,7 +1119,7 @@ def _duff_burn_rate(
         wdf_kgm2: float, dfm_ratio: float, pct_consumed: float,
 ) -> tuple:
     """
-    Direct port of C++ ``DuffBurn()`` (``bur_brn.cpp:1950-1986``).
+    C++ reference correspondence for ``DuffBurn()`` (``bur_brn.cpp:1950-1986``).
 
     :param wdf_kgm2: Duff dry load (kg/m²) — C++ ``wdf``. Any value ``<= 0``
         (including negative) yields all-zero output, matching C++'s own
@@ -1155,7 +1155,7 @@ def _duff_burn_rate(
 
 def _duff_heat_fraction(remaining_depth_cm: float) -> float:
     """
-    Direct port of C++ ``SD_HeatAdj()`` (``fof_sd.cpp:294-313``): the
+    C++ reference correspondence for ``SD_HeatAdj()`` (``fof_sd.cpp:294-313``): the
     fraction of surface heat transmitted through a duff layer of the given
     remaining depth.
 
@@ -1285,8 +1285,8 @@ def _make_guide_herb_shrub_intensity(
 
 def _run_coupled_soil_sim(state: dict, dt: float, forcing_fn, done_fn, start_temp: float) -> list:
     """
-    Shared outer clock-driven loop — a direct port of the shared skeleton
-    in C++'s ``SD_Mngr_New`` (``fof_sd.cpp:121-182``) and
+    Shared outer clock-driven loop. Its control flow is validated against
+    C++ ``SD_Mngr_New`` (``fof_sd.cpp:121-182``) and
     ``SE_Mngr_Array`` (``fof_se.cpp:104-163``): call *forcing_fn* for the
     current absorbed radiation, advance one Newton-converged timestep via
     :func:`_soiltemp_step`, record every real soil node's temperature,
@@ -1345,7 +1345,7 @@ def _run_coupled_soil_sim(state: dict, dt: float, forcing_fn, done_fn, start_tem
 
 def _soi_done_duff(t_arr, start_temp: float, clock_sec: float, burn_time_s: float) -> bool:
     """
-    Port of C++ ``SD_Mngr_New``'s ``_Done()`` (``fof_sd.cpp:201-217``):
+    C++ reference correspondence for ``SD_Mngr_New``'s ``_Done()`` (``fof_sd.cpp:201-217``):
     the duff-route simulation is complete once the burn has ended AND
     the top 5 layers have cooled back within 0.5 degC of the starting
     temperature.
@@ -1370,7 +1370,7 @@ def _soi_done_duff(t_arr, start_temp: float, clock_sec: float, burn_time_s: floa
 
 def _soi_done_nonduff(t_arr, start_temp: float, clock_sec: float, fi_now: float) -> bool:
     """
-    Port of C++ ``SE_Mngr_Array``'s ``_Done()`` (``fof_se.cpp:200-220``):
+    C++ reference correspondence for ``SE_Mngr_Array``'s ``_Done()`` (``fof_se.cpp:200-220``):
     the non-duff-route simulation is complete once at least 20 minutes
     have elapsed AND the combined wood-litter/herb-shrub fire intensity
     has dropped to zero AND the top 5 layers have cooled back within 0.5
@@ -1402,7 +1402,7 @@ def _soiltemp_initconsts(
         cop: float, xo: float, z_mm: list,
 ) -> dict:
     """
-    Port of C++ ``soiltemp_initconsts()`` (``fof_soi.cpp:264-295``):
+    C++ reference correspondence for ``soiltemp_initconsts()`` (``fof_soi.cpp:264-295``):
     build a fresh solver-state dict for one simulation run. C++ uses
     persistent module-global arrays reused across calls within one run;
     this dict gives each Python call its own isolated state instead, so
@@ -1446,7 +1446,7 @@ def _soiltemp_initconsts(
 
 def _soiltemp_initprofile(state: dict, w_init: float, t_init: float) -> None:
     """
-    Port of C++ ``soiltemp_initprofile()`` (``fof_soi.cpp:302-317``):
+    C++ reference correspondence for ``soiltemp_initprofile()`` (``fof_soi.cpp:302-317``):
     (re-)initialize the profile from a uniform starting water content and
     temperature. Mutates *state* in place — this is also called to RESET
     the profile after any state mutation the caller wants to discard
@@ -1481,7 +1481,7 @@ def _soiltemp_initprofile(state: dict, w_init: float, t_init: float) -> None:
 def _soiltemp_step(state: dict, r_rabs: float, dt: float, on_subiter=None,
                     on_surface_update=None) -> bool:
     """
-    Port of C++ ``soiltemp_step()`` (``fof_soi.cpp:87-211``): advance the
+    C++ reference correspondence for ``soiltemp_step()`` (``fof_soi.cpp:87-211``): advance the
     coupled temperature/matric-potential Newton iteration by one
     timestep, converging via a repeated linearized update until the
     energy and water mass-balance residuals fall below
@@ -1594,8 +1594,8 @@ def soil_heat_campbell(
         timestep: float = 10.0,
 ) -> pd.DataFrame:
     """
-    Predict mineral soil temperature using a direct port of the pinned
-    C++ coupled heat/moisture/vapor soil solver (``fof_soi.cpp``'s
+    Predict mineral soil temperature with a coupled heat/moisture/vapor soil
+    solver validated against the pinned C++ reference solver (``fof_soi.cpp``'s
     ``soiltemp_step``, driven by ``fof_sd.cpp``'s ``SD_Mngr_New`` for the
     duff route and ``fof_se.cpp``'s ``SE_Mngr_Array`` for the non-duff
     route — collectively C++'s ``SH_Mngr``).
@@ -1609,7 +1609,7 @@ def soil_heat_campbell(
     path.
 
     Exact bit-for-bit parity is NOT expected or claimed: the pinned C++
-    computes entirely in 32-bit ``float``, this port in 64-bit Python
+    computes entirely in 32-bit ``float``, this Python implementation in 64-bit
     ``float``/``numpy.float64`` — see the function's own tolerance
     evidence in ``tests/cpp_parity_live/tolerance_policy.json``
     (``soil_campbell_p5.duff``/``nonduff``) for the measured, evidence-
@@ -1618,7 +1618,7 @@ def soil_heat_campbell(
     :param model: 'duff' for surface flux from duff smoldering, or
         'non_duff' for surface flux from a burnup intensity time series.
     :param duff_params: Parameters describing the duff layer, used when
-        *model* is 'duff'. Ported directly from C++'s ``DuffBurn()``/
+        *model* is 'duff'. Validated against C++'s ``DuffBurn()``/
         ``SD_HeatAdj()`` contract (``bur_brn.cpp:1950-1986``,
         ``fof_sd.cpp:98-129,294-313``) — see :func:`_duff_burn_profile` for
         the exact citations and validation rules:

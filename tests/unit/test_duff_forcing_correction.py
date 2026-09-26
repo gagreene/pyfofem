@@ -206,7 +206,7 @@ def test_duff_burn_profile_pct_consumed_out_of_range_raises_value_error():
     ``bur_brn.cpp:1974-1975``) exists only for a standalone-Burnup-
     without-FOFEM path with no Campbell-contract equivalent, so an
     out-of-range ``pct_consumed`` is rejected outright rather than
-    silently ported or clamped -- per the task's explicit "do not invent a
+    silently accepted or clamped -- per the task's explicit "do not invent a
     clamp" instruction."""
     for bad in (-1.0, 100.5, float("nan"), float("inf")):
         with pytest.raises(ValueError, match="pct_consumed"):

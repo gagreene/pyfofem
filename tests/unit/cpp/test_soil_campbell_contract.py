@@ -74,7 +74,7 @@ from whether ``duff_dep_pre_in > 0`` (harness-contract section 7). Neither
 side is wrong - they are simply different points in the same pipeline
 (Python expects the caller to have already decided which surface-flux
 model applies; C++ decides it internally from a duff-depth input Python's
-function does not take at all) - but a caller porting scenarios between
+function does not take at all) - but a caller mapping scenarios between
 the two schemas must make that routing decision explicitly, since Python
 has no ``duff_dep_pre_in``-equivalent auto-selection.
 
@@ -100,7 +100,7 @@ _DEPTHS = list(range(1, 14))
 
 #: A short, clearly-decaying fire-intensity series (mirrors
 #: ``_soil_campbell_contract.py``'s shared side-file formula so the same physical
-#: scenario shape is exercised on both sides of the port, even though no
+#: scenario shape is exercised on both implementations, even though no
 #: numeric comparison is attempted yet - see the module docstring).
 _N_STEPS = 20
 _TIMES_S = [i * 15.0 for i in range(_N_STEPS)]

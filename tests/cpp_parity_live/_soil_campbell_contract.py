@@ -34,7 +34,7 @@ immediately below as HISTORICAL.** By explicit user decision, F-52's own
 acceptable: `soil_heat_campbell()` must eventually reproduce the pinned
 C++ soil-temperature outputs. The SciPy-``solve_ivp``-driven heat-only
 model the paragraph below describes was entirely REMOVED and replaced
-with a direct port of C++'s real coupled ``soiltemp_step`` Newton solver
+with a coupled ``soiltemp_step`` Newton solver validated against C++'s reference behavior
 (``pyfofem/components/soil_heating.py``); all 5 soil families now match
 the pinned C++ table bit-for-bit (F-51 fully resolved, not just
 "Coarse-Silt"). A 2026-09-17 diagnostic pass

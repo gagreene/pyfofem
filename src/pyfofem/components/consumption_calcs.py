@@ -187,7 +187,7 @@ def _litter_shortcut_mask(
     pre-fire load ("burnup always consumes all of the litter, so we send
     in consumed amount from the ... litter eq"). ``F-70``'s case-4 burnup
     duration divergence traced to this substitution being entirely absent
-    from the Python port -- see
+    from the Python implementation -- see
     ``development/plans/2026-09-23-burnup-duration-divergence-case4.md``.
 
     :param cvr_grp: Cover group name/code/array, or ``None``.

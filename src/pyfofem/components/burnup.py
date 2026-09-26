@@ -3,14 +3,14 @@ from __future__ import annotations
 """
 BURNUP – Post-frontal combustion model (Albini & Reinhardt).
 
-Python port of the original C++ BURNUP model. Simulates the consumption
+Python implementation of the BURNUP combustion model. Simulates the consumption
 of woody fuel particles after a surface fire passes, partitioning mass
 loss into flaming and smoldering combustion phases.
 
-Converted from: burnupcw.h / burnupw.cpp
+C++ reference correspondence: burnupcw.h / burnupw.cpp
 Original authors: Frank Albini & Elizabeth Reinhardt
 
-Port notes vs. C++ original
+C++ reference validation notes
 ----------------------------
 - NumPy arrays replace fixed-size C arrays; no MAXNO/MAXKL compile-time caps.
 - Triangular-index helper ``_loc`` uses pure integer arithmetic.
@@ -51,7 +51,7 @@ Performance optimisations for batch / multi-worker use
 - Validation in ``_check_fire`` uses direct ``if`` statements instead of
   building and iterating a list of tuples.
 
-@author: Gregory A. Greene (port)
+@author: Gregory A. Greene (implementation)
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 

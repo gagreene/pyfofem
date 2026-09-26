@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyfofem – Python port of the FOFEM fire-effects model.
+pyfofem – A Python library for modeling first-order fire effects. Its calculations are validated against the pinned FOFEM C++ reference implementation.
 """
 from __future__ import annotations
 

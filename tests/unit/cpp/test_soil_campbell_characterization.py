@@ -19,7 +19,7 @@ ONE place they are used as an ABSOLUTE value: ``_soiltemp_step``'s own
 ``gate0/04-findings.md`` F-70 for the live-C++-diagnostic evidence
 (measured pinned ``cp[1]`` for the dry non-duff scenario's first Newton
 sub-iteration: 639.550, vs the pre-fix-derived 105.035). With that fixed,
-Python's coupled solver (the F-70 first-round port of C++'s real
+Python's coupled solver (the F-70 first-round solver validated against C++'s real
 ``soiltemp_step``, NOT the old heat-only ``_campbell_rhs``/``solve_ivp``
 model F-52 originally compared) reproduces the pinned C++ execution to
 well under 0.001 degC max |diff|, pooled over all 14 layers and every
@@ -44,7 +44,7 @@ finding F-69). Everything below this note that describes F-53 as an
 unresolved, currently-failing defect ("current, confirmed-defective
 behaviour", "strict xfail", "flat start_temp output") is now HISTORICAL:
 ``_duff_flux_and_duration()`` was replaced by ``_duff_burn_profile()``
-(ported directly from C++'s ``DuffBurn()``/``SD_HeatAdj()``,
+(validated against C++'s ``DuffBurn()``/``SD_HeatAdj()``,
 ``bur_brn.cpp:1950-1986``/``fof_sd.cpp:98-129,294-313``), which converts
 ``duff_moisture`` from the documented whole-percent convention to C++'s
 ratio convention exactly once, uses ``duff_load`` as a real required

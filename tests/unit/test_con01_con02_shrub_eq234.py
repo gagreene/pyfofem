@@ -26,8 +26,8 @@ Test classes (per this repo's established convention):
 - **(a) Python contract tests**: shape/broadcast/omitted-parameter/vectorized
   isolation behavior. No parity claim.
 - **(b) source-relation cross-check**: the discriminating CON-02 case and the
-  CON-01 zero-load cases are verified against an independent, directly
-  hand-transcribed re-implementation of the pinned C++ formula text
+  CON-01 zero-load cases are verified against a standalone Python calculation
+  validated against the pinned C++ formula text
   (``_eq16_fw`` / ``_eq234_fraction_reference`` below), not against
   ``consm_shrub()``'s own internals. This is NOT executable C++ parity: the
   live ``shrub_herb_eq`` harness mode's 15-column input schema

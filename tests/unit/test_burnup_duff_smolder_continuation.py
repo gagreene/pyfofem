@@ -113,5 +113,5 @@ def test_duff_still_smoldering_extends_the_simulation_past_wood_litter_fizzle():
     # not stop arbitrarily early or run away far past it -- within one
     # timestep's worth of slack either side (15 s, plus a `Duff_CPTS`-
     # style residual-amount tail is expected to land within one
-    # additional timestep of tdf, matching the C++ mechanism this ports).
+    # additional timestep of tdf, matching the corresponding C++ mechanism).
     assert abs(with_duff_final_time - tdf) < 30.0, (with_duff_final_time, tdf)

@@ -1,6 +1,6 @@
 # pyfofem
 
-`pyfofem` is a Python library for modeling first-order fire effects, porting key FOFEM science and workflows to Python. It provides vectorized APIs for tree mortality, fuel consumption, smoke emissions, burnup, and soil heating.
+`pyfofem` is a Python library for modeling first-order fire effects. Its calculations are validated against the pinned FOFEM C++ reference implementation. It provides vectorized APIs for tree mortality, fuel consumption, smoke emissions, burnup, and soil heating.
 
 Start with the quick start guide: [docs/QUICK_START.md](docs/QUICK_START.md)
 
@@ -36,7 +36,7 @@ pyfofem/
 
 - Tree mortality models (`crnsch`, `bolchar`, `crcabe`)
 - Fuel consumption for litter, duff, herb, shrub, canopy, mineral soil
-- Burnup post-frontal combustion engine (Albini & Reinhardt port)
+- Burnup post-frontal combustion engine based on Albini & Reinhardt
 - Smoke emissions (`legacy`, `default`, `expanded` modes)
 - Campbell soil-heating model (Massman HMV is in development and unavailable)
 - Integrated soil-heating outputs in `run_fofem_emissions` (`Lay0`, `Lay2`, `Lay4`, `Lay6`, `Lay60d`, `Lay275d`)

@@ -26,7 +26,7 @@ area exactly, by inverting the overlap relation both sides share:
 ``pct = 100 * (1 - exp(-area / 43560))`` (Python
 ``tree_flame_calcs.py``; C++ ``MRT_Overlap``, fof_mrt.cpp:1715-1726), so
 ``area = -43560 * ln(1 - pct/100)``. That inversion is algebra on Python's
-OWN output, not a re-implementation of the C++ crown-width equation.
+OWN output, not a claim of exact C++ crown-width behavior.
 
 Function order: private helpers first, then public test functions, each group
 alphabetized, per AGENTS.md.

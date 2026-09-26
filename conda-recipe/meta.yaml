@@ -36,7 +36,7 @@ test:
 
 about:
   home: https://github.com/gagreene/pyfofem
-  summary: Python port of the FOFEM fire-effects model
+  summary: Python library for FOFEM fire-effects calculations
   license: MIT
   license_file: LICENSE
 

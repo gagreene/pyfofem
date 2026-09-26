@@ -491,7 +491,7 @@ def compute_pre_burnup_consumption(
 
     # consm_shrub()'s SE non-Pocosin Eq 234 branch now takes pre_dw10/pre_dw1
     # directly (CON-02, fof_hsf.cpp:229-274's 4-term f_WPRE), so the separate
-    # inline Eq 234 re-implementation formerly here is no longer needed.
+    # inline Eq 234 calculation formerly here is no longer needed.
     # A facade-versus-helper regression covers nonzero 1-hr/10-hr loads and
     # the zero-shrub guard; see test_con01_con02_shrub_eq234.py.
     slc_pct_arr = np.clip(
