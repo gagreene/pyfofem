@@ -154,7 +154,7 @@ def build_emissions_result(
     :param lay6_arr: Max soil temperature at 6 cm depth (only used when *soil_enabled*).
     :param lay60d_arr: Deepest layer index exceeding 60°C (only used when *soil_enabled*).
     :param lay275d_arr: Deepest layer index exceeding 275°C (only used when *soil_enabled*).
-    :return: Dict of modeled outputs, keyed by CONSUMPTION_VARS-style names. Values are
+    :return: Dict of modelled outputs, keyed by CONSUMPTION_VARS-style names. Values are
         plain Python float/int when *scalar_call* is True, otherwise np.ndarray.
     """
 

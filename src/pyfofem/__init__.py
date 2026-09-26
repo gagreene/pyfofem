@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyfofem – A Python library for modeling first-order fire effects. Its calculations are validated against the pinned FOFEM C++ reference implementation.
+PyFOFEM is a Python library for modelling first-order fire effects. Its calculations are validated against the pinned FOFEM C++ reference implementation.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # pyfofem
 
-`pyfofem` is a Python library for modeling first-order fire effects. Its calculations are validated against the pinned FOFEM C++ reference implementation. It provides vectorized APIs for tree mortality, fuel consumption, smoke emissions, burnup, and soil heating.
+`pyfofem` is a Python library for modelling first-order fire effects. Its calculations are validated against the pinned FOFEM C++ reference implementation. It provides vectorized APIs for tree mortality, fuel consumption, smoke emissions, burnup, and soil heating.
 
 Start with the quick start guide: [docs/QUICK_START.md](docs/QUICK_START.md)
 
@@ -108,7 +108,7 @@ so `NOXS` mainly comes from the duff group unless you change factor groups.
 
 ## Output variables
 
-Scalar calls return scalar values. When any modeled input is an array,
+Scalar calls return scalar values. When any modelled input is an array,
 corresponding outputs are NumPy arrays with one value per input case. Fuel-load
 and consumption outputs use the selected unit system: T/ac for `Imperial` and
 kg/m² for `SI`. Emissions use lb/acre for `Imperial` and g/m² for `SI`.
@@ -174,12 +174,12 @@ six `Lay*` keys are present only when soil heating is enabled.
 | `CO2S_Duff` | g/m², lb/acre | Duff-only smoldering carbon dioxide. Present for `legacy` and `expanded` modes. |
 | `NOXS_Duff` | g/m², lb/acre | Duff-only smoldering nitrogen oxides, reported as NO. Present for `legacy` and `expanded` modes. |
 | `SO2S_Duff` | g/m², lb/acre | Duff-only smoldering sulfur dioxide. Present for `legacy` and `expanded` modes. |
-| `Lay0` | °C | Maximum modeled mineral-soil surface temperature. Present only when soil heating is enabled. |
-| `Lay2` | °C | Maximum modeled mineral-soil temperature at 2 cm depth. Present only when soil heating is enabled. |
-| `Lay4` | °C | Maximum modeled mineral-soil temperature at 4 cm depth. Present only when soil heating is enabled. |
-| `Lay6` | °C | Maximum modeled mineral-soil temperature at 6 cm depth. Present only when soil heating is enabled. |
-| `Lay60d` | Layer index | Deepest requested soil layer whose modeled temperature exceeds 60 °C; `-1` means no layer exceeded the threshold. With the default 1-cm depth grid, the index is also the depth in cm. |
-| `Lay275d` | Layer index | Deepest requested soil layer whose modeled temperature exceeds 275 °C; `-1` means no layer exceeded the threshold. With the default 1-cm depth grid, the index is also the depth in cm. |
+| `Lay0` | °C | Maximum modelled mineral-soil surface temperature. Present only when soil heating is enabled. |
+| `Lay2` | °C | Maximum modelled mineral-soil temperature at 2 cm depth. Present only when soil heating is enabled. |
+| `Lay4` | °C | Maximum modelled mineral-soil temperature at 4 cm depth. Present only when soil heating is enabled. |
+| `Lay6` | °C | Maximum modelled mineral-soil temperature at 6 cm depth. Present only when soil heating is enabled. |
+| `Lay60d` | Layer index | Deepest requested soil layer whose modelled temperature exceeds 60 °C; `-1` means no layer exceeded the threshold. With the default 1-cm depth grid, the index is also the depth in cm. |
+| `Lay275d` | Layer index | Deepest requested soil layer whose modelled temperature exceeds 275 °C; `-1` means no layer exceeded the threshold. With the default 1-cm depth grid, the index is also the depth in cm. |
 
 Units in paired entries are listed in the table header's **SI, Imperial**
 order. The `PM10S`, `PM25S`, `CH4S`, `COS`, `CO2S`, `NOXS`, and `SO2S` values include

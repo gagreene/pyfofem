@@ -280,7 +280,7 @@ def run_fofem_emissions(
         ``ProcessPoolExecutor``.
     :param show_progress: If ``True``, display a :mod:`tqdm` progress bar
         during the per-cell burnup loop. Default ``False``.
-    :return: Dict of modeled outputs. Values are plain Python ``float``/``int``
+    :return: Dict of modelled outputs. Values are plain Python ``float``/``int``
         when all inputs are scalars, otherwise ``np.ndarray``. Expanded
         emission outputs are only included for ``em_mode='legacy'`` or
         ``em_mode='expanded'``; soil-heating outputs are only included when

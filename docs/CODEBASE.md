@@ -126,7 +126,7 @@ to create forcing from facade outputs:
 - Non-duff heating accepts herb/shrub consumption alone, or a burnup result
   when litter or woody fuel contributes.
 
-Massman heat-moisture-vapor modeling is in development and deliberately
+Massman heat-moisture-vapor modelling is in development and deliberately
 unavailable. `soil_heat_massman()` raises `NotImplementedError`; it is not
 part of the public package API or the emissions facade.
 
@@ -220,7 +220,7 @@ artifacts.
 
 ## Current limitations
 
-- Massman heat-moisture-vapor modeling is not available yet.
+- Massman heat-moisture-vapor modelling is not available yet.
 - Cover-type lookup from SAF, NVCS, and FCCS classifications is not provided;
   callers supply PyFOFEM region and cover-group codes.
 - The 1,000-hour fuel-size distribution helper is not currently exposed.
