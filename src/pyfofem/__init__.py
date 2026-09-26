@@ -4,7 +4,7 @@ PyFOFEM is a Python library for modelling first-order fire effects. Its calculat
 """
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.1.1rc1"
 
 from .components.soil_heating import soil_heat_campbell, soil_heat_from_consumption
 
