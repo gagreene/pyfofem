@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use PyFOFEM, please cite this software and the underlying FOFEM model."
 title: "PyFOFEM"
 type: software
-version: 0.1.0
+version: 0.1.2rc1
 authors:
   - family-names: Greene
     given-names: Gregory A.

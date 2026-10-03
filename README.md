@@ -225,7 +225,9 @@ Soil moisture precedence during soil-heating runs:
 
 When `BurnupError != 0`, the burnup model does not run for that case and
 `pyfofem` falls back to simplified consumption-duration defaults for the
-emissions pipeline.
+emissions pipeline. For code `99`, a `RuntimeWarning` reports each distinct
+exception (class, message, and the source file, line and function that
+raised it), the number of affected cells, and the first cell indices.
 
 `BurnupError` codes:
 

@@ -13,6 +13,7 @@ All component calculations are delegated to the sub-modules in
 """
 __author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
 
+import warnings
 import numpy as np
 from typing import Any, Dict, Optional, Union
 
@@ -642,11 +643,16 @@ def run_fofem_emissions(
                 ))
 
         # Merge burnup results back into output arrays
+        err99_detail: Dict[str, list] = {}
         for i, cr in enumerate(cell_results):
             if cr is None:
                 continue
             burnup_adj_arr[i] = cr.get('burnup_limit_adjust', 0)
             burnup_err_arr[i] = cr.get('burnup_error', 0)
+            if cr.get('burnup_error', 0) == 99:
+                err99_detail.setdefault(
+                    cr.get('burnup_error_detail', 'no detail recorded'), []
+                ).append(i)
 
             # If burnup errored, skip consumption merge (use simplified defaults)
             if cr.get('burnup_error', 0) != 0:
@@ -715,6 +721,16 @@ def run_fofem_emissions(
             # in the per-cell consm_duff loop above). This matches C++ behaviour where
             # DuffBurn uses f_DufConPerCent from DUF_Mngr and burnup only
             # controls timing/intensity, not the total consumed amount.
+
+        # BurnupError 99 is a catch-all; report each distinct cause once so
+        # the failure is diagnosable without changing the output schema.
+        for detail, cells in err99_detail.items():
+            warnings.warn(
+                f"BurnupError 99 (unexpected burnup exception) for "
+                f"{len(cells)} cell(s); first cell indices {cells[:5]}: "
+                f"{detail}",
+                RuntimeWarning, stacklevel=2,
+            )
 
     # ------------------------------------------------------------------
     # 5b. Zero out all per-cell outputs for cells with a burnup error

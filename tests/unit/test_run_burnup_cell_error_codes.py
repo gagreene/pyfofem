@@ -90,7 +90,11 @@ def _assert_error_result(result: Dict[str, Any], expected_code: int) -> None:
     :param result: Return value of :func:`_run_burnup_cell`.
     :param expected_code: The exact ``burnup_error`` code expected.
     """
-    assert set(result) == {'burnup_limit_adjust', 'burnup_error'}
+    expected_keys = {'burnup_limit_adjust', 'burnup_error'}
+    if expected_code == 99:
+        # Code 99 also carries the exception class and message.
+        expected_keys.add('burnup_error_detail')
+    assert set(result) == expected_keys
     assert result['burnup_error'] == expected_code
     assert isinstance(result['burnup_limit_adjust'], int)
 
@@ -387,6 +391,11 @@ def test_code_99_unexpected_exception_falls_back_to_catch_all():
     malformed_bkw = dict(r0=1.83, dr=0.4, max_times=3000, validate=True)
     result = bc._run_burnup_cell(_base_ckw(bkw=malformed_bkw))
     _assert_error_result(result, 99)
+    assert result['burnup_error_detail'].startswith('KeyError')
+    assert 'fint_switch' in result['burnup_error_detail']
+    # Location of the raising line: file:line in function.
+    assert re.search(r'\(at burnup_calcs\.py:\d+ in _run_burnup_cell\)$',
+                     result['burnup_error_detail'])
 
 
 def test_error_code_table_completeness():
