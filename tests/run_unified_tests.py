@@ -233,6 +233,10 @@ CORE_TESTS: List[str] = [
     # golden-independent proof of the burnup() duff-remaining termination
     # gate fix. Pure Python, no live C++ build.
     "tests/unit/test_burnup_duff_smolder_continuation.py",
+    # 2026-10-03 zero-intensity TempF guard: C++ TempF's `q != 0` check;
+    # field data returned BurnupError 99 for every cell without it. Pure
+    # Python, no live C++ build.
+    "tests/unit/test_burnup_zero_intensity_tempfire.py",
 ]
 
 FULL_EXTRA_TESTS: List[str] = [

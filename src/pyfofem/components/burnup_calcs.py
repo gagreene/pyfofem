@@ -3,6 +3,8 @@
 burnup_calcs.py – Burnup model helpers and wrappers split from consumption_calcs.py.
 """
 from __future__ import annotations
+import os
+import traceback
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 from .burnup import (
@@ -168,6 +170,23 @@ def _extract_burnup_consumption(
         }
     return out
 
+def _describe_exception(exc: BaseException) -> str:
+    """
+    Describe *exc* for a BurnupError 99 report.
+
+    :param exc: The caught exception.
+    :return: ``"<Class>: <message> (at <file>:<line> in <function>)"``, where
+        the location is the innermost traceback frame (the line that
+        raised). The location is omitted if no traceback is available.
+    """
+    text = f'{type(exc).__name__}: {exc}'
+    frames = traceback.extract_tb(exc.__traceback__)
+    if frames:
+        last = frames[-1]
+        text += f' (at {os.path.basename(last.filename)}:{last.lineno} in {last.name})'
+    return text
+
+
 def _run_burnup_cell(ckw: dict):
     """
     Run the burnup model for a single spatial cell.
@@ -197,6 +216,9 @@ def _run_burnup_cell(ckw: dict):
         series), 'class_order', 'burnup_limit_adjust', and 'burnup_error'
         (0). On failure, a dict with only 'burnup_limit_adjust' and a
         nonzero 'burnup_error' code (see ``README.md`` for the code table).
+        When the code is 99 (unexpected exception), the dict also carries
+        'burnup_error_detail', the exception class, message, and the
+        file, line and function that raised it.
     """
     fl     = ckw['fuel_loadings_bu']
     fm     = ckw['fuel_moistures_bu']
@@ -337,9 +359,16 @@ def _run_burnup_cell(ckw: dict):
                 if attr_fragment in msg:
                     err_code = code
                     break
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': err_code}
-    except Exception:
-        return {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': 99}
+        result = {'burnup_limit_adjust': burnup_limit_adjust, 'burnup_error': err_code}
+        if err_code == 99:
+            result['burnup_error_detail'] = _describe_exception(exc)
+        return result
+    except Exception as exc:
+        return {
+            'burnup_limit_adjust': burnup_limit_adjust,
+            'burnup_error': 99,
+            'burnup_error_detail': _describe_exception(exc),
+        }
 
 def gen_burnup_in_file(
         out_brn_path=None,

@@ -683,7 +683,9 @@ def _temp_fire(q: float, r: float, tamb: float) -> float:
     ERR = 1.0e-04
     AA = 20.0
 
-    term = r / (AA * q)
+    # C++ TempF (bur_brn.cpp): ``if (q != 0) term = r / (aa * q); else
+    # term = 0;``. q reaches 0 while duff still smolders after flaming ends.
+    term = r / (AA * q) if q != 0.0 else 0.0
     rlast = r
     for _ in range(500):
         den = 1.0 + term * (rlast + 1.0) * (rlast * rlast + 1.0)
