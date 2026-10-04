@@ -19,7 +19,7 @@ Constants:
     _TPAC_TO_KGPM2 – T/ac -> kg/m² conversion factor.
     _KGPM2_TO_TPAC – kg/m² -> T/ac conversion factor (its reciprocal).
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import numpy as np
 from typing import Dict, Union

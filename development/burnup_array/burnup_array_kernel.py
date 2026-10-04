@@ -44,7 +44,7 @@ A :class:`BurnupArrayResult` dataclass with NaN-padded 2-D / 3-D arrays.
 
 @author: Gregory A. Greene (prototype)
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 from dataclasses import dataclass
 from typing import Optional, Tuple

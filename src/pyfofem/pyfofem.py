@@ -11,7 +11,7 @@ This module exposes two top-level driver functions:
 All component calculations are delegated to the sub-modules in
 ``pyfofem.components``.
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import warnings
 import numpy as np

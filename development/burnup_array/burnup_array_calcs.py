@@ -24,7 +24,7 @@ wrappers.
 
 @author: Gregory A. Greene
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
