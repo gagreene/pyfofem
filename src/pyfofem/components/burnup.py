@@ -53,7 +53,7 @@ Performance optimisations for batch / multi-worker use
 
 @author: Gregory A. Greene (implementation)
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import math
 from dataclasses import dataclass

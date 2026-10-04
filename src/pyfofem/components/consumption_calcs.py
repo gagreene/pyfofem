@@ -17,7 +17,7 @@ Functions:
     _extract_burnup_consumption     – Internal helper to extract per-class consumption.
     _burnup_durations               – Internal helper to extract flaming/smoldering durations.
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import warnings
 import numpy as np

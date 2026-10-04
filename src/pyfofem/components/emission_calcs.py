@@ -7,7 +7,7 @@ Provides:
 * ``calc_smoke_emissions`` – compute smoke-emission mass per unit area from
   fuel consumption totals using bundled emission-factor CSV data.
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import os
 import numpy as np

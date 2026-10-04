@@ -9,7 +9,7 @@ Provides three mortality equations:
 * ``mort_crcabe``  – cambium kill / post-fire model (CRCABE; Hood & Lutes 2017)
                      for conifers.
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import csv
 import os

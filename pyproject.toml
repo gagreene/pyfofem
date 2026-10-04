@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [
-    {name = "Gregory A. Greene", email = "map.n.trowel@gmail.com"},
+    {name = "Gregory A. Greene"},
 ]
 keywords = ["fofem", "fire", "emissions", "burnup", "soil-heating", "mortality"]
 classifiers = [
@@ -47,6 +47,7 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/gagreene/pyfofem"
 Repository = "https://github.com/gagreene/pyfofem"
+Issues = "https://github.com/gagreene/pyfofem/issues"
 
 [tool.setuptools]
 include-package-data = true

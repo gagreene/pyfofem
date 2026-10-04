@@ -7,7 +7,7 @@ Functions in this module compute intermediate fire-behaviour quantities
 (bark thickness, crown geometry, canopy cover) that feed into both the
 mortality and consumption/emissions sub-models.
 """
-__author__ = ['Gregory A. Greene, map.n.trowel@gmail.com']
+__author__ = ['Gregory A. Greene']
 
 import csv
 import os
